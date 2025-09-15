@@ -1,4 +1,4 @@
-# Connected Mobility
+# Guidance for Connected Mobility
 
 A comprehensive AWS-based connected vehicle system featuring real-time telemetry processing, fleet management, and IoT device monitoring.
 

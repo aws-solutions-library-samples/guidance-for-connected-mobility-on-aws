@@ -1,4 +1,4 @@
-# Connected Mobility - Modular CDK Architecture
+# Guidance for Connected Mobility - Modular CDK Architecture
 
 This directory contains a modular CDK implementation of the Connected Mobility Solution, designed to replace the existing Makefile-based deployment with a more maintainable and testable approach.
 
