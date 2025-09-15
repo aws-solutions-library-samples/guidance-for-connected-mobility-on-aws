@@ -1,7 +1,7 @@
 {
   "name": "connected-mobility-workspace",
   "version": "1.0.0",
-  "description": "Fleet Management Platform",
+  "description": "Connected Mobility Platform",
   "modules": {
     "fleet_manager": {
       "path": "./modules/cms_ui",

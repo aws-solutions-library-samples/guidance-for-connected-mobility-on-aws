@@ -1,4 +1,4 @@
-# Fleet Management Platform
+# Connected Mobility Platform
 
 A comprehensive AWS-based connected vehicle platform featuring real-time telemetry processing, fleet management, and IoT device monitoring.
 

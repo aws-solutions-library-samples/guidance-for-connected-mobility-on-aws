@@ -1,4 +1,4 @@
-# Connected Mobility Solution - Fleet Manager
+# Connected Mobility - Fleet Manager
 
 ## Quick Start
 

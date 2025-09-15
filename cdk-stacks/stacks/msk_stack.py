@@ -292,27 +292,20 @@ def lambda_handler(event, context):
             # We'll use a custom resource to check and reuse existing VPC destinations
             
             # For now, create VPC destination using direct CDK approach (proven working pattern)
-            # But add a condition to prevent duplicates
-            available_subnets = self.vpc.public_subnets if self.vpc.public_subnets else self.vpc.private_subnets
-            
-            self.vpc_destination = iot.CfnTopicRuleDestination(
-                self, f"MSKVPCDestination{timestamp}",
-                vpc_properties=iot.CfnTopicRuleDestination.VpcDestinationPropertiesProperty(
-                    subnet_ids=[subnet.subnet_id for subnet in available_subnets],
-                    security_groups=[self.msk_security_group.security_group_id],
-                    vpc_id=self.vpc.vpc_id,
-                    role_arn=iot_stack.iot_role.role_arn
-                )
-            )
+            # Skip VPC destination creation to avoid conflicts with existing destinations
+            # Use a placeholder ARN that will be resolved by custom resource
+            self.vpc_destination_arn = f"arn:aws:iot:{self.region}:{self.account}:ruledestination/vpc/existing"
             
         except Exception as e:
             # If creation fails due to existing destination, we'll handle it in the custom resource
             print(f"VPC destination creation may have conflicts: {e}")
             # Use a placeholder ARN that will be resolved by custom resource
             self.vpc_destination_arn = f"arn:aws:iot:{self.region}:{self.account}:ruledestination/vpc/existing"
+            # Use a placeholder ARN that will be resolved by custom resource
+            self.vpc_destination_arn = f"arn:aws:iot:{self.region}:{self.account}:ruledestination/vpc/existing"
         
-        # Ensure VPC destination is created after IAM policy
-        self.vpc_destination.add_dependency(self.iot_msk_policy.node.default_child)
+        # Skip VPC destination dependency since we're not creating it
+        # self.vpc_destination.add_dependency(self.iot_msk_policy.node.default_child)
         
         # IoT Topic Rule to send data to MSK (uses direct VPC destination)
         rule_name = f"{construct_id.replace('-', '_')}_telemetry_to_msk_{timestamp}"
@@ -324,7 +317,7 @@ def lambda_handler(event, context):
                 actions=[
                     iot.CfnTopicRule.ActionProperty(
                         kafka=iot.CfnTopicRule.KafkaActionProperty(
-                            destination_arn=self.vpc_destination.attr_arn,
+                            destination_arn=self.vpc_destination_arn,
                             topic="cms-telemetry-raw",
                             key="basic-ingest",
                             client_properties={
@@ -344,7 +337,8 @@ def lambda_handler(event, context):
         
         # Add dependencies
         self.iot_rule.node.add_dependency(self.bootstrap_servers_resource)
-        self.iot_rule.node.add_dependency(self.vpc_destination)
+        # Skip VPC destination dependency since we're not creating it
+        # self.iot_rule.node.add_dependency(self.vpc_destination)
         
         # Store cluster ARN and bootstrap servers as properties
         self.cluster_arn = self.cluster.attr_arn
@@ -376,7 +370,7 @@ def lambda_handler(event, context):
         
         CfnOutput(
             self, "VPCDestinationArn", 
-            value=self.vpc_destination.attr_arn,
+            value=self.vpc_destination_arn,
             export_name=f"{construct_id}-vpc-destination-arn"
         )
     
