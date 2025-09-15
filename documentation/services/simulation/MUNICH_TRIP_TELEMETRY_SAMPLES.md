@@ -1,4 +1,4 @@
-# Munich Trip & Telemetry Sample Payloads for Flink Processing
+# Munich Trip & Telemetry Sample Payloads for Telemetry Pipeline
 
 ## Overview
 Sample trip and telemetry payloads based on Munich historical data patterns for Flink processor implementation. These show the exact data structures your processor will receive from the simulator.

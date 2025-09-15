@@ -1,4 +1,4 @@
-# CDK Stacks - Infrastructure as Code
+# Infrastructure - Infrastructure as Code
 
 AWS CDK stacks for deploying the Connected Mobility infrastructure.
 

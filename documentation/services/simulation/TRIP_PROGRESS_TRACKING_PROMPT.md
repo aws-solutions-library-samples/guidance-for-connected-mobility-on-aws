@@ -1,4 +1,4 @@
-# Trip Progress Tracking Guide for Flink Processing
+# Trip Progress Tracking Guide for Telemetry Pipeline
 
 ## Overview
 The simulator now includes real-time trip progress information in every telemetry payload. Your Flink processor can use this data to track individual trip completion, estimate arrival times, and provide fleet-wide progress analytics for the simulation dashboard.
@@ -165,7 +165,7 @@ interface TripProgress {
 - **Remaining Time**: `(totalRoutePoints - routeIndex) × 15 seconds`
 - **ETA**: `currentTimestamp + estimatedRemainingTime`
 
-## Flink Processing Requirements
+## Telemetry Pipeline Requirements
 
 ### 1. Trip State Tracking
 ```java

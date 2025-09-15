@@ -1,4 +1,4 @@
-# Simulation Service - Vehicle Telemetry Simulation
+# Telemetry Simulation Service - Vehicle Telemetry Simulation
 
 Python-based service for generating realistic vehicle telemetry data for testing and development of the Connected Mobility.
 

@@ -8,7 +8,7 @@ AWS CDK-based infrastructure deployment for the Connected Mobility Solution, man
 ┌─────────────────────────────────────────────────────────┐
 │                 Deployment Module                       │
 ├─────────────────────────────────────────────────────────┤
-│  CDK Stacks              │  AWS Resources               │
+│  Infrastructure              │  AWS Resources               │
 │  ┌─────────────────┐     │  ┌─────────────────────────┐ │
 │  │ Core Stack      │────┼──│ VPC, IAM, Security      │ │
 │  │ Data Stack      │     │  │ DynamoDB, S3, Kinesis   │ │

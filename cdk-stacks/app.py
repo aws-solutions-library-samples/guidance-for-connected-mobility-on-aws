@@ -58,8 +58,7 @@ flink_stack = FlinkStack(
     f"{stack_prefix}-flink-v2",
     env=env,
     description="Guidance for Connected Mobility (SO5947) - Processing Layer",
-    # Pass MSK stack reference for dynamic configuration
-    msk_stack=msk_stack,
+    # MSK stack will be connected later via configuration updates
     storage_tables=storage_stack.tables
 )
 

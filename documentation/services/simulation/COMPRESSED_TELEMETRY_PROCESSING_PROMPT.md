@@ -146,7 +146,7 @@ public void testMalformedCompressedData() {
 - Optimize Flink job for compression-only processing
 - Full bandwidth and cost benefits realized
 
-## Flink Processing Implementation
+## Telemetry Pipeline Implementation
 
 ### 1. Decompression Function (Java)
 ```java

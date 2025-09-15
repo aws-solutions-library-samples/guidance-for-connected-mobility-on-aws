@@ -23,7 +23,8 @@ from typing import Dict
 class FlinkStack(Stack):
     
     def __init__(self, scope: Construct, construct_id: str, 
-                 msk_stack, storage_tables: Dict[str, dynamodb.Table], **kwargs) -> None:
+                 storage_tables: Dict[str, dynamodb.Table], 
+                 msk_stack=None, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
         
         # Get VPC - use default VPC (same as MSK stack)
@@ -64,39 +65,40 @@ class FlinkStack(Stack):
             ]
         )
         
-        # Add permissions for MSK access
-        self.flink_role.add_to_policy(
-            iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
-                actions=[
-                    "kafka-cluster:Connect",
-                    "kafka-cluster:AlterCluster", 
-                    "kafka-cluster:DescribeCluster",
-                    "kafka-cluster:*Topic*",
-                    "kafka-cluster:WriteData",
-                    "kafka-cluster:ReadData",
-                    "kafka-cluster:AlterGroup",
-                    "kafka-cluster:DescribeGroup"
-                ],
-                resources=[
-                    msk_stack.cluster_arn,
-                    f"{msk_stack.cluster_arn}/topic/*",
-                    f"{msk_stack.cluster_arn}/group/*"
-                ]
+        # Add permissions for MSK access (conditional)
+        if msk_stack:
+            self.flink_role.add_to_policy(
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=[
+                        "kafka-cluster:Connect",
+                        "kafka-cluster:AlterCluster", 
+                        "kafka-cluster:DescribeCluster",
+                        "kafka-cluster:*Topic*",
+                        "kafka-cluster:WriteData",
+                        "kafka-cluster:ReadData",
+                        "kafka-cluster:AlterGroup",
+                        "kafka-cluster:DescribeGroup"
+                    ],
+                    resources=[
+                        msk_stack.cluster_arn,
+                        f"{msk_stack.cluster_arn}/topic/*",
+                        f"{msk_stack.cluster_arn}/group/*"
+                    ]
+                )
             )
-        )
-        
-        # Add permissions for MSK cluster metadata
-        self.flink_role.add_to_policy(
-            iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
-                actions=[
-                    "kafka:DescribeCluster",
-                    "kafka:DescribeClusterV2", 
-                    "kafka:GetBootstrapBrokers"
-                ],
-                resources=["*"]
-            )
+            
+            # Add permissions for MSK cluster metadata
+            self.flink_role.add_to_policy(
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=[
+                        "kafka:DescribeCluster",
+                        "kafka:DescribeClusterV2", 
+                        "kafka:GetBootstrapBrokers"
+                    ],
+                    resources=["*"]
+                )
         )
         
         # Add DynamoDB permissions for all tables
@@ -151,16 +153,21 @@ class FlinkStack(Stack):
         def create_flink_app_config(processor_type: str, log_group: logs.LogGroup, additional_properties: Dict[str, str] = None):
             base_properties = {
                 "PROCESSOR_TYPE": processor_type,
-                "bootstrap.servers": msk_stack.bootstrap_servers,
-                "security.protocol": "SASL_SSL",
-                "sasl.mechanism": "AWS_MSK_IAM",
-                "sasl.jaas.config": "software.amazon.msk.auth.iam.IAMLoginModule required;",
-                "sasl.client.callback.handler.class": "software.amazon.msk.auth.iam.IAMClientCallbackHandler",
-                "sasl.login.callback.handler.class": "software.amazon.msk.auth.iam.IAMClientCallbackHandler",  # Required per guide
                 "auto.offset.reset": "earliest",
                 "enable.auto.commit": "false",
                 "aws.region": self.region
             }
+            
+            # Add MSK configuration only if MSK stack is available
+            if msk_stack:
+                base_properties.update({
+                    "bootstrap.servers": msk_stack.bootstrap_servers,
+                    "security.protocol": "SASL_SSL",
+                    "sasl.mechanism": "AWS_MSK_IAM",
+                    "sasl.jaas.config": "software.amazon.msk.auth.iam.IAMLoginModule required;",
+                    "sasl.client.callback.handler.class": "software.amazon.msk.auth.iam.IAMClientCallbackHandler",
+                    "sasl.login.callback.handler.class": "software.amazon.msk.auth.iam.IAMClientCallbackHandler"
+                })
             
             if additional_properties:
                 base_properties.update(additional_properties)
@@ -196,12 +203,17 @@ class FlinkStack(Stack):
                         "PropertyGroupId": "consumer.config.0",
                         "PropertyMap": base_properties
                     }]
-                },
-                "VpcConfigurations": [{
+                }
+            }
+            
+            # Add VPC configuration only if MSK stack is available
+            if msk_stack:
+                app_config["VpcConfigurations"] = [{
                     "SubnetIds": [subnet.subnet_id for subnet in subnets[:2]],
                     "SecurityGroupIds": [msk_stack.msk_security_group.security_group_id]
                 }]
-            }
+            
+            return app_config
         
         # Custom resource to auto-start Flink applications
         flink_starter_role = iam.Role(

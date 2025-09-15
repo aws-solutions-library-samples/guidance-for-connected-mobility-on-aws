@@ -143,7 +143,7 @@ The realtime telemetry simulator creates a complete vehicle trip lifecycle with 
 }
 ```
 
-## Required Flink Processing Logic
+## Required Telemetry Pipeline Logic
 
 ### 1. Telemetry Data Processing
 ```java

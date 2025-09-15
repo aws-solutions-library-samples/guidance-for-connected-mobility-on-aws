@@ -6,7 +6,7 @@ A comprehensive AWS-based connected vehicle system featuring real-time telemetry
 
 ```
 connected-mobility-workspace/
-├── cdk-stacks/           # AWS CDK Infrastructure Stacks
+├── cdk-stacks           # Infrastructure/           # AWS CDK Infrastructure Stacks
 ├── modules/              # Core Application Modules
 │   ├── cms_ui           # Fleet Manager Interface/          # Fleet Management Web Interface
 │   ├── deployment/      # Legacy Deployment Scripts
@@ -41,19 +41,19 @@ cd connected-mobility-workspace
 
 | Component | Description | Technology Stack |
 |-----------|-------------|------------------|
-| **CDK Stacks** | Infrastructure as Code | AWS CDK, Python |
+| **Infrastructure** | Infrastructure as Code | AWS CDK, Python |
 | **Fleet Manager** | Fleet Management Interface | React, TypeScript, Python |
-| **Flink Processing** | Real-time Telemetry Processing | Apache Flink, Java |
-| **Simulation Service** | Vehicle Data Simulation | Python, AWS IoT |
+| **Telemetry Pipeline** | Real-time Telemetry Processing | Apache Flink, Java |
+| **Telemetry Simulation Service** | Vehicle Data Simulation | Python, AWS IoT |
 
 ## Documentation
 
 All documentation has been organized in the `/documentation` folder:
 
-- **[CDK Stacks](./cdk-stacks/README.md)** - Infrastructure deployment
+- **[Infrastructure](./cdk-stacks/README.md)** - Infrastructure deployment
 - **[Fleet Manager](./modules/fleet-manager/README.md)** - Web interface setup
-- **[Flink Processing](./modules/flink/README.md)** - Data processing pipeline
-- **[Simulation Service](./services/simulation/README.md)** - Vehicle simulation
+- **[Telemetry Pipeline](./modules/flink/README.md)** - Data processing pipeline
+- **[Telemetry Simulation Service](./services/simulation/README.md)** - Vehicle simulation
 - **[Detailed Docs](./documentation/)** - Complete documentation archive
 
 ## Development Workflow

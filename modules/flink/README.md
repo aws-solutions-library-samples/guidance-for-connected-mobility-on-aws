@@ -1,4 +1,4 @@
-# Flink Processing - Real-time Telemetry Analysis
+# Telemetry Pipeline - Real-time Telemetry Analysis
 
 Apache Flink application for processing vehicle telemetry data in real-time, generating insights, alerts, and analytics.
 

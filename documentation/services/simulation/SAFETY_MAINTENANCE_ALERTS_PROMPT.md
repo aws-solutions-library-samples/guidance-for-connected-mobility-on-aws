@@ -307,7 +307,7 @@ The simulator generates safety alerts and maintenance alerts as nested objects w
 - `TIRE_PRESSURE` - TPMS alerts
 - `BRAKE_WEAR` - Maintenance due alerts
 
-## Flink Processing Requirements
+## Telemetry Pipeline Requirements
 
 ### 1. Extract Safety Alerts
 ```java
