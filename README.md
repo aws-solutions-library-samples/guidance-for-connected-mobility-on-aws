@@ -1,6 +1,6 @@
-# Connected Mobility Platform
+# Connected Mobility
 
-A comprehensive AWS-based connected vehicle platform featuring real-time telemetry processing, fleet management, and IoT device monitoring.
+A comprehensive AWS-based connected vehicle system featuring real-time telemetry processing, fleet management, and IoT device monitoring.
 
 ## Architecture Overview
 

@@ -1,6 +1,6 @@
 # Utility Scripts
 
-Collection of utility scripts for managing and maintaining the Connected Mobility Platform.
+Collection of utility scripts for managing and maintaining the Connected Mobility.
 
 ## Overview
 

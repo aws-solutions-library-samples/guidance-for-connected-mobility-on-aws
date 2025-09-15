@@ -1,6 +1,6 @@
 # Shared Libraries
 
-Common utilities, configurations, and shared code used across the Connected Mobility Platform components.
+Common utilities, configurations, and shared code used across the Connected Mobility components.
 
 ## Overview
 
