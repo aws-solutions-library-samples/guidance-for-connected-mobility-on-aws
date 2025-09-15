@@ -42,7 +42,7 @@ The CDK stack automatically:
 
 ## Cleanup
 
-Moved 165+ unused files to `/Users/givenand/old_cms/`:
+Moved 165+ unused files to `/Users/<username>/old_cms/`:
 - Old app versions, documentation, scripts
 - Test files, virtual environments
 - Backup files, logs, and temporary files

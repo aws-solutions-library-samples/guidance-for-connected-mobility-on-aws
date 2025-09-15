@@ -173,7 +173,7 @@ interface AggregatedResponse {
 Deploy the enhanced stack with the aggregator:
 
 ```bash
-cd /Users/givenand/connected-mobility-workspace/modules/cms_ui
+cd /path/to/workspace/modules/cms_ui
 ./deploy-enhanced-cms.sh prod us-east-1
 ```
 

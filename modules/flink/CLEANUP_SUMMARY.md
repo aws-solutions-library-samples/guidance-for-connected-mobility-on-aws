@@ -22,7 +22,7 @@
 
 ### New Organization
 ```
-/Users/givenand/connected-mobility-workspace/modules/flink/
+/path/to/workspace/modules/flink/
 ├── README.md                         # Comprehensive documentation
 ├── ARCHITECTURE.md                   # System architecture
 ├── CLEANUP_SUMMARY.md               # This summary
@@ -121,7 +121,7 @@ $ ./build.sh
 4. **Implement CI/CD pipeline** for automated testing and deployment
 
 ## Backup Location
-Original project backed up to: `/Users/givenand/connected-mobility-workspace/modules/flink-backup-20250907-1509`
+Original project backed up to: `/path/to/workspace/modules/flink-backup-20250907-1509`
 
 ## Success Metrics
 - **Reduced complexity**: 20+ files → 8 core files

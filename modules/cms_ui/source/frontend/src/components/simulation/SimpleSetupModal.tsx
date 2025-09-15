@@ -27,7 +27,7 @@ export function SimpleSetupModal({
   isRetrying = false 
 }: SimpleSetupModalProps) {
   const setupCommands = [
-    "cd /Users/givenand/connected-mobility-workspace/services/simulation",
+    "cd /path/to/workspace/services/simulation",
     "./manage_simulation.sh start",
     "./manage_simulation.sh status"
   ];

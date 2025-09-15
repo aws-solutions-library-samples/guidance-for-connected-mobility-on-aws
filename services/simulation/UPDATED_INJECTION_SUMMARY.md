@@ -79,7 +79,7 @@ Successfully created and executed an updated historical data injector for the ne
 
 ### Run Full 2-Week Injection
 ```bash
-cd /Users/givenand/connected-mobility-workspace/services/simulation
+cd /path/to/workspace/services/simulation
 ./run_updated_injection.sh
 ```
 

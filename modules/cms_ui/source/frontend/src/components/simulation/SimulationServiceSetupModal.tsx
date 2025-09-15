@@ -58,7 +58,7 @@ export function SimulationServiceSetupModal({
     {
       title: "Navigate to Simulation Service Directory",
       description: "Open terminal and navigate to the simulation service directory",
-      code: "cd /Users/givenand/connected-mobility-workspace/services/simulation"
+      code: "cd /path/to/workspace/services/simulation"
     },
     {
       title: "Start the Simulation Service",
@@ -259,13 +259,13 @@ export function SimulationServiceSetupModal({
               For detailed documentation, check the README file in the simulation service directory:
             </Box>
             <SimpleCodeView
-              content="cat /Users/givenand/connected-mobility-workspace/services/simulation/README.md"
+              content="cat /path/to/workspace/services/simulation/README.md"
               actions={
                 <Button
                   iconName="copy"
                   variant="inline-icon"
                   ariaLabel="Copy code"
-                  onClick={() => navigator.clipboard?.writeText("cat /Users/givenand/connected-mobility-workspace/services/simulation/README.md")}
+                  onClick={() => navigator.clipboard?.writeText("cat /path/to/workspace/services/simulation/README.md")}
                 />
               }
             />

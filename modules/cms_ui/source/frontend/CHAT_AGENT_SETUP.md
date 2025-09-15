@@ -7,7 +7,7 @@ This integration adds a chat agent to the help sidebar of the Connected Mobility
 
 ### 1. Install Dependencies
 ```bash
-cd /Users/givenand/connected-mobility-workspace/modules/cms_ui/source/frontend
+cd /path/to/workspace/modules/cms_ui/source/frontend
 yarn add @aws-sdk/client-bedrock-agent-runtime
 ```
 

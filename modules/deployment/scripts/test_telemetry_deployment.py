@@ -48,7 +48,7 @@ def test_deployment():
     try:
         result = subprocess.run([
             'make', '_deploy-telemetry', 'PROFILE=target-account'
-        ], cwd='/Users/givenand/connected-mobility-workspace/modules/cms_ui/deployment', 
+        ], cwd='/path/to/workspace/modules/cms_ui/deployment', 
         capture_output=True, text=True, timeout=1800)  # 30 minute timeout
         
         if result.returncode == 0:

@@ -144,7 +144,7 @@ class VehicleState:
 
 ### Setup Amazon Location Services
 ```bash
-cd /Users/givenand/connected-mobility-workspace/services/simulation
+cd /path/to/workspace/services/simulation
 python3 setup_location_services.py --profile target-account --region us-east-1
 ```
 
@@ -164,7 +164,7 @@ The simulator now provides:
 
 Run the test script to verify the new format:
 ```bash
-cd /Users/givenand/connected-mobility-workspace/services/simulation
+cd /path/to/workspace/services/simulation
 python3 test_telemetry_format.py
 ```
 

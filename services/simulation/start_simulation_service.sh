@@ -5,7 +5,7 @@
 
 set -e  # Exit on any error
 
-WORKSPACE_ROOT="/Users/givenand/connected-mobility-workspace"
+WORKSPACE_ROOT="/path/to/workspace"
 SIMULATION_DIR="$WORKSPACE_ROOT/services/simulation"
 VENV_PATH="$WORKSPACE_ROOT/lib/.venv"
 
@@ -77,7 +77,7 @@ else
 fi
 
 # Check if simulation script exists
-SIMULATION_SCRIPT="/Users/givenand/run_fleet_simulation.py"
+SIMULATION_SCRIPT="/Users/<username>/run_fleet_simulation.py"
 if [ ! -f "$SIMULATION_SCRIPT" ]; then
     echo ""
     echo "⚠️  Main simulation script not found at: $SIMULATION_SCRIPT"

@@ -131,7 +131,7 @@ The `enhanced_historical_data_injector.py` has been updated to align with the ne
 
 ### Test the Enhanced Injector
 ```bash
-cd /Users/givenand/connected-mobility-workspace/services/simulation
+cd /path/to/workspace/services/simulation
 python3 test_enhanced_injector.py
 ```
 

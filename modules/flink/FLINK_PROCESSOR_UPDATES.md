@@ -167,7 +167,7 @@ CROSS JOIN UNNEST(maintenanceAlerts) AS t(alert)
 
 ### Build the Updated Processor
 ```bash
-cd /Users/givenand/connected-mobility-workspace/modules/flink
+cd /path/to/workspace/modules/flink
 ./build_updated.sh
 ```
 

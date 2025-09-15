@@ -44,7 +44,7 @@ def update_telemetry_pipeline():
             '--app', 'python3 msk_cost_optimized.py',
             '--output', 'msk-cdk.out',
             '--require-approval', 'never'
-        ], env=env, cwd='/Users/givenand/connected-mobility-workspace/modules/cms_ui/source', check=True)
+        ], env=env, cwd='/path/to/workspace/modules/cms_ui/source', check=True)
         
         print("✅ Telemetry pipeline updated successfully!")
         

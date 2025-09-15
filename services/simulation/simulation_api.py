@@ -208,7 +208,7 @@ class SimulationManager:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                cwd='/Users/givenand',
+                cwd='/Users/<username>',
                 env=env
             )
             

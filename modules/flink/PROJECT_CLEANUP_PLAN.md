@@ -12,8 +12,8 @@
 ### Phase 1: Backup Current State
 ```bash
 # Create backup directory
-mkdir -p /Users/givenand/connected-mobility-workspace/modules/flink-backup-$(date +%Y%m%d)
-cp -r /Users/givenand/connected-mobility-workspace/modules/flink/* /Users/givenand/connected-mobility-workspace/modules/flink-backup-$(date +%Y%m%d)/
+mkdir -p /path/to/workspace/modules/flink-backup-$(date +%Y%m%d)
+cp -r /path/to/workspace/modules/flink/* /path/to/workspace/modules/flink-backup-$(date +%Y%m%d)/
 ```
 
 ### Phase 2: Files to KEEP (Core Business Logic)
@@ -110,7 +110,7 @@ src/main/java/com/cms/telemetry/
 ### Phase 4: New Organized Structure
 
 ```
-/Users/givenand/connected-mobility-workspace/modules/flink/
+/path/to/workspace/modules/flink/
 ├── README.md                         # Comprehensive documentation
 ├── pom.xml                           # Proven working POM
 ├── build.sh                          # Single build script

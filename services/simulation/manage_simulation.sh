@@ -3,7 +3,7 @@
 # Fleet Simulation Service Management Script
 # Usage: ./manage_simulation.sh [start|stop|status|test-safety]
 
-WORKSPACE_ROOT="/Users/givenand/connected-mobility-workspace"
+WORKSPACE_ROOT="/path/to/workspace"
 SIMULATION_DIR="$WORKSPACE_ROOT/services/simulation"
 PID_FILE="$SIMULATION_DIR/simulation_api.pid"
 API_URL="http://localhost:5001"

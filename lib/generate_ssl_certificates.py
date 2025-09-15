@@ -90,7 +90,7 @@ def update_cdk_stack_with_real_certificates():
     certs = generate_ssl_certificates()
     
     # Create a JSON file with the certificates
-    cert_file = "/Users/givenand/connected-mobility-workspace/lib/ssl_certificates.json"
+    cert_file = "/path/to/workspace/lib/ssl_certificates.json"
     with open(cert_file, 'w') as f:
         json.dump(certs, f, indent=2)
     

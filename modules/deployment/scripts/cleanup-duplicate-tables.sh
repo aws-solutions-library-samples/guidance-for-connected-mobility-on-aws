@@ -7,7 +7,7 @@ BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-PROFILE=${1:-givenand-CMS}
+PROFILE=${1:-your-aws-profile}
 
 echo -e "${BLUE}🧹 Cleaning up duplicate DynamoDB tables...${NC}"
 echo -e "${YELLOW}Profile: ${PROFILE}${NC}"
