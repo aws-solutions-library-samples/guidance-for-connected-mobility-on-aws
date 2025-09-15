@@ -49,9 +49,7 @@ msk_stack = MSKStack(
     app, 
     f"{stack_prefix}-msk",
     env=env,
-    description="Guidance for Connected Mobility (SO5947) - Messaging Layer",
-    # Pass IoT stack reference for policy updates
-    iot_stack=iot_stack
+    description="Guidance for Connected Mobility (SO5947) - Messaging Layer"
 )
 
 # 4. Flink Stack (Stream processing)

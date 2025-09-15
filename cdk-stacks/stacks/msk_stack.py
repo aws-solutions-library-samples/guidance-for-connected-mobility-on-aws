@@ -22,7 +22,7 @@ from constructs import Construct
 
 class MSKStack(Stack):
     
-    def __init__(self, scope: Construct, construct_id: str, iot_stack, **kwargs) -> None:
+    def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
         
         # Use default VPC (account agnostic with env variables set)
@@ -279,71 +279,10 @@ def lambda_handler(event, context):
             ]
         )
         
-        # Attach MSK policy to IoT role
-        self.iot_msk_policy = iam.Policy(self, "IoTMSKPolicy", document=msk_policy)
-        iot_stack.iot_role.attach_inline_policy(self.iot_msk_policy)
-
-        # Check for existing VPC destination first, create only if none exists
-        # This prevents the "already exists" error when redeploying
-        try:
-            # Try to import existing VPC destination by VPC ID
-            # AWS only allows one VPC destination per VPC, so we should reuse it
-            existing_destinations = []
-            # We'll use a custom resource to check and reuse existing VPC destinations
-            
-            # For now, create VPC destination using direct CDK approach (proven working pattern)
-            # Skip VPC destination creation to avoid conflicts with existing destinations
-            # Use a placeholder ARN that will be resolved by custom resource
-            self.vpc_destination_arn = f"arn:aws:iot:{self.region}:{self.account}:ruledestination/vpc/existing"
-            
-        except Exception as e:
-            # If creation fails due to existing destination, we'll handle it in the custom resource
-            print(f"VPC destination creation may have conflicts: {e}")
-            # Use a placeholder ARN that will be resolved by custom resource
-            self.vpc_destination_arn = f"arn:aws:iot:{self.region}:{self.account}:ruledestination/vpc/existing"
-            # Use a placeholder ARN that will be resolved by custom resource
-            self.vpc_destination_arn = f"arn:aws:iot:{self.region}:{self.account}:ruledestination/vpc/existing"
-        
-        # Skip VPC destination dependency since we're not creating it
-        # self.vpc_destination.add_dependency(self.iot_msk_policy.node.default_child)
-        
-        # IoT Topic Rule to send data to MSK (uses direct VPC destination)
-        rule_name = f"{construct_id.replace('-', '_')}_telemetry_to_msk_{timestamp}"
-        self.iot_rule = iot.CfnTopicRule(
-            self, f"TelemetryToMSKRule{timestamp}",
-            rule_name=rule_name,
-            topic_rule_payload=iot.CfnTopicRule.TopicRulePayloadProperty(
-                sql="SELECT *",
-                actions=[
-                    iot.CfnTopicRule.ActionProperty(
-                        kafka=iot.CfnTopicRule.KafkaActionProperty(
-                            destination_arn=self.vpc_destination_arn,
-                            topic="cms-telemetry-raw",
-                            key="basic-ingest",
-                            client_properties={
-                                "acks": "1",
-                                "bootstrap.servers": self.bootstrap_servers_resource.get_att_string("BootstrapBrokerStringSaslScram"),
-                                "security.protocol": "SASL_SSL",
-                                "sasl.mechanism": "SCRAM-SHA-512",
-                                "sasl.scram.username": f"${{get_secret(\"{self.iot_user_secret.secret_name}\", \"SecretString\", \"username\", \"{iot_stack.iot_role.role_arn}\")}}",
-                                "sasl.scram.password": f"${{get_secret(\"{self.iot_user_secret.secret_name}\", \"SecretString\", \"password\", \"{iot_stack.iot_role.role_arn}\")}}"
-                            }
-                        )
-                    )
-                ],
-                rule_disabled=False
-            )
-        )
-        
-        # Add dependencies
-        self.iot_rule.node.add_dependency(self.bootstrap_servers_resource)
-        # Skip VPC destination dependency since we're not creating it
-        # self.iot_rule.node.add_dependency(self.vpc_destination)
-        
-        # Store cluster ARN and bootstrap servers as properties
+        # Store cluster ARN and bootstrap servers as properties for other stacks
         self.cluster_arn = self.cluster.attr_arn
         
-        # Outputs
+        # Outputs for other stacks to reference
         CfnOutput(
             self, "MSKClusterArn",
             value=self.cluster.attr_arn,
@@ -363,15 +302,9 @@ def lambda_handler(event, context):
         )
         
         CfnOutput(
-            self, "IoTRuleName",
-            value=self.iot_rule.rule_name,
-            export_name=f"{construct_id}-iot-rule-name"
-        )
-        
-        CfnOutput(
-            self, "VPCDestinationArn", 
-            value=self.vpc_destination_arn,
-            export_name=f"{construct_id}-vpc-destination-arn"
+            self, "IoTUserSecretArn",
+            value=self.iot_user_secret.secret_arn,
+            export_name=f"{construct_id}-iot-user-secret-arn"
         )
     
     @property

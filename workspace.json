@@ -1,7 +1,7 @@
 {
   "name": "connected-mobility-workspace",
   "version": "1.0.0",
-  "description": "Guidance for Connected Mobility",
+  "description": "Guidance for Connected Mobility on AWS",
   "modules": {
     "fleet_manager": {
       "path": "./modules/cms_ui",
