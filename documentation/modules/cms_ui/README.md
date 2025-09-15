@@ -1,4 +1,4 @@
-# CMS UI - Fleet Management Application
+# Fleet Manager - Fleet Management Application
 
 A comprehensive web application for connected vehicle fleet management with real-time monitoring and control capabilities.
 
@@ -6,7 +6,7 @@ A comprehensive web application for connected vehicle fleet management with real
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    CMS UI Module                        │
+│                    Fleet Manager Module                        │
 ├─────────────────────────────────────────────────────────┤
 │  Frontend (React)           │  Backend (Lambda)         │
 │  ┌─────────────────────┐    │  ┌─────────────────────┐  │
@@ -24,7 +24,7 @@ A comprehensive web application for connected vehicle fleet management with real
 ## 📁 Project Structure
 
 ```
-cms_ui/
+fleet-manager/
 ├── source/
 │   ├── frontend/           # React TypeScript Application
 │   │   ├── src/
@@ -57,7 +57,7 @@ cms_ui/
 
 ```bash
 # From workspace root
-cd modules/cms_ui
+cd modules/fleet-manager
 
 # Install frontend dependencies
 cd source/frontend

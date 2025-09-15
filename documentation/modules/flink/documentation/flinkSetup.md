@@ -510,7 +510,7 @@ public static void main(String[] args) throws Exception {
 ### 1. CloudWatch Sinks (Recommended)
 java
 // ✅ Use CloudWatch sinks instead of Java logging for message tracking
-CloudWatchMetricsSink cloudWatchSink = new CloudWatchMetricsSink("CMS/ProcessorName", "ProcessedMessages");
+CloudWatchMetricsSink cloudWatchSink = new CloudWatchMetricsSink("Fleet Management/ProcessorName", "ProcessedMessages");
 stream.addSink(cloudWatchSink);
 
 
@@ -565,10 +565,10 @@ aws kinesisanalyticsv2 list-applications | grep -A2 "cms-safety-processor"
 ## 🔍 Monitoring & Troubleshooting
 
 ### 1. CloudWatch Metrics to Monitor
-• CMS/Safety/ProcessedMessages
-• CMS/Trips/ProcessedMessages
-• CMS/TelemetryData/ProcessedMessages
-• CMS/Maintenance/ProcessedMessages
+• Fleet Management/Safety/ProcessedMessages
+• Fleet Management/Trips/ProcessedMessages
+• Fleet Management/TelemetryData/ProcessedMessages
+• Fleet Management/Maintenance/ProcessedMessages
 
 ### 2. Health Check Commands
 bash

@@ -1,8 +1,8 @@
-# CMS Telemetry Processing Architecture
+# Fleet Management Telemetry Processing Architecture
 
 ## System Overview
 
-The CMS Telemetry Processing Pipeline is built on Apache Flink and processes vehicle telemetry data in real-time using Amazon MSK (Managed Streaming for Apache Kafka) and stores results in DynamoDB.
+The Fleet Management Telemetry Processing Pipeline is built on Apache Flink and processes vehicle telemetry data in real-time using Amazon MSK (Managed Streaming for Apache Kafka) and stores results in DynamoDB.
 
 ## Architecture Diagram
 

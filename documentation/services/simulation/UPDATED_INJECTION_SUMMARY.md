@@ -1,7 +1,7 @@
 # Updated Historical Data Injection Summary
 
 ## Overview
-Successfully created and executed an updated historical data injector for the new CMS table structure with numeric timestamps and Munich fleet patterns.
+Successfully created and executed an updated historical data injector for the new Fleet Management table structure with numeric timestamps and Munich fleet patterns.
 
 ## Key Changes Made
 
@@ -100,7 +100,7 @@ All data uses numeric timestamps compatible with the new table structure and inc
 ## Next Steps
 
 1. **Verify Data**: Query the new tables to confirm data presence
-2. **Test Integration**: Ensure the data works with existing CMS UI components
+2. **Test Integration**: Ensure the data works with existing Fleet Manager components
 3. **Monitor Performance**: Check query performance with numeric timestamps
 4. **Scale if Needed**: Run additional injections for more historical data
 

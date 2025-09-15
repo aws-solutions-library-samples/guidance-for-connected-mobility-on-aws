@@ -1,4 +1,4 @@
-# Connected Mobility Workspace
+# Fleet Management Platform
 
 A comprehensive AWS-based connected vehicle platform featuring real-time telemetry processing, fleet management, and IoT device monitoring.
 
@@ -8,7 +8,7 @@ A comprehensive AWS-based connected vehicle platform featuring real-time telemet
 connected-mobility-workspace/
 ├── cdk-stacks/           # AWS CDK Infrastructure Stacks
 ├── modules/              # Core Application Modules
-│   ├── cms_ui/          # Fleet Management Web Interface
+│   ├── cms_ui           # Fleet Manager Interface/          # Fleet Management Web Interface
 │   ├── deployment/      # Legacy Deployment Scripts
 │   └── flink/           # Real-time Data Processing
 ├── services/            # Supporting Services
@@ -42,7 +42,7 @@ cd connected-mobility-workspace
 | Component | Description | Technology Stack |
 |-----------|-------------|------------------|
 | **CDK Stacks** | Infrastructure as Code | AWS CDK, Python |
-| **CMS UI** | Fleet Management Interface | React, TypeScript, Python |
+| **Fleet Manager** | Fleet Management Interface | React, TypeScript, Python |
 | **Flink Processing** | Real-time Telemetry Processing | Apache Flink, Java |
 | **Simulation Service** | Vehicle Data Simulation | Python, AWS IoT |
 
@@ -51,7 +51,7 @@ cd connected-mobility-workspace
 All documentation has been organized in the `/documentation` folder:
 
 - **[CDK Stacks](./cdk-stacks/README.md)** - Infrastructure deployment
-- **[CMS UI](./modules/cms_ui/README.md)** - Web interface setup
+- **[Fleet Manager](./modules/fleet-manager/README.md)** - Web interface setup
 - **[Flink Processing](./modules/flink/README.md)** - Data processing pipeline
 - **[Simulation Service](./services/simulation/README.md)** - Vehicle simulation
 - **[Detailed Docs](./documentation/)** - Complete documentation archive
@@ -60,7 +60,7 @@ All documentation has been organized in the `/documentation` folder:
 
 1. **Infrastructure**: Deploy CDK stacks first
 2. **Backend Services**: Setup Flink processing and simulation
-3. **Frontend**: Deploy CMS UI interface
+3. **Frontend**: Deploy Fleet Manager interface
 4. **Testing**: Use simulation service for end-to-end testing
 
 ## Support

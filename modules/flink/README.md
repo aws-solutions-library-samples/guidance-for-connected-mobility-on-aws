@@ -140,7 +140,7 @@ flink info <job-id>
 
 # Check metrics
 aws cloudwatch get-metric-statistics \
-  --namespace "CMS/Flink" \
+  --namespace "Fleet Management/Flink" \
   --metric-name "RecordsProcessed"
 ```
 

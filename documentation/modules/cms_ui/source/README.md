@@ -1,4 +1,4 @@
-# Connected Mobility Solution - CMS UI
+# Connected Mobility Solution - Fleet Manager
 
 ## Quick Start
 

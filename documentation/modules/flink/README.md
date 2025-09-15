@@ -1,7 +1,7 @@
-# CMS Telemetry Processing Pipeline
+# Fleet Management Telemetry Processing Pipeline
 
 ## Overview
-Universal Apache Flink processor for CMS telemetry data processing with Amazon MSK integration and DynamoDB storage.
+Universal Apache Flink processor for Fleet Management telemetry data processing with Amazon MSK integration and DynamoDB storage.
 
 ## Architecture
 

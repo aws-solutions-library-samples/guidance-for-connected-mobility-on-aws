@@ -143,10 +143,10 @@ src/main/java/com/cms/telemetry/
 
 #### README.md Structure
 ```markdown
-# CMS Telemetry Processing Pipeline
+# Fleet Management Telemetry Processing Pipeline
 
 ## Overview
-Universal Flink processor for CMS telemetry data processing with MSK integration.
+Universal Flink processor for Fleet Management telemetry data processing with MSK integration.
 
 ## Architecture
 - UniversalProcessor: Main entry point with processor routing

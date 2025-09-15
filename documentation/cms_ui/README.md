@@ -1,11 +1,11 @@
-# CMS UI - Fleet Management Interface
+# Fleet Manager - Fleet Management Interface
 
 Modern fleet management application with React frontend and serverless Python backend.
 
 ## Architecture
 
 ```
-cms_ui/
+fleet-manager/
 ├── source/
 │   ├── frontend/          # React TypeScript application
 │   │   ├── src/          # Application source code

@@ -6,7 +6,7 @@ A unified development environment for connected mobility solutions, featuring fl
 
 ```
 connected-mobility-workspace/
-├── cms_ui/                    # Fleet Management Frontend
+├── fleet-manager/                    # Fleet Management Frontend
 │   ├── source/frontend/       # React TypeScript application
 │   └── source/lambda/         # API Gateway Lambda handlers
 ├── modules/                   # Shared Infrastructure & Services
@@ -55,7 +55,7 @@ make setup
 source .venv/bin/activate
 
 # Install frontend dependencies
-cd cms_ui/source/frontend && npm install
+cd fleet-manager/source/frontend && npm install
 ```
 
 ### Available Commands
@@ -68,7 +68,7 @@ Run `make help` to see all available commands including:
 
 ## Components
 
-### CMS UI (Fleet Management)
+### Fleet Manager (Fleet Management)
 - **Frontend**: React TypeScript application with modern UI components
 - **Backend**: Python Lambda handlers with DynamoDB integration
 - **API**: RESTful endpoints for fleet operations

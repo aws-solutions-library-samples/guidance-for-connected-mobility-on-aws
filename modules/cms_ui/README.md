@@ -1,10 +1,10 @@
-# CMS UI - Fleet Management Interface
+# Fleet Manager - Fleet Management Interface
 
 React-based web application for managing connected vehicle fleets with real-time monitoring and analytics.
 
 ## Overview
 
-The CMS UI provides:
+The Fleet Manager provides:
 - **Fleet Management**: Create, edit, and monitor vehicle fleets
 - **Real-time Dashboards**: Vehicle telemetry and status monitoring  
 - **Trip Analytics**: Route visualization and trip history
@@ -15,7 +15,7 @@ The CMS UI provides:
 ## Architecture
 
 ```
-cms_ui/
+fleet-manager/
 ├── source/
 │   ├── frontend/         # React TypeScript application
 │   │   ├── src/
@@ -91,7 +91,7 @@ cd ../../cdk-stacks
 cdk deploy cms-dev-ui
 
 # Build and deploy frontend
-cd ../modules/cms_ui/source/frontend
+cd ../modules/fleet-manager/source/frontend
 yarn build
 
 # Upload to S3 (automated via CDK)

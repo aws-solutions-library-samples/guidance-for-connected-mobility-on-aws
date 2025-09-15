@@ -1,9 +1,9 @@
 {
   "name": "connected-mobility-workspace",
   "version": "1.0.0",
-  "description": "Connected Mobility Solution Workspace",
+  "description": "Fleet Management Platform",
   "modules": {
-    "cms_ui": {
+    "fleet_manager": {
       "path": "./modules/cms_ui",
       "type": "web-application",
       "tech": ["react", "typescript", "python", "aws-cdk"]
