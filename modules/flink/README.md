@@ -1,240 +1,226 @@
-# CMS Telemetry Processing Pipeline
+# Flink Processing - Real-time Telemetry Analysis
+
+Apache Flink application for processing vehicle telemetry data in real-time, generating insights, alerts, and analytics.
 
 ## Overview
-Universal Apache Flink processor for CMS telemetry data processing with Amazon MSK integration and DynamoDB storage.
+
+The Flink processor handles:
+- **Telemetry Processing**: Real-time vehicle data analysis
+- **Trip Detection**: Automatic trip start/end detection
+- **Safety Alerts**: Hard braking, speeding, collision detection
+- **Maintenance Alerts**: Battery health, engine diagnostics
+- **Metrics Generation**: CloudWatch metrics and KPIs
+- **Data Enrichment**: Location services, weather data
 
 ## Architecture
 
-### Universal Processor Pattern
-The system uses a **UniversalProcessor** entry point that routes to specific processors based on the `PROCESSOR_TYPE` environment variable:
-
 ```
-UniversalProcessor (Main Entry Point)
-├── EventDrivenTelemetryProcessor  # Raw telemetry → processed topics
-├── TelemetryProcessor            # Processed telemetry → DynamoDB  
-├── TripProcessor                 # Trip data processing
-├── SafetyProcessor              # Safety event detection
-└── MaintenanceProcessor         # Maintenance alert generation
-```
-
-### Data Flow
-```
-MSK Topic (Raw) → EventDrivenTelemetryProcessor → MSK Topic (Processed)
-                                                      ↓
-MSK Topic (Processed) → TelemetryProcessor → DynamoDB Tables
+flink/
+├── src/main/java/com/cms/telemetry/
+│   ├── TelemetryProcessor.java      # Main Flink job
+│   ├── EventDrivenTelemetryProcessor.java # Event processing
+│   ├── TripProcessor.java           # Trip analysis
+│   ├── SafetyProcessor.java         # Safety alerts
+│   ├── MaintenanceProcessor.java    # Maintenance alerts
+│   └── sink/                        # Output sinks
+│       ├── DynamoDBTelemetrySink.java
+│       ├── DynamoDBTripsSink.java
+│       └── CloudWatchMetricsSink.java
+├── pom.xml                          # Maven configuration
+└── build.sh                        # Build script
 ```
 
-## Quick Start
+## Prerequisites
 
-### Prerequisites
-- Java 11
-- Maven 3.6+
-- AWS CLI configured with appropriate permissions
-- Access to MSK cluster and DynamoDB tables
-
-### Build
 ```bash
+# Java 11+
+java -version
+
+# Maven 3.6+
+mvn -version
+
+# AWS CLI configured
+aws configure
+```
+
+## Build & Deploy
+
+### Local Development
+```bash
+# Build the application
 ./build.sh
+
+# Run locally (requires Flink cluster)
+flink run target/cms-telemetry-processor-*.jar
+
+# Run with specific parallelism
+flink run -p 4 target/cms-telemetry-processor-*.jar
 ```
 
-### Deploy
+### AWS Deployment
 ```bash
-./deploy.sh <application-name> <processor-type>
+# Build JAR for deployment
+mvn clean package
+
+# Deploy via CDK
+cd ../../cdk-stacks
+cdk deploy cms-dev-flink
+
+# Update existing application
+./deploy.sh
 ```
 
-Example:
-```bash
-./deploy.sh cms-raw-processor EventDrivenTelemetryProcessor
-./deploy.sh cms-data-processor TelemetryDataProcessor
+### Configuration
+
+#### Application Properties
+```properties
+# Kafka source configuration
+kafka.bootstrap.servers=<msk-cluster-endpoint>
+kafka.topic.telemetry=vehicle-telemetry
+kafka.group.id=flink-processor
+
+# DynamoDB sinks
+dynamodb.region=us-east-1
+dynamodb.telemetry.table=cms-dev-telemetry
+dynamodb.trips.table=cms-dev-trips
+dynamodb.alerts.table=cms-dev-alerts
+
+# Processing parameters
+trip.idle.timeout.minutes=5
+safety.speed.threshold.mph=80
+maintenance.battery.threshold=20
 ```
 
-## Processor Types
+## Processing Logic
 
-### EventDrivenTelemetryProcessor
-- **Purpose**: Processes raw telemetry data from MSK
-- **Input**: `cms-telemetry-raw` topic
-- **Output**: Multiple processed topics (trips, safety, maintenance)
-- **Configuration**: Hardcoded topic names for reliability
+### Telemetry Stream Processing
+1. **Data Ingestion**: Consume from Kafka/Kinesis
+2. **Data Validation**: Schema validation and cleansing
+3. **Event Time Processing**: Handle late-arriving data
+4. **Windowing**: Time-based and session windows
+5. **State Management**: Maintain vehicle state across events
 
-### TelemetryProcessor  
-- **Purpose**: Enhanced telemetry processing with DynamoDB storage
-- **Input**: `cms-telemetry-processed` topic (configurable via `KAFKA_TOPIC`)
-- **Output**: DynamoDB table (configurable via `TELEMETRY_TABLE_NAME`)
-- **Features**: Data enrichment, structured storage
-
-### TripProcessor
-- **Purpose**: Trip-specific data processing and analysis
-- **Input**: Trip-related telemetry data
-- **Output**: Trip summaries and analytics
-
-### SafetyProcessor
-- **Purpose**: Real-time safety event detection and alerting
-- **Input**: Safety-related telemetry streams
-- **Output**: Safety alerts and notifications
-
-### MaintenanceProcessor
-- **Purpose**: Predictive maintenance analysis
-- **Input**: Vehicle diagnostic data
-- **Output**: Maintenance recommendations and alerts
-
-## Configuration
-
-### Environment Properties
-All processors are configured via Kinesis Analytics environment properties:
-
-```json
-{
-  "PROCESSOR_TYPE": "TelemetryDataProcessor",
-  "KAFKA_TOPIC": "cms-telemetry-processed",
-  "TELEMETRY_TABLE_NAME": "cms-0a0e68e9-telemetry",
-  "auto.offset.reset": "earliest",
-  "bootstrap.servers": "...",
-  "group.id": "...",
-  "security.protocol": "SASL_SSL",
-  "sasl.mechanism": "AWS_MSK_IAM"
+### Trip Detection Algorithm
+```java
+// Simplified trip detection logic
+public class TripProcessor {
+    private static final Duration IDLE_TIMEOUT = Duration.ofMinutes(5);
+    
+    public void processTelemetry(TelemetryEvent event) {
+        if (isMoving(event)) {
+            startOrContinueTrip(event);
+        } else if (isIdle(event, IDLE_TIMEOUT)) {
+            endTrip(event);
+        }
+    }
 }
 ```
 
-### MSK Authentication
-**CRITICAL**: Always use `OffsetsInitializer.earliest()` for MSK IAM authentication compatibility.
+### Safety Alert Processing
+- **Hard Braking**: Deceleration > 0.4g
+- **Rapid Acceleration**: Acceleration > 0.35g  
+- **Speeding**: Speed > posted limit + threshold
+- **Harsh Cornering**: Lateral acceleration > 0.4g
 
-❌ **Incorrect** (causes authentication failures):
+### Maintenance Alert Processing
+- **Battery Health**: SOC < 20% or voltage anomalies
+- **Engine Diagnostics**: RPM, temperature, pressure thresholds
+- **Tire Pressure**: TPMS sensor readings
+- **Scheduled Maintenance**: Mileage-based alerts
+
+## Management
+
+### Monitoring
+```bash
+# Check application status
+flink list
+
+# View job details
+flink info <job-id>
+
+# Check metrics
+aws cloudwatch get-metric-statistics \
+  --namespace "CMS/Flink" \
+  --metric-name "RecordsProcessed"
+```
+
+### Scaling
+```bash
+# Scale application
+flink modify <job-id> -p <new-parallelism>
+
+# Restart with savepoint
+flink stop --savepointPath s3://bucket/savepoints <job-id>
+flink run --fromSavepoint s3://bucket/savepoints/savepoint-xxx
+```
+
+### Debugging
+```bash
+# View logs
+flink logs <job-id>
+
+# Access Flink UI
+# Navigate to: http://<flink-cluster>:8081
+
+# Check Kafka lag
+kafka-consumer-groups.sh --bootstrap-server <kafka> \
+  --group flink-processor --describe
+```
+
+## Performance Tuning
+
+### Memory Configuration
+```xml
+<configuration>
+    <property>
+        <name>taskmanager.memory.process.size</name>
+        <value>4g</value>
+    </property>
+    <property>
+        <name>taskmanager.memory.flink.size</name>
+        <value>3g</value>
+    </property>
+</configuration>
+```
+
+### Parallelism Settings
+- **Source Parallelism**: Match Kafka partition count
+- **Processing Parallelism**: 2-4x CPU cores
+- **Sink Parallelism**: Based on downstream capacity
+
+### Checkpointing
 ```java
-.setStartingOffsets(OffsetsInitializer.latest())
+env.enableCheckpointing(60000); // 1 minute
+env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+env.getCheckpointConfig().setMinPauseBetweenCheckpoints(30000);
 ```
-
-✅ **Correct** (proven working pattern):
-```java
-.setStartingOffsets(OffsetsInitializer.earliest())
-```
-
-## Project Structure
-
-```
-src/main/java/com/cms/
-├── telemetry/
-│   ├── UniversalProcessor.java           # Main entry point with routing
-│   ├── EventDrivenTelemetryProcessor.java # Raw telemetry processing
-│   ├── TelemetryProcessor.java           # Enhanced telemetry processing
-│   ├── TripProcessor.java                # Trip processing logic
-│   ├── SafetyProcessor.java              # Safety event detection
-│   ├── MaintenanceProcessor.java         # Maintenance analysis
-│   ├── TelemetryDataProcessor.java       # Data processing utilities
-│   └── sink/                             # DynamoDB and CloudWatch sinks
-│       ├── DynamoDBTelemetrySink.java
-│       ├── DynamoDBSafetyEventsSink.java
-│       ├── DynamoDBMaintenanceAlertsSink.java
-│       ├── DynamoDBTripsSink.java
-│       └── CloudWatchMetricsSink.java
-└── fleet/                                # Fleet management processors
-```
-
-## Deployment
-
-### Kinesis Analytics Applications
-Each processor type is deployed as a separate Kinesis Analytics application:
-
-- `cms-raw-telemetry-processor-v2`: EventDrivenTelemetryProcessor
-- `cms-telemetry-enhanced-final`: TelemetryProcessor with DynamoDB
-- `cms-trip-processor`: TripProcessor
-- `cms-safety-processor`: SafetyProcessor
-- `cms-maintenance-processor`: MaintenanceProcessor
-
-### IAM Permissions
-Applications require permissions for:
-- MSK cluster access (IAM authentication)
-- DynamoDB table read/write
-- CloudWatch logs and metrics
-- S3 access for checkpoints and savepoints
-
-## Monitoring
-
-### CloudWatch Logs
-Each application writes to its own log group:
-```
-/aws/kinesis-analytics/<application-name>
-```
-
-### Key Log Messages
-- `✅ Kafka source created successfully` - MSK connection established
-- `📊 Processing telemetry record` - Data processing in progress
-- `✅ Telemetry record written to DynamoDB` - Successful data storage
-- `❌ Failed to write telemetry record` - Error conditions
-
-### Metrics
-- Kafka consumer lag
-- Processing throughput
-- DynamoDB write success/failure rates
-- Application health status
 
 ## Troubleshooting
 
-### MSK Authentication Issues
-**Symptom**: `SaslAuthenticationException: Unrecognized SASL ClientCallback`
+### Common Issues
 
-**Solution**: 
-1. Verify using `OffsetsInitializer.earliest()`
-2. Check MSK IAM authentication configuration
-3. Ensure no dependency conflicts (especially DynamoDB SDK versions)
-
-### Application Stuck in STARTING State
-**Symptom**: Application shows RUNNING but no logs appear
-
-**Solution**:
-1. Check JAR main class is set to `com.cms.telemetry.UniversalProcessor`
-2. Verify all Flink dependencies use `provided` scope
-3. Ensure proper Maven Shade plugin configuration
-
-### No Data Processing
-**Symptom**: Application runs but no data flows through
-
-**Solution**:
-1. Check MSK topic has data: `kafka-console-consumer --topic <topic-name>`
-2. Verify consumer group is not conflicting with other applications
-3. Check offset reset strategy (`earliest` vs `latest`)
-
-## Development
-
-### Adding New Processors
-1. Create processor class implementing Flink DataStream API
-2. Add routing logic to `UniversalProcessor.main()`
-3. Update this README with processor documentation
-4. Test with minimal configuration first
-
-### Testing Locally
+**OutOfMemoryError**
 ```bash
-# Build project
-mvn clean package
-
-# Run locally (requires local Kafka/MSK access)
-java -cp target/cms-telemetry-processor-1.0.0.jar com.cms.telemetry.UniversalProcessor
+# Increase memory allocation
+export FLINK_OPTS="-Xmx2g -Xms2g"
 ```
 
-### Best Practices
-- Always start with minimal processing logic
-- Use proven Kafka source configuration pattern
-- Test MSK authentication before adding complex processing
-- Include comprehensive logging for debugging
-- Handle exceptions gracefully with proper error logging
+**Kafka Connection Issues**
+```bash
+# Test Kafka connectivity
+kafka-console-consumer.sh --bootstrap-server <kafka> \
+  --topic vehicle-telemetry --from-beginning
+```
 
-## Dependencies
+**DynamoDB Throttling**
+```bash
+# Check DynamoDB metrics
+aws cloudwatch get-metric-statistics \
+  --namespace "AWS/DynamoDB" \
+  --metric-name "ThrottledRequests"
+```
 
-### Core Dependencies
-- Apache Flink 1.18.1
-- Flink Kafka Connector 3.2.0-1.18
-- AWS MSK IAM Auth 2.3.3
-- AWS SDK v2.20.26
-- Kinesis Analytics Runtime 1.2.0
-
-### Build Tools
-- Maven 3.6+
-- Maven Shade Plugin 3.4.1
-- Java 11
-
-## Support
-
-For issues and questions:
-1. Check CloudWatch logs for error details
-2. Review this README and troubleshooting section
-3. Verify configuration against working examples
-4. Test with minimal processor configuration first
+### Performance Issues
+- **High Latency**: Check parallelism and resource allocation
+- **Backpressure**: Monitor queue sizes and processing rates
+- **Memory Leaks**: Enable memory profiling and monitoring

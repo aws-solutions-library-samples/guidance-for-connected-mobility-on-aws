@@ -1,122 +1,68 @@
 # Connected Mobility Workspace
 
-A unified development environment for connected mobility solutions, featuring fleet management APIs, real-time data processing, and modern web interfaces.
+A comprehensive AWS-based connected vehicle platform featuring real-time telemetry processing, fleet management, and IoT device monitoring.
 
 ## Architecture Overview
 
 ```
 connected-mobility-workspace/
-├── cms_ui/                    # Fleet Management Frontend
-│   ├── source/frontend/       # React TypeScript application
-│   └── source/lambda/         # API Gateway Lambda handlers
-├── modules/                   # Shared Infrastructure & Services
-│   ├── cdk-common/           # Shared CDK constructs
-│   ├── data-pipeline/        # Real-time data processing
-│   ├── fleet-api/            # Core fleet management APIs
-│   └── monitoring/           # Observability & alerting
-└── .config/                  # Shared development configurations
+├── cdk-stacks/           # AWS CDK Infrastructure Stacks
+├── modules/              # Core Application Modules
+│   ├── cms_ui/          # Fleet Management Web Interface
+│   ├── deployment/      # Legacy Deployment Scripts
+│   └── flink/           # Real-time Data Processing
+├── services/            # Supporting Services
+│   └── simulation/      # Vehicle Telemetry Simulation
+├── lib/                 # Shared Libraries
+├── scripts/             # Utility Scripts
+└── documentation/       # All Documentation
+
 ```
 
 ## Quick Start
 
-```bash
-# Initialize workspace
-make setup
-
-# Build all components
-make build
-
-# Run tests
-make test
-
-# Deploy to development
-make deploy
-
-# Clean workspace
-make clean
-```
-
-## Development Environment
-
 ### Prerequisites
-- Node.js 18+ and npm
-- Python 3.9+ and pipenv
+- Node.js 18+
+- Python 3.9+
+- Java 11+
 - AWS CLI configured
-- CDK CLI installed
+- AWS CDK CLI installed
 
-### Setup
-The workspace uses a unified virtual environment and shared configurations:
-
+### Initial Setup
 ```bash
-# One-time setup
-make setup
+# Clone and setup workspace
+git clone <repository-url>
+cd connected-mobility-workspace
 
-# Activate Python environment
-source .venv/bin/activate
-
-# Install frontend dependencies
-cd cms_ui/source/frontend && npm install
+# Install dependencies (see individual module READMEs)
 ```
-
-### Available Commands
-Run `make help` to see all available commands including:
-- `make setup` - Initialize workspace and dependencies
-- `make build` - Build all components
-- `make test` - Run all test suites
-- `make deploy` - Deploy to AWS
-- `make clean` - Clean build artifacts
 
 ## Components
 
-### CMS UI (Fleet Management)
-- **Frontend**: React TypeScript application with modern UI components
-- **Backend**: Python Lambda handlers with DynamoDB integration
-- **API**: RESTful endpoints for fleet operations
+| Component | Description | Technology Stack |
+|-----------|-------------|------------------|
+| **CDK Stacks** | Infrastructure as Code | AWS CDK, Python |
+| **CMS UI** | Fleet Management Interface | React, TypeScript, Python |
+| **Flink Processing** | Real-time Telemetry Processing | Apache Flink, Java |
+| **Simulation Service** | Vehicle Data Simulation | Python, AWS IoT |
 
-### Modules
-- **CDK Common**: Shared infrastructure constructs and utilities
-- **Data Pipeline**: Real-time vehicle data processing and analytics
-- **Fleet API**: Core fleet management business logic
-- **Monitoring**: CloudWatch dashboards and alerting
+## Documentation
 
-## API Architecture
+All documentation has been organized in the `/documentation` folder:
 
-The system uses a direct API approach with:
-- Frontend: Direct fetch() calls to API Gateway
-- Backend: Python Lambda handlers with boto3 DynamoDB operations
-- No code generation - simple, maintainable interfaces
+- **[CDK Stacks](./cdk-stacks/README.md)** - Infrastructure deployment
+- **[CMS UI](./modules/cms_ui/README.md)** - Web interface setup
+- **[Flink Processing](./modules/flink/README.md)** - Data processing pipeline
+- **[Simulation Service](./services/simulation/README.md)** - Vehicle simulation
+- **[Detailed Docs](./documentation/)** - Complete documentation archive
 
 ## Development Workflow
 
-1. **Feature Development**: Work in feature branches
-2. **Local Testing**: Use `make test` for comprehensive testing
-3. **Build Verification**: Run `make build` before commits
-4. **Deployment**: Use `make deploy` for AWS deployment
-
-## Configuration
-
-Shared configurations in `.config/`:
-- ESLint and Prettier for consistent code formatting
-- TypeScript configurations for frontend development
-- Python linting and formatting rules
-
-## Storage Optimization
-
-The workspace includes automated cleanup:
-- Removes Python `__pycache__` directories
-- Cleans CDK build artifacts
-- Eliminates duplicate virtual environments
-- Removes system files (.DS_Store)
-
-Run `./cleanup.sh` periodically to maintain optimal storage usage.
-
-## Contributing
-
-1. Follow the established code style (enforced by shared configs)
-2. Write tests for new functionality
-3. Use the unified development environment
-4. Run cleanup before major commits
+1. **Infrastructure**: Deploy CDK stacks first
+2. **Backend Services**: Setup Flink processing and simulation
+3. **Frontend**: Deploy CMS UI interface
+4. **Testing**: Use simulation service for end-to-end testing
 
 ## Support
 
-For issues or questions about the workspace setup, refer to individual module READMEs or the shared development configurations.
+Refer to individual component READMEs for detailed setup instructions and troubleshooting guides.

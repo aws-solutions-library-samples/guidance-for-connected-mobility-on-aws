@@ -1,349 +1,302 @@
-# Vehicle Simulation Service
+# Simulation Service - Vehicle Telemetry Simulation
 
-Python-based vehicle telemetry simulation service that generates realistic connected vehicle data for testing and development of the Connected Mobility Solution.
+Python-based service for generating realistic vehicle telemetry data for testing and development of the Connected Mobility Platform.
 
-## 🏗️ Architecture
+## Overview
 
-```
-┌─────────────────────────────────────────────────────────┐
-│              Vehicle Simulation Service                 │
-├─────────────────────────────────────────────────────────┤
-│  Simulation Engine      │  Data Generation              │
-│  ┌─────────────────┐    │  ┌─────────────────────────┐  │
-│  │ Vehicle Models  │───┼──│ GPS Coordinates         │  │
-│  │ Route Planning  │    │  │ Engine Telemetry        │  │
-│  │ Behavior Sim    │    │  │ Diagnostic Data         │  │
-│  └─────────────────┘    │  └─────────────────────────┘  │
-├─────────────────────────────────────────────────────────┤
-│  Output Channels        │  AWS Integration              │
-│  ┌─────────────────┐    │  ┌─────────────────────────┐  │
-│  │ Kinesis Streams │    │  │ IoT Core MQTT           │  │
-│  │ Direct API      │────┼──│ S3 Data Export          │  │
-│  │ File Export     │    │  │ CloudWatch Metrics      │  │
-│  └─────────────────┘    │  └─────────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
-```
+The simulation service provides:
+- **Real-time Telemetry**: Live vehicle data streaming
+- **Historical Data**: Bulk historical data generation
+- **Fleet Simulation**: Multi-vehicle fleet scenarios
+- **Route Simulation**: GPS-based route following
+- **Event Simulation**: Safety and maintenance events
+- **API Interface**: REST API for simulation control
 
-## 📁 Project Structure
+## Architecture
 
 ```
 simulation/
-├── src/
-│   ├── simulators/           # Core simulation engines
-│   │   ├── vehicle_simulator.py     # Main vehicle simulation
-│   │   ├── route_generator.py       # GPS route generation
-│   │   ├── telemetry_generator.py   # Sensor data generation
-│   │   └── behavior_models.py       # Driving behavior models
-│   ├── data/                # Reference data and configurations
-│   │   ├── vehicle_profiles.json    # Vehicle type definitions
-│   │   ├── routes.json             # Predefined routes
-│   │   └── scenarios.json          # Simulation scenarios
-│   ├── outputs/             # Output adapters
-│   │   ├── kinesis_publisher.py    # Kinesis Data Streams
-│   │   ├── iot_publisher.py        # AWS IoT Core
-│   │   ├── api_publisher.py        # Direct API calls
-│   │   └── file_exporter.py        # Local file export
-│   ├── utils/               # Utility functions
-│   │   ├── aws_helpers.py          # AWS SDK utilities
-│   │   ├── data_generators.py      # Data generation helpers
-│   │   └── config_loader.py        # Configuration management
-│   └── main.py             # Main simulation runner
-├── config/                  # Configuration files
-│   ├── simulation_config.yaml      # Main configuration
-│   ├── vehicle_types.yaml         # Vehicle type definitions
-│   └── environments/              # Environment-specific configs
-│       ├── dev.yaml
-│       ├── staging.yaml
-│       └── prod.yaml
-├── tests/                   # Unit and integration tests
-│   ├── test_simulators.py
-│   ├── test_outputs.py
-│   └── test_integration.py
-├── docker/                  # Docker configurations
-│   ├── Dockerfile
-│   └── docker-compose.yml
-├── scripts/                 # Utility scripts
-│   ├── run_simulation.sh
-│   ├── generate_test_data.sh
-│   └── deploy.sh
-├── requirements.txt         # Python dependencies
-└── README.md
+├── simulation_api.py              # REST API server
+├── realtime_telemetry_simulator.py # Real-time simulation
+├── historical_data_injector.py    # Historical data generation
+├── fleet_simulation_runner.py     # Fleet management
+├── telemetry_generator.py         # Core telemetry logic
+├── manage_simulation.sh           # Management scripts
+└── requirements.txt               # Python dependencies
 ```
 
-## 🚀 Quick Start
-
-### Prerequisites
-- **Python** 3.9+
-- **AWS CLI** configured with appropriate permissions
-- **Docker** (optional, for containerized execution)
-
-### Setup
+## Prerequisites
 
 ```bash
-# From workspace root
-cd services/simulation
+# Python 3.9+
+python --version
 
-# Install dependencies (use workspace venv)
-source ../../.venv/bin/activate
+# AWS CLI configured
+aws configure
+
+# Required Python packages
 pip install -r requirements.txt
-
-# Configure simulation
-cp config/simulation_config.yaml.example config/simulation_config.yaml
-# Edit configuration as needed
 ```
 
-### Running Simulations
-
-```bash
-# Basic simulation (10 vehicles, 1 hour)
-python src/main.py --vehicles 10 --duration 3600
-
-# Custom scenario
-python src/main.py --config config/scenarios/rush_hour.yaml
-
-# Continuous simulation
-python src/main.py --continuous --vehicles 100
-```
-
-## 🎯 Simulation Features
-
-### Vehicle Types
-- **Passenger Cars**: Standard sedans, SUVs, hatchbacks
-- **Commercial Vehicles**: Delivery trucks, vans, buses
-- **Electric Vehicles**: EVs with battery telemetry
-- **Heavy Duty**: Semi-trucks, construction vehicles
-
-### Telemetry Data Generated
-```python
-# Example telemetry output
-{
-    "vehicleId": "VEH_001",
-    "timestamp": "2024-01-01T12:00:00Z",
-    "location": {
-        "latitude": 40.7128,
-        "longitude": -74.0060,
-        "altitude": 10.5,
-        "heading": 45.0,
-        "speed": 35.2
-    },
-    "engine": {
-        "rpm": 2200,
-        "temperature": 190,
-        "oilPressure": 42,
-        "fuelLevel": 0.68,
-        "throttlePosition": 0.25
-    },
-    "diagnostics": {
-        "errorCodes": [],
-        "batteryVoltage": 12.4,
-        "tirePressure": [32, 31, 33, 32],
-        "mileage": 45230
-    },
-    "environmental": {
-        "outsideTemperature": 72,
-        "humidity": 0.45,
-        "weather": "clear"
-    }
-}
-```
-
-### Simulation Scenarios
-- **Normal Operations**: Typical daily driving patterns
-- **Rush Hour**: High-density traffic simulation
-- **Long Distance**: Highway and interstate travel
-- **Urban Delivery**: Stop-and-go city driving
-- **Emergency Response**: High-priority vehicle routing
-- **Maintenance Events**: Simulated breakdowns and alerts
-
-## 🔧 Configuration
-
-### Simulation Configuration
-```yaml
-# config/simulation_config.yaml
-simulation:
-  duration_seconds: 3600
-  update_interval_ms: 1000
-  vehicles:
-    count: 50
-    types: ["sedan", "suv", "truck"]
-  
-routes:
-  type: "random"  # or "predefined"
-  bounds:
-    north: 40.8
-    south: 40.6
-    east: -73.9
-    west: -74.1
-
-outputs:
-  kinesis:
-    enabled: true
-    stream_name: "vehicle-telemetry-stream"
-  iot_core:
-    enabled: true
-    topic_prefix: "vehicle/telemetry"
-  api:
-    enabled: false
-    endpoint: "https://api.example.com"
-```
-
-### Vehicle Profiles
-```yaml
-# config/vehicle_types.yaml
-vehicle_types:
-  sedan:
-    fuel_capacity: 60
-    fuel_efficiency: 28.5
-    max_speed: 120
-    weight: 1500
-  
-  truck:
-    fuel_capacity: 200
-    fuel_efficiency: 8.2
-    max_speed: 90
-    weight: 8000
-```
-
-## 🛠️ Development Commands
+## Build & Deploy
 
 ### Local Development
 ```bash
-# Run single simulation
-python src/main.py --vehicles 5 --duration 300
+# Install dependencies
+pip install -r requirements.txt
 
-# Run with specific configuration
-python src/main.py --config config/scenarios/test.yaml
+# Start simulation API server
+python simulation_api.py
 
-# Generate test data file
-python src/main.py --output file --file output/test_data.json
+# Run real-time simulation
+python realtime_telemetry_simulator.py --vehicles 10 --duration 3600
+
+# Generate historical data
+python historical_data_injector.py --days 30 --vehicles 50
 ```
 
-### Testing
+### Production Deployment
 ```bash
-# Run unit tests
-python -m pytest tests/
+# Start as background service
+./start_simulation_service.sh
 
-# Run integration tests
-python -m pytest tests/test_integration.py
-
-# Run with coverage
-python -m pytest --cov=src tests/
+# Manage simulation
+./manage_simulation.sh start
+./manage_simulation.sh stop
+./manage_simulation.sh status
 ```
 
-### Docker Execution
+## Configuration
+
+### Environment Variables
 ```bash
-# Build Docker image
-docker build -t vehicle-simulator .
-
-# Run simulation in container
-docker run -e AWS_REGION=us-east-1 \
-  -e KINESIS_STREAM_NAME=vehicle-telemetry \
-  vehicle-simulator --vehicles 20 --duration 1800
+export AWS_REGION=us-east-1
+export IOT_ENDPOINT=<your-iot-endpoint>
+export KAFKA_BOOTSTRAP_SERVERS=<msk-endpoint>
+export SIMULATION_RATE=1000  # messages per second
 ```
 
-## 📊 Output Channels
-
-### Kinesis Data Streams
+### Simulation Parameters
+Edit configuration in `simulation_api.py`:
 ```python
-# High-throughput streaming for real-time processing
-kinesis_client.put_record(
-    StreamName='vehicle-telemetry-stream',
-    Data=json.dumps(telemetry_data),
-    PartitionKey=vehicle_id
-)
+SIMULATION_CONFIG = {
+    'default_vehicles': 10,
+    'telemetry_interval': 5,  # seconds
+    'route_deviation': 0.1,   # km
+    'event_probability': 0.05, # 5% chance per message
+    'battery_drain_rate': 0.1  # % per hour
+}
 ```
 
-### AWS IoT Core
-```python
-# MQTT publishing for IoT device simulation
-iot_client.publish(
-    topic=f'vehicle/telemetry/{vehicle_id}',
-    qos=1,
-    payload=json.dumps(telemetry_data)
-)
+## Usage
+
+### REST API Endpoints
+
+#### Start Real-time Simulation
+```bash
+curl -X POST http://localhost:8000/simulation/start \
+  -H "Content-Type: application/json" \
+  -d '{
+    "vehicles": 5,
+    "duration": 3600,
+    "route": "munich_city"
+  }'
 ```
 
-### Direct API Integration
-```python
-# Direct API calls to fleet management system
-requests.post(
-    f'{api_endpoint}/api/v1/telemetry',
-    json=telemetry_data,
-    headers={'Authorization': f'Bearer {token}'}
-)
+#### Generate Historical Data
+```bash
+curl -X POST http://localhost:8000/historical/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "start_date": "2024-01-01",
+    "end_date": "2024-01-31",
+    "vehicles": 20
+  }'
 ```
 
-## 🔐 Security
+#### Fleet Management
+```bash
+# Create fleet
+curl -X POST http://localhost:8000/fleet/create \
+  -d '{"name": "test-fleet", "vehicles": 10}'
 
-### AWS Permissions
+# Start fleet simulation
+curl -X POST http://localhost:8000/fleet/test-fleet/start
+
+# Stop simulation
+curl -X POST http://localhost:8000/simulation/stop
+```
+
+### Command Line Usage
+
+#### Real-time Simulation
+```bash
+# Basic simulation
+python realtime_telemetry_simulator.py
+
+# Custom parameters
+python realtime_telemetry_simulator.py \
+  --vehicles 20 \
+  --duration 7200 \
+  --interval 10 \
+  --route munich_highway
+
+# Fleet simulation
+python fleet_simulation_runner.py \
+  --fleet-size 50 \
+  --scenario city_traffic
+```
+
+#### Historical Data Generation
+```bash
+# Generate 30 days of data
+python historical_data_injector.py \
+  --start-date 2024-01-01 \
+  --end-date 2024-01-31 \
+  --vehicles 100
+
+# Quick test data
+python generate_quick_test_data.py \
+  --hours 24 \
+  --vehicles 5
+```
+
+## Telemetry Data Format
+
+### Standard Telemetry Message
 ```json
 {
-  "Version": "2012-10-17",
-  "Statement": [
+  "vehicleId": "vehicle-001",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "location": {
+    "latitude": 48.1351,
+    "longitude": 11.5820,
+    "altitude": 520.5
+  },
+  "motion": {
+    "speed": 65.5,
+    "heading": 180.0,
+    "acceleration": {
+      "x": 0.1,
+      "y": -0.2,
+      "z": 9.8
+    }
+  },
+  "engine": {
+    "rpm": 2500,
+    "temperature": 85.5,
+    "load": 45.2
+  },
+  "battery": {
+    "soc": 75.5,
+    "voltage": 12.6,
+    "current": -15.2
+  },
+  "events": [
     {
-      "Effect": "Allow",
-      "Action": [
-        "kinesis:PutRecord",
-        "kinesis:PutRecords",
-        "iot:Publish",
-        "s3:PutObject"
-      ],
-      "Resource": "*"
+      "type": "hard_braking",
+      "severity": "medium",
+      "timestamp": "2024-01-15T10:29:58Z"
     }
   ]
 }
 ```
 
-### Data Privacy
-- **PII Anonymization**: No personally identifiable information
-- **Data Retention**: Configurable data lifecycle policies
-- **Encryption**: All data encrypted in transit and at rest
+## Simulation Scenarios
 
-## 📈 Performance & Scaling
+### City Traffic
+- **Speed**: 20-50 km/h
+- **Stops**: Traffic lights, intersections
+- **Events**: Frequent braking, acceleration
 
-### Throughput Optimization
-- **Batch Processing**: Configurable batch sizes for Kinesis
-- **Async Publishing**: Non-blocking data transmission
-- **Connection Pooling**: Efficient AWS SDK usage
+### Highway Driving  
+- **Speed**: 80-120 km/h
+- **Behavior**: Steady speed, lane changes
+- **Events**: Occasional hard braking
 
-### Resource Management
-```python
-# Example configuration for high-throughput simulation
-SIMULATION_CONFIG = {
-    'batch_size': 100,
-    'worker_threads': 4,
-    'kinesis_batch_size': 500,
-    'publish_interval_ms': 100
-}
+### Fleet Operations
+- **Multiple Vehicles**: Coordinated movement
+- **Route Optimization**: Efficient path planning
+- **Load Balancing**: Distribute simulation load
+
+## Management
+
+### Monitoring
+```bash
+# Check simulation status
+curl http://localhost:8000/status
+
+# View active simulations
+curl http://localhost:8000/simulation/list
+
+# Get metrics
+curl http://localhost:8000/metrics
 ```
 
-## 🚨 Monitoring & Troubleshooting
+### Scaling
+```bash
+# Horizontal scaling
+python simulation_api.py --port 8001 &
+python simulation_api.py --port 8002 &
 
-### CloudWatch Metrics
-- **Simulation Rate**: Records generated per second
-- **Publish Success Rate**: Successful data transmission
-- **Error Rate**: Failed operations and retries
-- **Resource Usage**: CPU and memory consumption
-
-### Logging
-```python
-import logging
-
-logger = logging.getLogger(__name__)
-logger.info(f"Generated telemetry for {vehicle_count} vehicles")
-logger.warning(f"Failed to publish {failed_count} records")
+# Load balancing
+# Use nginx or ALB to distribute requests
 ```
+
+### Performance Tuning
+```python
+# Adjust batch sizes
+BATCH_SIZE = 100  # messages per batch
+
+# Tune threading
+MAX_WORKERS = 10  # concurrent threads
+
+# Memory optimization
+BUFFER_SIZE = 1000  # message buffer
+```
+
+## Troubleshooting
 
 ### Common Issues
-- **AWS Credentials**: Ensure proper IAM permissions
-- **Network Connectivity**: Check VPC and security groups
-- **Rate Limiting**: Configure appropriate throttling
-- **Data Format**: Validate JSON schema compliance
 
-## 🤝 Contributing
+**High Memory Usage**
+```bash
+# Monitor memory
+ps aux | grep python
 
-1. Follow Python PEP 8 coding standards
-2. Include unit tests for new simulation features
-3. Update configuration schemas for new parameters
-4. Document new vehicle types and scenarios
-5. Test with realistic data volumes before committing
+# Reduce batch sizes
+export BATCH_SIZE=50
+```
+
+**AWS Connection Issues**
+```bash
+# Test IoT connectivity
+aws iot describe-endpoint --endpoint-type iot:Data-ATS
+
+# Check credentials
+aws sts get-caller-identity
+```
+
+**Kafka Connection Problems**
+```bash
+# Test Kafka connectivity
+kafka-console-producer.sh --bootstrap-server <kafka> \
+  --topic vehicle-telemetry
+```
+
+### Performance Issues
+- **Slow Data Generation**: Increase batch sizes and threading
+- **Network Bottlenecks**: Use compression and connection pooling
+- **Memory Leaks**: Monitor and restart services periodically
+
+### Useful Commands
+```bash
+# View simulation logs
+tail -f simulation_service.log
+
+# Kill all simulations
+pkill -f "python.*simulation"
+
+# Check port usage
+netstat -tulpn | grep 8000
+```
