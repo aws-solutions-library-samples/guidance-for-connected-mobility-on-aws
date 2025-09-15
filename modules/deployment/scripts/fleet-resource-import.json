@@ -1,0 +1,10 @@
+[
+  {
+    "ResourceType": "AWS::ApiGateway::Resource",
+    "LogicalResourceId": "FleetByIdResource",
+    "ResourceIdentifier": {
+      "RestApiId": "vwrk6kctee",
+      "Id": "xnfug4"
+    }
+  }
+]

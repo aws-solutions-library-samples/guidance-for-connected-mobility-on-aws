@@ -1,0 +1,34 @@
+{
+  "name": "connected-mobility-workspace",
+  "version": "1.0.0",
+  "description": "Connected Mobility Solution Workspace",
+  "modules": {
+    "cms_ui": {
+      "path": "./modules/cms_ui",
+      "type": "web-application",
+      "tech": ["react", "typescript", "python", "aws-cdk"]
+    },
+    "deployment": {
+      "path": "./modules/deployment", 
+      "type": "infrastructure",
+      "tech": ["aws-cdk", "cloudformation"]
+    },
+    "flink": {
+      "path": "./modules/flink",
+      "type": "data-processing",
+      "tech": ["apache-flink", "java"]
+    },
+    "simulation": {
+      "path": "./services/simulation",
+      "type": "service",
+      "tech": ["python"]
+    }
+  },
+  "shared": {
+    "lib": {
+      "path": "./lib",
+      "type": "shared-library",
+      "tech": ["python"]
+    }
+  }
+}

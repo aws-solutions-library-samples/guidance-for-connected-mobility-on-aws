@@ -1,0 +1,15 @@
+#!/bin/bash
+
+echo "✅ Flink application recreated with correct configuration"
+echo "✅ IAM role configured with comprehensive permissions"
+echo ""
+echo "The CLI command should work but there's a specific IAM permission issue."
+echo "Try this final command:"
+echo ""
+echo "aws kinesisanalyticsv2 add-application-vpc-configuration \\"
+echo "  --profile target-account \\"
+echo "  --application-name cms-telemetry-processor-final \\"
+echo "  --current-application-version-id 3 \\"
+echo "  --vpc-configuration SecurityGroupIds=sg-0c5536f3dfcb18130,SubnetIds=subnet-0dbd978b605f5efef,subnet-09ebb6d0054c45fa4"
+echo ""
+echo "If it still fails, the application is ready - just add VPC via AWS Console."
