@@ -4,6 +4,7 @@ Enhanced Historical Data Injector for CMS UI with Amazon Location Services
 Generates realistic routes using Amazon Location Services and realistic trip patterns
 """
 
+import os
 import json
 import time
 import random
@@ -45,6 +46,20 @@ class EnhancedHistoricalDataInjector:
         """Initialize the enhanced historical data injector"""
         self.profile_name = profile_name
         self.region = region
+        
+        # Get configuration from environment variables
+        self.num_fleets = int(os.environ.get('NUM_FLEETS', '5'))
+        self.vehicles_per_fleet = int(os.environ.get('VEHICLES_PER_FLEET', '10'))
+        self.use_location_services_env = os.environ.get('USE_LOCATION_SERVICES', 'true').lower() == 'true'
+        self.safety_event_probability = float(os.environ.get('SAFETY_EVENT_PROBABILITY', '0.05'))
+        self.maintenance_frequency = int(os.environ.get('MAINTENANCE_FREQUENCY', '30'))
+        
+        # Parse selected cities
+        selected_cities_str = os.environ.get('SELECTED_CITIES', '1,2,3,4,5')
+        try:
+            selected_city_indices = [int(x.strip()) for x in selected_cities_str.split(',')]
+        except ValueError:
+            selected_city_indices = [1, 2, 3, 4, 5]
         
         # Initialize AWS session
         session = boto3.Session(profile_name=profile_name)
@@ -1018,10 +1033,10 @@ class EnhancedHistoricalDataInjector:
         print("🌍 Using Amazon Location Services for realistic routes")
         
         print("📊 Generating fleet data...")
-        fleets = self.generate_fleet_data(5)
+        fleets = self.generate_fleet_data(self.num_fleets)
         
         print("🚗 Generating vehicle data...")
-        vehicles = self.generate_vehicle_data(fleets, 10)
+        vehicles = self.generate_vehicle_data(fleets, self.vehicles_per_fleet)
         
         print("🛣️ Generating enhanced trip data with real routes...")
         trips = self.generate_enhanced_trip_data(vehicles, days)
@@ -1056,7 +1071,8 @@ class EnhancedHistoricalDataInjector:
         print(f"   • {len(trips)} trips with real routes via Amazon Location Services")
         print(f"   • {len(safety_events)} safety events with intelligent severity calculation")
         print(f"   • {len(maintenance_alerts)} maintenance alerts based on usage patterns")
-        print(f"   • Routes calculated across {len(self.cities)} major cities")
+        print(f"   • Safety event probability: {self.safety_event_probability}")
+        print(f"   • Maintenance frequency: {self.maintenance_frequency} days")
         print(f"   • Real street-level routing: {'✅' if self.use_location_services else '❌ (fallback mode)'}")
         print(f"   • IoT Core integration: ⏸️  (disabled for historical data - enabled for real-time)")
         print("\n🚨 Enhanced Safety Events:")

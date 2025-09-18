@@ -1,0 +1,123 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Creates IoT VPC destination and rule for MSK SCRAM connectivity
+
+Parameters:
+  VpcId:
+    Type: String
+    Default: vpc-0eb8b1b390253821c
+  PrivateSubnet1:
+    Type: String  
+    Default: subnet-070ddbb9ba7cacdd6
+  PrivateSubnet2:
+    Type: String
+    Default: subnet-04a9d533081679b6a
+  SecurityGroup:
+    Type: String
+    Default: sg-034fb14daaaea4023
+  BootstrapServers:
+    Type: String
+    Description: MSK VPC SCRAM bootstrap servers
+    Default: ""
+  SecretArn:
+    Type: String
+    Default: arn:aws:secretsmanager:us-east-1:195026230833:secret:AmazonMSK_cms-dev-msk_iot_user_credentials-w76gkV
+
+Resources:
+  IoTCreateVpcENIRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /service-role/
+      RoleName: IoTCreateVpcENIRole-cms-dev
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: iot.amazonaws.com
+            Action: sts:AssumeRole
+
+  IoTVpcDestinationPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: IoTVpcDestinationPolicy-cms-dev
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - ec2:CreateNetworkInterface
+              - ec2:DescribeNetworkInterfaces
+              - ec2:DescribeVpcs
+              - ec2:DeleteNetworkInterface
+              - ec2:DescribeSubnets
+              - ec2:DescribeVpcAttribute
+              - ec2:DescribeSecurityGroups
+              - ec2:CreateNetworkInterfacePermission
+              - ec2:CreateTags
+            Resource: '*'
+      Roles:
+        - !Ref IoTCreateVpcENIRole
+
+  IoTMSKSecretRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /service-role/
+      RoleName: IoTMSKSecretRole-cms-dev
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: iot.amazonaws.com
+            Action: sts:AssumeRole
+
+  IoTMSKSecretPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: IoTMSKSecretPolicy-cms-dev
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Ref SecretArn
+      Roles:
+        - !Ref IoTMSKSecretRole
+
+  TopicRuleVpcDestination:
+    Type: AWS::IoT::TopicRuleDestination
+    DependsOn: IoTVpcDestinationPolicy
+    Properties:
+      VpcProperties:
+        VpcId: !Ref VpcId
+        SubnetIds:
+          - !Ref PrivateSubnet1
+          - !Ref PrivateSubnet2
+        SecurityGroups:
+          - !Ref SecurityGroup
+        RoleArn: !GetAtt IoTCreateVpcENIRole.Arn
+
+  MSKRule:
+    Type: AWS::IoT::TopicRule
+    Properties:
+      RuleName: IoT_MSK_Rule_cms_dev
+      TopicRulePayload:
+        Description: Rule to forward MQTT messages to MSK with SCRAM
+        Sql: "SELECT * FROM 'topic/telemetry'"
+        Actions:
+          - Kafka:
+              ClientProperties:
+                sasl.mechanism: SCRAM-SHA-512
+                security.protocol: SASL_SSL
+                bootstrap.servers: !Ref BootstrapServers
+                sasl.scram.username: !Sub '${get_secret("${SecretArn}", "SecretString", "username", "${IoTMSKSecretRole.Arn}")}'
+                sasl.scram.password: !Sub '${get_secret("${SecretArn}", "SecretString", "password", "${IoTMSKSecretRole.Arn}")}'
+              DestinationArn: !Ref TopicRuleVpcDestination
+              Topic: cms-telemetry-raw
+
+Outputs:
+  VpcDestinationArn:
+    Value: !Ref TopicRuleVpcDestination
+  IoTRuleName:
+    Value: !Ref MSKRule

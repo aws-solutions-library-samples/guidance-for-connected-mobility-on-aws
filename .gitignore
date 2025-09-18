@@ -495,3 +495,28 @@ tmp/
 test-results/
 test-output/
 cdk-stacks/cdk.out.ui.45104
+deployment/cdk.out.phase4.30917
+# AWS and sensitive files - DO NOT COMMIT
+.aws/
+*.pem
+*.key
+*.p12
+*.pfx
+credentials
+config
+*credentials*
+*secret*
+*password*
+
+# Account-specific and sensitive content - DO NOT COMMIT
+*195026230833*
+*022035076260*
+*bootstrap*.amazonaws.com*
+*arn:aws:secretsmanager*
+*arn:aws:iam::195026230833*
+*arn:aws:iam::022035076260*
+
+# CDK build outputs - DO NOT COMMIT
+deployment/cdk.out*/
+deployment/.venv/
+deployment/node_modules/

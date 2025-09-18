@@ -1,68 +1,169 @@
-# Guidance for Connected Mobility on AWS
+# Connected Mobility Solution (CMS) - AWS Guidance
 
-A comprehensive AWS-based connected vehicle system featuring real-time telemetry processing, fleet management, and IoT device monitoring.
+A comprehensive connected mobility platform featuring fleet management, real-time telemetry processing, and modern web interfaces.
 
 ## Architecture Overview
 
-```
-connected-mobility-workspace/
-├── cdk-stacks           # Infrastructure/           # AWS CDK Infrastructure Stacks
-├── modules/              # Core Application Modules
-│   ├── cms_ui           # Fleet Manager Interface/          # Fleet Management Web Interface
-│   ├── deployment/      # Legacy Deployment Scripts
-│   └── flink/           # Real-time Data Processing
-├── services/            # Supporting Services
-│   └── simulation/      # Vehicle Telemetry Simulation
-├── lib/                 # Shared Libraries
-├── scripts/             # Utility Scripts
-└── documentation/       # All Documentation
+The CMS uses a modular, phase-based deployment approach with clear separation of concerns:
 
-```
+### **Phase-Based Deployment**
+
+1. **Phase 1: Fleet Manager Interface**
+   - IoT Core (fleet management components)
+   - DynamoDB Storage
+   - CloudFront UI
+   - Lambda APIs
+   - Cognito Authentication
+
+2. **Phase 2: Fleet Management Interface**
+   - Historical data injection capabilities
+   - Data migration tools
+
+3. **Phase 3: Telemetry Pipeline 1 (MSK)**
+   - MSK cluster deployment
+   - VPC and security groups
+   - SCRAM authentication setup
+
+4. **Phase 4: Telemetry Pipeline 2 (MSK Configuration)**
+   - MSK VPC connectivity
+   - IoT-MSK integration rules
+   - Telemetry data routing
+
+5. **Phase 5: Telemetry Pipeline 3 (Flink Deployment)**
+   - Flink applications
+   - Stream processing jobs
+
+6. **Phase 6: Telemetry Pipeline 4 (Configuration)**
+   - Flink configuration
+   - Application startup
 
 ## Quick Start
 
-### Prerequisites
-- Node.js 18+
-- Python 3.9+
-- Java 11+
-- AWS CLI configured
-- AWS CDK CLI installed
-
-### Initial Setup
 ```bash
-# Clone and setup workspace
-git clone <repository-url>
-cd connected-mobility-workspace
+# Navigate to deployment directory
+cd deployment
 
-# Install dependencies (see individual module READMEs)
+# Interactive deployment (recommended)
+make deploy
+
+# Or deploy specific phases
+make phase1  # Fleet Manager Interface
+make phase3  # MSK cluster
+make phase4  # MSK + IoT integration
 ```
 
-## Components
+## Stack Architecture
 
-| Component | Description | Technology Stack |
-|-----------|-------------|------------------|
-| **Infrastructure** | Infrastructure as Code | AWS CDK, Python |
-| **Fleet Manager** | Fleet Management Interface | React, TypeScript, Python |
-| **Telemetry Pipeline** | Real-time Telemetry Processing | Apache Flink, Java |
-| **Telemetry Simulation Service** | Vehicle Data Simulation | Python, AWS IoT |
+### **Fleet Management (IoT Stack)**
+- **Purpose**: UI-focused IoT components for fleet operations
+- **Components**:
+  - Device lifecycle management
+  - Fleet status monitoring
+  - Device registration/deregistration
+  - UI data aggregation
+  - Authentication and authorization
 
-## Documentation
+### **Telemetry Processing (MSK + Integration)**
+- **Purpose**: Real-time telemetry data pipeline
+- **Components**:
+  - MSK cluster for message streaming
+  - IoT rules for data routing
+  - VPC destinations for connectivity
+  - SCRAM authentication for security
+  - Flink for stream processing
 
-All documentation has been organized in the `/documentation` folder:
+### **Storage Layer**
+- DynamoDB tables for fleet data
+- S3 buckets for telemetry storage
+- Time-series data optimization
 
-- **[Infrastructure](./cdk-stacks/README.md)** - Infrastructure deployment
-- **[Fleet Manager](./modules/fleet-manager/README.md)** - Web interface setup
-- **[Telemetry Pipeline](./modules/flink/README.md)** - Data processing pipeline
-- **[Telemetry Simulation Service](./services/simulation/README.md)** - Vehicle simulation
-- **[Detailed Docs](./documentation/)** - Complete documentation archive
+### **Presentation Layer**
+- React TypeScript frontend
+- CloudFront distribution
+- API Gateway endpoints
+- Lambda function handlers
 
-## Development Workflow
+## Development Environment
 
-1. **Infrastructure**: Deploy CDK stacks first
-2. **Backend Services**: Setup Flink processing and simulation
-3. **Frontend**: Deploy Fleet Manager interface
-4. **Testing**: Use simulation service for end-to-end testing
+### Prerequisites
+- Node.js 18+ and npm
+- Python 3.9+ and pip
+- AWS CLI configured
+- CDK CLI installed
+- Java 11 (for Flink builds)
+
+### Setup
+```bash
+# Install dependencies
+make install
+
+# Bootstrap CDK (one-time)
+make bootstrap
+
+# Deploy interactively
+make deploy
+```
+
+## Key Features
+
+### **Separation of Concerns**
+- **Fleet Management**: UI and device operations (IoT Stack)
+- **Telemetry Processing**: Data pipeline and streaming (MSK + Integration)
+- **Clear Dependencies**: Each phase builds on previous phases
+
+### **Modular Deployment**
+- Deploy components independently
+- Phase-based approach for complex systems
+- Clear rollback and troubleshooting
+
+### **Security Best Practices**
+- SCRAM authentication for MSK
+- VPC isolation for data processing
+- IAM roles with least privilege
+- Secrets Manager for credentials
+
+## Configuration
+
+### **Environment Variables**
+```bash
+AWS_PROFILE=your-profile
+DEPLOYMENT_STAGE=dev|prod
+AWS_REGION=us-east-1
+```
+
+### **Manual Phase Deployment**
+```bash
+# Specify profile and stage
+make phase1 AWS_PROFILE=my-profile DEPLOYMENT_STAGE=dev
+make phase3 AWS_PROFILE=my-profile DEPLOYMENT_STAGE=prod
+```
+
+## Monitoring and Operations
+
+### **Status Checking**
+```bash
+make status  # Check all stack statuses
+```
+
+### **Cleanup**
+```bash
+make clean        # Clean build artifacts
+make destroy-all  # Destroy all stacks (CAREFUL!)
+```
+
+## Architecture Benefits
+
+1. **Modular Design**: Independent deployment of components
+2. **Clear Separation**: Fleet management vs telemetry processing
+3. **Scalable**: Each component can scale independently
+4. **Maintainable**: Focused responsibilities per stack
+5. **Secure**: Defense in depth with multiple security layers
 
 ## Support
 
-Refer to individual component READMEs for detailed setup instructions and troubleshooting guides.
+- **Interactive Deployment**: Use `make deploy` for guided setup
+- **Phase Documentation**: Each phase has clear objectives
+- **Troubleshooting**: Status commands for monitoring
+- **Rollback**: Phase-based deployment enables targeted fixes
+
+For detailed component documentation, see individual module READMEs.
