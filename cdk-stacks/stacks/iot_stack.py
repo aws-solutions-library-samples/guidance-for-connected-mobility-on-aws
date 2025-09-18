@@ -9,6 +9,7 @@ from aws_cdk import (
     aws_sqs as sqs,
     aws_lambda as lambda_,
     aws_dynamodb as dynamodb,
+    aws_s3 as s3,
     CfnOutput,
     Duration,
     RemovalPolicy
@@ -17,16 +18,76 @@ from constructs import Construct
 
 class IoTStack(Stack):
     
-    def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
+    def __init__(self, scope: Construct, construct_id: str, msk_vpc_id: str = None, msk_subnet_ids: list = None, msk_security_group_id: str = None, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
         
-        # IoT Service Role for MSK publishing
-        self.iot_role = iam.Role(
-            self, "IoTMSKRole",
+        # Extract deployment stage from construct_id (e.g., "cms-dev-iot" -> "dev")
+        deployment_stage = construct_id.split('-')[1] if '-' in construct_id else 'dev'
+        
+        # Create separate VPC ENI role for network interface creation
+        self.vpc_eni_role = iam.Role(
+            self, "IoTVpcENIRole",
+            role_name=f"IoTCreateVpcENIRole-{deployment_stage}",
+            description="Role used by AWS IoT Rules for VPC network interface creation",
+            path="/service-role/",
             assumed_by=iam.ServicePrincipal("iot.amazonaws.com")
         )
         
+        # Add VPC ENI permissions to dedicated role
+        self.vpc_eni_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DescribeVpcs",
+                    "ec2:DeleteNetworkInterface",
+                    "ec2:DescribeSubnets",
+                    "ec2:DescribeVpcAttribute",
+                    "ec2:DescribeSecurityGroups"
+                ],
+                resources=["*"]
+            )
+        )
+        
+        # Add conditional permission for CreateNetworkInterfacePermission
+        self.vpc_eni_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["ec2:CreateNetworkInterfacePermission"],
+                resources=["*"],
+                conditions={
+                    "StringEquals": {
+                        "ec2:ResourceTag/VPCDestinationENI": "true"
+                    }
+                }
+            )
+        )
+        
+        # Add permission to create tags on network interfaces
+        self.vpc_eni_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["ec2:CreateTags"],
+                resources=["*"],
+                conditions={
+                    "StringEquals": {
+                        "ec2:CreateAction": "CreateNetworkInterface",
+                        "aws:RequestTag/VPCDestinationENI": "true"
+                    }
+                }
+            )
+        )
+
+        # IoT Service Role for MSK publishing (simplified - no VPC permissions)
+        self.iot_role = iam.Role(
+            self, "IoTMSKRole",
+            assumed_by=iam.ServicePrincipal("iot.amazonaws.com"),
+            description="Role for IoT rules to access MSK and related services"
+        )
+        
         # Add permissions for Secrets Manager (for SCRAM credentials)
+        # Use specific secret ARN pattern for MSK SCRAM credentials
         self.iot_role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
@@ -34,8 +95,36 @@ class IoTStack(Stack):
                     "secretsmanager:GetSecretValue",
                     "secretsmanager:DescribeSecret"
                 ],
-                resources=["*"]  # Will be restricted by MSK stack
+                resources=[
+                    f"arn:aws:secretsmanager:{self.region}:{self.account}:secret:AmazonMSK_*",
+                    f"arn:aws:secretsmanager:{self.region}:{self.account}:secret:*-iot-user-credentials*"
+                ]
             )
+        )
+        
+        # Add broad KMS permissions - specific key will be configured by integration script
+        self.iot_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "kms:Encrypt",
+                    "kms:Decrypt", 
+                    "kms:ReEncrypt*",
+                    "kms:GenerateDataKey*",
+                    "kms:DescribeKey"
+                ],
+                resources=[f"arn:aws:kms:{self.region}:{self.account}:key/*"]
+            )
+        )
+        
+        # Create S3 bucket for telemetry data backup
+        self.telemetry_bucket = s3.Bucket(
+            self, "TelemetryRawBucket",
+            bucket_name=f"{construct_id}-telemetry-raw",
+            removal_policy=RemovalPolicy.RETAIN,
+            versioned=False,
+            public_read_access=False,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL
         )
         
         # Add permissions for S3 backup
@@ -46,7 +135,7 @@ class IoTStack(Stack):
                     "s3:PutObject",
                     "s3:PutObjectAcl"
                 ],
-                resources=["*"]  # Will be restricted by MSK stack
+                resources=[f"{self.telemetry_bucket.bucket_arn}/*"]
             )
         )
         
@@ -112,6 +201,40 @@ class IoTStack(Stack):
             removal_policy=RemovalPolicy.DESTROY
         )
         
+        # Additional IoT tables for complete API support
+        self.iot_users_table = dynamodb.Table(
+            self, "IoTUsersTable",
+            table_name=f"{construct_id}-iot-users",
+            partition_key=dynamodb.Attribute(
+                name="uid",
+                type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.DESTROY
+        )
+        
+        self.iot_policies_table = dynamodb.Table(
+            self, "IoTPoliciesTable", 
+            table_name=f"{construct_id}-iot-policies",
+            partition_key=dynamodb.Attribute(
+                name="uid",
+                type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.DESTROY
+        )
+        
+        self.iot_alarms_table = dynamodb.Table(
+            self, "IoTAlarmsTable",
+            table_name=f"{construct_id}-iot-alarms",
+            partition_key=dynamodb.Attribute(
+                name="alarm_name",
+                type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.DESTROY
+        )
+        
         # Basic IoT Policy for devices (define before Lambda functions)
         self.device_policy = iot.CfnPolicy(
             self, "CMSDevicePolicy",
@@ -149,13 +272,23 @@ class IoTStack(Stack):
             }
         )
         
+        # Create Powertools V2 layer as part of the stack
+        self.powertools_layer = lambda_.LayerVersion(
+            self, "PowertoolsV2Layer",
+            layer_version_name=f"{construct_id}-powertools-v2",
+            code=lambda_.Code.from_asset("../modules/cms_ui/source/layers/powertools-v2"),
+            compatible_runtimes=[lambda_.Runtime.PYTHON_3_9],
+            description="AWS Lambda Powertools V2 for Python 3.9"
+        )
+        
         # Lambda function to process IoT lifecycle events (using comprehensive version)
         self.iot_lifecycle_processor = lambda_.Function(
             self, "IoTLifecycleProcessor",
             runtime=lambda_.Runtime.PYTHON_3_9,
             handler="lambda_function.lambda_handler",
             code=lambda_.Code.from_asset("../modules/cms_ui/source/handlers/iot_lifecycle_events"),
-            timeout=Duration.seconds(60),
+            timeout=Duration.seconds(300),
+            layers=[self.powertools_layer],
             environment={
                 'CONNECTIONS_TABLE': f"{construct_id}-iot-connections",
                 'SUBSCRIPTIONS_TABLE': f"{construct_id}-iot-subscriptions", 
@@ -167,10 +300,16 @@ class IoTStack(Stack):
         self.iot_api_function = lambda_.Function(
             self, "IoTAPIFunction",
             runtime=lambda_.Runtime.PYTHON_3_9,
-            handler="lambda_function.lambda_handler",
+            handler="index.lambda_handler",
             code=lambda_.Code.from_asset("../modules/cms_ui/source/handlers/iot_api"),
-            timeout=Duration.seconds(60),
+            timeout=Duration.seconds(300),
             environment={
+                'CONNECTIONS_TABLE': f"{construct_id}-iot-connections",
+                'SUBSCRIPTIONS_TABLE': f"{construct_id}-iot-subscriptions", 
+                'TOPICS_TABLE': f"{construct_id}-iot-topics",
+                'USERS_TABLE': f"{construct_id}-iot-users",
+                'POLICIES_TABLE': f"{construct_id}-iot-policies",
+                'ALARMS_TABLE': f"{construct_id}-iot-alarms",
                 'IOT_POLICY_NAME': self.device_policy.policy_name
             }
         )
@@ -200,6 +339,14 @@ class IoTStack(Stack):
         self.iot_connections_table.grant_write_data(self.iot_lifecycle_processor)
         self.iot_subscriptions_table.grant_write_data(self.iot_lifecycle_processor)
         self.iot_topics_table.grant_write_data(self.iot_lifecycle_processor)
+        
+        # Grant API function read/write access to all IoT tables
+        self.iot_connections_table.grant_read_write_data(self.iot_api_function)
+        self.iot_subscriptions_table.grant_read_write_data(self.iot_api_function)
+        self.iot_topics_table.grant_read_write_data(self.iot_api_function)
+        self.iot_users_table.grant_read_write_data(self.iot_api_function)
+        self.iot_policies_table.grant_read_write_data(self.iot_api_function)
+        self.iot_alarms_table.grant_read_write_data(self.iot_api_function)
         
         # Add SQS as event source for Lambda
         from aws_cdk.aws_lambda_event_sources import SqsEventSource
@@ -315,11 +462,38 @@ class IoTStack(Stack):
             )
         )
         
+        # Create VPC destination for MSK connectivity (if MSK VPC info provided)
+        if msk_vpc_id and msk_subnet_ids and msk_security_group_id:
+            self.vpc_destination = iot.CfnTopicRuleDestination(
+                self, "MSKVpcDestination",
+                vpc_properties=iot.CfnTopicRuleDestination.VpcDestinationPropertiesProperty(
+                    vpc_id=msk_vpc_id,
+                    subnet_ids=msk_subnet_ids,
+                    security_groups=[msk_security_group_id],
+                    role_arn=self.vpc_eni_role.role_arn
+                )
+            )
+            
+            # Output VPC destination ARN
+            CfnOutput(
+                self, "VpcDestinationArn",
+                value=self.vpc_destination.attr_arn,
+                export_name=f"{construct_id}-vpc-destination-arn"
+            )
+        else:
+            self.vpc_destination = None
+
         # Outputs
         CfnOutput(
             self, "IoTRoleArn",
             value=self.iot_role.role_arn,
             export_name=f"{construct_id}-iot-role-arn"
+        )
+        
+        CfnOutput(
+            self, "VpcENIRoleArn",
+            value=self.vpc_eni_role.role_arn,
+            export_name=f"{construct_id}-vpc-eni-role-arn"
         )
         
         CfnOutput(
@@ -338,6 +512,12 @@ class IoTStack(Stack):
             self, "IoTLifecycleProcessorArn",
             value=self.iot_lifecycle_processor.function_arn,
             export_name=f"{construct_id}-iot-lifecycle-processor-arn"
+        )
+        
+        CfnOutput(
+            self, "TelemetryBucketName",
+            value=self.telemetry_bucket.bucket_name,
+            export_name=f"{construct_id}-telemetry-bucket-name"
         )
         
         CfnOutput(

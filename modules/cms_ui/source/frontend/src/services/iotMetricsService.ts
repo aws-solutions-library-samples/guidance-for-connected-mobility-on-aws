@@ -33,11 +33,12 @@ class IoTMetricsService {
       if (!response.ok) throw new Error('API unavailable');
       return await response.json();
     } catch {
+      // Return empty statistics when API is unavailable
       return [
-        { metric_name: 'TotalConnections', value: 1200, unit: 'Count' },
-        { metric_name: 'ActiveConnections', value: 1100, unit: 'Count' },
-        { metric_name: 'TotalTopics', value: 80, unit: 'Count' },
-        { metric_name: 'ActiveSubscriptions', value: 300, unit: 'Count' },
+        { metric_name: 'TotalConnections', value: 0, unit: 'Count' },
+        { metric_name: 'ActiveConnections', value: 0, unit: 'Count' },
+        { metric_name: 'TotalTopics', value: 0, unit: 'Count' },
+        { metric_name: 'ActiveSubscriptions', value: 0, unit: 'Count' },
       ];
     }
   }
@@ -51,18 +52,23 @@ class IoTMetricsService {
       });
       if (!response.ok) throw new Error('API unavailable');
       const data = await response.json();
+      
+      // Filter out fake/test data
+      const realItems = (data.items || []).filter((item: any) => 
+        !item.client_id.includes('vehicle-001') && 
+        !item.client_id.includes('vehicle-002') &&
+        !item.ip_address.startsWith('192.168.1.')
+      );
+      
       return {
-        items: data.items || [],
-        totalCount: data.total || 0
+        items: realItems,
+        totalCount: realItems.length
       };
     } catch (error) {
       console.error('API call failed:', error);
       return {
-        items: [
-          { client_id: 'vehicle-001', status: 'CONNECTED', ip_address: '192.168.1.100' },
-          { client_id: 'vehicle-002', status: 'DISCONNECTED', ip_address: '192.168.1.101' },
-        ],
-        totalCount: 2
+        items: [],
+        totalCount: 0
       };
     }
   }

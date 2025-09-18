@@ -9,6 +9,25 @@ import json
 import time
 from typing import Dict, Any
 
+def get_msk_bootstrap_servers(cluster_arn: str) -> str:
+    """Get SCRAM bootstrap servers from MSK cluster"""
+    kafka = boto3.client('kafka')
+    
+    try:
+        response = kafka.get_bootstrap_brokers(ClusterArn=cluster_arn)
+        
+        # Try SCRAM first, fall back to others if not available
+        if 'BootstrapBrokerStringSaslScram' in response:
+            return response['BootstrapBrokerStringSaslScram']
+        elif 'BootstrapBrokerString' in response:
+            return response['BootstrapBrokerString']
+        else:
+            raise Exception("No bootstrap servers found")
+            
+    except Exception as e:
+        print(f"Error getting bootstrap servers: {e}")
+        raise
+
 def get_stack_outputs(stack_name: str) -> Dict[str, str]:
     """Get CloudFormation stack outputs"""
     cf = boto3.client('cloudformation')
@@ -33,23 +52,25 @@ def create_vpc_destination(vpc_id: str, subnet_ids: list, security_group_ids: li
     
     try:
         # Check if VPC destination already exists
-        destinations = iot.list_vpc_destinations()
+        destinations = iot.list_topic_rule_destinations()
         for dest in destinations.get('destinations', []):
             if dest['vpcId'] == vpc_id:
                 print(f"VPC destination already exists: {dest['arn']}")
                 return dest['arn']
         
         # Create new VPC destination
-        response = iot.create_vpc_destination(
-            vpcDestinationConfiguration={
-                'vpcId': vpc_id,
-                'subnetIds': subnet_ids,
-                'securityGroups': security_group_ids,
-                'roleArn': role_arn
+        response = iot.create_topic_rule_destination(
+            destinationConfiguration={
+                'vpcConfiguration': {
+                    'vpcId': vpc_id,
+                    'subnetIds': subnet_ids,
+                    'securityGroups': security_group_ids,
+                    'roleArn': role_arn
+                }
             }
         )
         
-        destination_arn = response['vpcDestination']['arn']
+        destination_arn = response['destinationArn']
         print(f"Created VPC destination: {destination_arn}")
         return destination_arn
         
@@ -147,6 +168,18 @@ def update_iot_role_policy(role_name: str, cluster_arn: str, secret_arn: str):
                     "secretsmanager:DescribeSecret"
                 ],
                 "Resource": secret_arn
+            },
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DescribeSecurityGroups",
+                    "ec2:DescribeSubnets",
+                    "ec2:DescribeVpcs",
+                    "ec2:DeleteNetworkInterface"
+                ],
+                "Resource": "*"
             }
         ]
     }
@@ -190,17 +223,21 @@ def main():
     
     # Extract required values
     cluster_arn = msk_outputs.get('MSKClusterArn')
-    bootstrap_servers = msk_outputs.get('BootstrapServers')
-    secret_arn = msk_outputs.get('IoTUserSecretArn')
     iot_role_arn = iot_outputs.get('IoTRoleArn')
     
-    if not all([cluster_arn, bootstrap_servers, secret_arn, iot_role_arn]):
+    if not all([cluster_arn, iot_role_arn]):
         print("ERROR: Missing required stack outputs:")
         print(f"  Cluster ARN: {cluster_arn}")
-        print(f"  Bootstrap Servers: {bootstrap_servers}")
-        print(f"  Secret ARN: {secret_arn}")
         print(f"  IoT Role ARN: {iot_role_arn}")
         return
+    
+    # Get bootstrap servers dynamically
+    print("Getting MSK bootstrap servers...")
+    bootstrap_servers = get_msk_bootstrap_servers(cluster_arn)
+    print(f"Bootstrap servers: {bootstrap_servers}")
+    
+    # Get secret ARN from MSK outputs
+    secret_arn = msk_outputs.get('IoTUserSecretArn')
     
     # Extract role name from ARN
     role_name = iot_role_arn.split('/')[-1]

@@ -1,0 +1,35 @@
+# Add parallel deployment targets to your existing Makefile
+
+# Parallel deployment of MSK and Flink (they don't have hard dependencies)
+deploy-msk-flink-parallel: deploy-storage ## Deploy MSK and Flink in parallel
+	@echo "$(BLUE)🚀 Deploying MSK and Flink in parallel...$(NC)"
+	@$(MAKE) deploy-msk AWS_PROFILE=$(AWS_PROFILE) DEPLOYMENT_STAGE=$(DEPLOYMENT_STAGE) & \
+	$(MAKE) deploy-flink-base AWS_PROFILE=$(AWS_PROFILE) DEPLOYMENT_STAGE=$(DEPLOYMENT_STAGE) & \
+	wait
+	@echo "$(GREEN)✅ Parallel deployment completed$(NC)"
+	@$(MAKE) integrate-msk-flink AWS_PROFILE=$(AWS_PROFILE) DEPLOYMENT_STAGE=$(DEPLOYMENT_STAGE)
+
+# Flink deployment without JAR build (JAR built separately)
+deploy-flink-base: deploy-storage ## Deploy Flink stack without JAR build
+	@echo "$(BLUE)⚡ Deploying Flink stack (base) with profile: $(AWS_PROFILE)$(NC)"
+	@source .venv/bin/activate && \
+	export AWS_PROFILE=$(AWS_PROFILE) && \
+	CDK_DEFAULT_ACCOUNT=$$(aws sts get-caller-identity --profile $(AWS_PROFILE) --query Account --output text) \
+	CDK_DEFAULT_REGION=$(AWS_REGION) \
+	DEPLOYMENT_STAGE=$(DEPLOYMENT_STAGE) \
+	cdk deploy cms-$(DEPLOYMENT_STAGE)-flink --require-approval never --profile $(AWS_PROFILE) --output cdk.out.flink
+	@echo "$(GREEN)✅ Flink stack (base) deployed$(NC)"
+
+# Combined integration step
+integrate-msk-flink: ## Integrate MSK and Flink after parallel deployment
+	@echo "$(BLUE)🔗 Running MSK-Flink integration...$(NC)"
+	@$(MAKE) integrate-iot-msk AWS_PROFILE=$(AWS_PROFILE) DEPLOYMENT_STAGE=$(DEPLOYMENT_STAGE) & \
+	$(MAKE) integrate-flink-msk AWS_PROFILE=$(AWS_PROFILE) DEPLOYMENT_STAGE=$(DEPLOYMENT_STAGE) & \
+	$(MAKE) build-jar AWS_PROFILE=$(AWS_PROFILE) DEPLOYMENT_STAGE=$(DEPLOYMENT_STAGE) & \
+	wait
+	@echo "$(GREEN)✅ All integrations completed$(NC)"
+
+# Fast deployment option for interactive menu
+deploy-fast: deploy-storage deploy-iot deploy-msk-flink-parallel deploy-ui ## Fast parallel deployment
+	@echo "$(GREEN)🎉 Fast deployment completed!$(NC)"
+	@$(MAKE) status

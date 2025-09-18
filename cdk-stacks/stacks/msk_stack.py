@@ -1,5 +1,5 @@
 """
-MSK Stack - Kafka cluster with SCRAM authentication (based on working cms_iot_kafka_direct_stack.py)
+MSK Stack - Simplified Kafka cluster with SCRAM authentication
 """
 
 import json
@@ -11,7 +11,7 @@ from aws_cdk import (
     aws_secretsmanager as secretsmanager,
     aws_logs as logs,
     aws_lambda as lambda_,
-    aws_iot as iot,
+    aws_kms as kms,
     CustomResource,
     CfnOutput,
     RemovalPolicy,
@@ -25,17 +25,31 @@ class MSKStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
         
-        # Use default VPC (account agnostic with env variables set)
-        self.vpc = ec2.Vpc.from_lookup(self, "DefaultVPC", is_default=True)
+        # Create dedicated VPC for MSK with private subnets
+        print("Creating dedicated VPC for MSK with private subnets")
+        self.vpc = ec2.Vpc(
+            self, "MSKVpc",
+            max_azs=2,
+            cidr="10.0.0.0/16",
+            subnet_configuration=[
+                ec2.SubnetConfiguration(
+                    name="MSKPrivate",
+                    subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS,
+                    cidr_mask=24
+                ),
+                ec2.SubnetConfiguration(
+                    name="MSKPublic", 
+                    subnet_type=ec2.SubnetType.PUBLIC,
+                    cidr_mask=24
+                )
+            ],
+            nat_gateways=1  # One NAT gateway for cost optimization
+        )
         
-        # Use private subnets if available, otherwise public
-        subnets = self.vpc.private_subnets if self.vpc.private_subnets else self.vpc.public_subnets
+        # Use private subnets for MSK cluster
+        subnets = self.vpc.private_subnets[:2]  # Take first 2 private subnets for MSK
         
-        if len(subnets) < 2:
-            # If not enough subnets, use all available subnets
-            subnets = self.vpc.public_subnets + self.vpc.private_subnets
-        
-        # Security group for MSK (based on working example)
+        # Security group for MSK
         self.msk_security_group = ec2.SecurityGroup(
             self, "MSKSecurityGroup",
             vpc=self.vpc,
@@ -43,7 +57,7 @@ class MSKStack(Stack):
             allow_all_outbound=True
         )
         
-        # Kafka ports (from working example)
+        # Kafka ports
         self.msk_security_group.add_ingress_rule(
             peer=ec2.Peer.ipv4("10.0.0.0/8"),
             connection=ec2.Port.tcp(9092),
@@ -53,7 +67,7 @@ class MSKStack(Stack):
         self.msk_security_group.add_ingress_rule(
             peer=ec2.Peer.ipv4("10.0.0.0/8"),
             connection=ec2.Port.tcp(9094),
-            description="Kafka SASL_SSL"
+            description="Kafka TLS"
         )
         
         self.msk_security_group.add_ingress_rule(
@@ -62,31 +76,46 @@ class MSKStack(Stack):
             description="Kafka SASL_SCRAM"
         )
         
-        # Allow Kinesis Analytics access to SASL_SSL port
-        self.msk_security_group.add_ingress_rule(
-            peer=ec2.Peer.any_ipv4(),
-            connection=ec2.Port.tcp(9096),
-            description="Allow Kinesis Analytics access to MSK SASL_SSL port"
-        )
-        
         self.msk_security_group.add_ingress_rule(
             peer=ec2.Peer.ipv4("10.0.0.0/8"),
             connection=ec2.Port.tcp(9098),
-            description="Kafka SASL_SSL IAM"
+            description="Kafka SASL_IAM"
         )
         
-        # Self-referencing rule for IoT Core to MSK communication
-        self.msk_security_group.add_ingress_rule(
-            peer=self.msk_security_group,
-            connection=ec2.Port.tcp_range(9092, 9098),
-            description="Self-referencing rule for IoT Core to MSK"
+        # Generate unique suffix for resource names to avoid conflicts
+        unique_suffix = self.node.addr[:8]  # Use first 8 chars of CDK node address
+        
+        # CloudWatch log group for MSK - use unique name to avoid conflicts
+        self.msk_log_group = logs.LogGroup(
+            self, "MSKLogGroup",
+            log_group_name=f"/aws/msk/{construct_id}-{unique_suffix}",
+            removal_policy=RemovalPolicy.DESTROY,
+            retention=logs.RetentionDays.ONE_WEEK
         )
         
-        # Create SCRAM secret for iot-user (simple approach)
+        # Create customer-managed KMS key for MSK secrets
+        self.msk_kms_key = kms.Key(
+            self, "MSKSecretsKey",
+            description="Customer-managed key for MSK SCRAM secrets"
+        )
+        
+        # Add policy to allow root account access
+        self.msk_kms_key.add_to_resource_policy(
+            iam.PolicyStatement(
+                sid="Enable IAM User Permissions",
+                effect=iam.Effect.ALLOW,
+                principals=[iam.AccountRootPrincipal()],
+                actions=["kms:*"],
+                resources=["*"]
+            )
+        )
+        
+        # Create SCRAM secret for iot-user with proper naming and KMS key
         self.iot_user_secret = secretsmanager.Secret(
             self, "IoTUserSecret",
-            secret_name=f"{construct_id}-iot-user-credentials",
+            secret_name=f"AmazonMSK_{construct_id}_iot_user_credentials",
             description="SCRAM credentials for IoT user to access MSK",
+            encryption_key=self.msk_kms_key,
             generate_secret_string=secretsmanager.SecretStringGenerator(
                 secret_string_template='{"username": "iot-user"}',
                 generate_string_key="password",
@@ -94,66 +123,68 @@ class MSKStack(Stack):
             )
         )
         
-        # CloudWatch Log Group for MSK (with unique suffix)
-        import time
-        timestamp = str(int(time.time()))[-6:]  # Last 6 digits of timestamp
-        self.msk_log_group = logs.LogGroup(
-            self, "MSKLogGroup",
-            log_group_name=f"/aws/msk/{construct_id}-cluster-{timestamp}",
-            removal_policy=RemovalPolicy.DESTROY
-        )
-        
-        # MSK Configuration for auto-topic creation (with unique suffix)
-        self.msk_configuration = msk.CfnConfiguration(
-            self, "MSKConfiguration",
-            name=f"{construct_id}-auto-topic-creation-config-{timestamp}",
-            description="Configuration with auto topic creation enabled",
+        # MSK Cluster Configuration - use unique name to avoid conflicts
+        cluster_config = msk.CfnConfiguration(
+            self, "MSKClusterConfig",
+            name=f"{construct_id}-config-{unique_suffix}",
+            description="MSK cluster configuration for CMS",
             kafka_versions_list=["3.8.x"],
             server_properties="""
 auto.create.topics.enable=true
 default.replication.factor=2
-min.insync.replicas=1
 num.partitions=3
-log.retention.hours=168
-log.segment.bytes=1073741824
-            """.strip()
+"""
         )
         
-        # MSK Provisioned cluster (based on working example - SCRAM + unauthenticated)
+        # MSK Cluster - use m5.large for VPC connectivity support
+        instance_type = "kafka.m5.large"  # VPC connectivity requires m5.large or larger
+        volume_size = 20 if construct_id.endswith("-dev") else 100
+        
         self.cluster = msk.CfnCluster(
-            self, "CMSKafkaCluster",
-            cluster_name=f"{construct_id}-cluster-{timestamp}",
+            self, "MSKCluster",
+            cluster_name=f"{construct_id}-cluster",
             kafka_version="3.8.x",
             number_of_broker_nodes=2,
             broker_node_group_info=msk.CfnCluster.BrokerNodeGroupInfoProperty(
-                instance_type="kafka.m5.large",
+                instance_type=instance_type,
                 client_subnets=[subnet.subnet_id for subnet in subnets[:2]],
                 security_groups=[self.msk_security_group.security_group_id],
                 storage_info=msk.CfnCluster.StorageInfoProperty(
                     ebs_storage_info=msk.CfnCluster.EBSStorageInfoProperty(
-                        volume_size=100
+                        volume_size=volume_size
+                    )
+                ),
+                connectivity_info=msk.CfnCluster.ConnectivityInfoProperty(
+                    vpc_connectivity=msk.CfnCluster.VpcConnectivityProperty(
+                        client_authentication=msk.CfnCluster.VpcConnectivityClientAuthenticationProperty(
+                            sasl=msk.CfnCluster.VpcConnectivitySaslProperty(
+                                iam=msk.CfnCluster.VpcConnectivityIamProperty(enabled=False),
+                                scram=msk.CfnCluster.VpcConnectivityScramProperty(enabled=False)
+                            )
+                        )
                     )
                 )
             ),
-            # SCRAM + IAM authentication (no unauthenticated)
-            client_authentication=msk.CfnCluster.ClientAuthenticationProperty(
-                sasl=msk.CfnCluster.SaslProperty(
-                    scram=msk.CfnCluster.ScramProperty(enabled=True),
-                    iam=msk.CfnCluster.IamProperty(enabled=True)
-                )
-            ),
             configuration_info=msk.CfnCluster.ConfigurationInfoProperty(
-                arn=self.msk_configuration.attr_arn,
+                arn=cluster_config.attr_arn,
                 revision=1
             ),
-            # Full TLS encryption (matches target: "ClientBroker": "TLS")
             encryption_info=msk.CfnCluster.EncryptionInfoProperty(
                 encryption_in_transit=msk.CfnCluster.EncryptionInTransitProperty(
                     client_broker="TLS",
                     in_cluster=True
                 )
             ),
-            enhanced_monitoring="PER_TOPIC_PER_PARTITION",  # Matches target
+            # SCRAM + IAM authentication
+            client_authentication=msk.CfnCluster.ClientAuthenticationProperty(
+                sasl=msk.CfnCluster.SaslProperty(
+                    scram=msk.CfnCluster.ScramProperty(enabled=True),
+                    iam=msk.CfnCluster.IamProperty(enabled=True)
+                ),
+                tls=msk.CfnCluster.TlsProperty(
+                    enabled=False  # Disable mTLS for simplicity
+                )
+            ),
             logging_info=msk.CfnCluster.LoggingInfoProperty(
                 broker_logs=msk.CfnCluster.BrokerLogsProperty(
                     cloud_watch_logs=msk.CfnCluster.CloudWatchLogsProperty(
@@ -164,123 +195,174 @@ log.segment.bytes=1073741824
             )
         )
         
-        # Lambda to get MSK bootstrap servers (from working example)
-        bootstrap_getter_role = iam.Role(
-            self, "MSKBootstrapGetterRole",
-            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
+        # Store cluster ARN for other stacks
+        self.cluster_arn = self.cluster.attr_arn
+        
+        # Create Lambda function for SCRAM secret association
+        secret_association_function = lambda_.Function(
+            self, "MSKSecretAssociationFunction",
+            function_name=f"cfn-msk-secret-association-{construct_id}",
+            runtime=lambda_.Runtime.PYTHON_3_9,
+            handler="index.lambda_handler",
+            timeout=Duration.seconds(30),
+            code=lambda_.Code.from_inline("""
+import json
+import logging
+import cfnresponse
+import boto3
+
+client = boto3.client('kafka')
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+def associate(ClusterArn, SecretArn):
+    response = client.batch_associate_scram_secret(
+        ClusterArn=ClusterArn,
+        SecretArnList=[SecretArn]
+    )
+    logger.info(response)
+    logger.info('Secret associated!')
+    return response['ResponseMetadata']['HTTPStatusCode']
+
+def disassociate(ClusterArn, SecretArn):
+    response = client.batch_disassociate_scram_secret(
+        ClusterArn=ClusterArn,
+        SecretArnList=[SecretArn]
+    )
+    logger.info(response)
+    logger.info('Secret disassociated!')
+    return response['ResponseMetadata']['HTTPStatusCode']
+    
+def lambda_handler(event, context):
+    logger.info(event)
+    responseStatus = cfnresponse.FAILED
+    try:
+        ClusterArn = event['ResourceProperties']['ClusterArn']
+        SecretArn  = event['ResourceProperties']['SecretArn']
+        if event['RequestType'] == 'Create':
+            if (associate(ClusterArn, SecretArn) == 200):
+                responseStatus = cfnresponse.SUCCESS
+        elif event['RequestType'] == 'Delete':
+            if (disassociate(ClusterArn, SecretArn) == 200):
+                responseStatus = cfnresponse.SUCCESS
+        elif event['RequestType'] == 'Update':
+            OldClusterArn = event['OldResourceProperties']['ClusterArn']
+            OldSecretArn  = event['OldResourceProperties']['SecretArn']
+            if (disassociate(OldClusterArn, OldSecretArn) == 200):
+                if (associate(ClusterArn, SecretArn) == 200):
+                    responseStatus = cfnresponse.SUCCESS
+        else:
+            logger.error('Unsupported RequestType %s. Signaling failure to CloudFormation.', event['RequestType'])
+            
+    except Exception:
+        logger.exception('Signaling failure to CloudFormation.')
+    
+    cfnresponse.send(event, context, responseStatus, {})
+    return
+""")
+        )
+        
+        # Grant Lambda permissions to associate/disassociate SCRAM secrets
+        secret_association_function.add_to_role_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "kafka:BatchAssociateScramSecret",
+                    "kafka:BatchDisassociateScramSecret"
+                ],
+                resources=[self.cluster.attr_arn]
+            )
+        )
+        
+        # Grant Lambda permissions to create KMS grants
+        secret_association_function.add_to_role_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["kms:CreateGrant"],
+                resources=[self.msk_kms_key.key_arn]
+            )
+        )
+        
+        # Create custom resource to associate SCRAM secret with cluster
+        secret_association = CustomResource(
+            self, "SecretAssociation",
+            service_token=secret_association_function.function_arn,
+            properties={
+                "ClusterArn": self.cluster.attr_arn,
+                "SecretArn": self.iot_user_secret.secret_arn
+            }
+        )
+        
+        # Ensure secret association happens after cluster is created
+        secret_association.node.add_dependency(self.cluster)
+        secret_association.node.add_dependency(self.iot_user_secret)
+        
+        # Add EC2 instance to create Kafka topics
+        # Create IAM role for topic creation instance
+        topic_creator_role = iam.Role(
+            self, "TopicCreatorRole",
+            assumed_by=iam.ServicePrincipal("ec2.amazonaws.com"),
             managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
+                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonSSMManagedInstanceCore")
             ],
             inline_policies={
-                "MSKAccess": iam.PolicyDocument(
+                "KafkaTopicCreation": iam.PolicyDocument(
                     statements=[
                         iam.PolicyStatement(
-                            effect=iam.Effect.ALLOW,
-                            actions=["kafka:GetBootstrapBrokers"],
-                            resources=[self.cluster.attr_arn]
+                            actions=[
+                                "kafka-cluster:Connect",
+                                "kafka-cluster:CreateTopic",
+                                "kafka-cluster:DescribeTopic",
+                                "kafka:GetBootstrapBrokers"
+                            ],
+                            resources=["*"]
                         )
                     ]
                 )
             }
         )
         
-        bootstrap_getter_fn = lambda_.Function(
-            self, "MSKBootstrapGetter",
-            runtime=lambda_.Runtime.PYTHON_3_9,
-            handler="index.lambda_handler",
-            role=bootstrap_getter_role,
-            timeout=Duration.seconds(30),
-            code=lambda_.Code.from_inline("""
-import json
-import boto3
-import cfnresponse
-
-def lambda_handler(event, context):
-    try:
-        if event['RequestType'] == 'Create':
-            client = boto3.client('kafka')
-            response = client.get_bootstrap_brokers(
-                ClusterArn=event['ResourceProperties']['ClusterArn']
-            )
-            print(f"Full response: {json.dumps(response)}")
-            cfnresponse.send(event, context, cfnresponse.SUCCESS, response)
-        else:
-            cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        cfnresponse.send(event, context, cfnresponse.FAILED, {}, str(e))
-            """)
+        # User data script to create topics
+        user_data = ec2.UserData.for_linux()
+        user_data.add_commands(
+            "yum update -y",
+            "yum install -y java-11-amazon-corretto",
+            "cd /opt",
+            "wget https://downloads.apache.org/kafka/2.8.2/kafka_2.13-2.8.2.tgz",
+            "tar -xzf kafka_2.13-2.8.2.tgz",
+            "cd kafka_2.13-2.8.2",
+            f"BOOTSTRAP_SERVERS=$(aws kafka get-bootstrap-brokers --cluster-arn {self.cluster.attr_arn} --region {self.region} --query 'BootstrapBrokerStringSaslIam' --output text)",
+            "cat > client.properties << EOF",
+            "security.protocol=SASL_SSL",
+            "sasl.mechanism=AWS_MSK_IAM", 
+            "sasl.jaas.config=software.amazon.msk.auth.iam.IAMLoginModule required;",
+            "sasl.client.callback.handler.class=software.amazon.msk.auth.iam.IAMClientCallbackHandler",
+            "EOF",
+            "echo 'Creating topics...'",
+            "bin/kafka-topics.sh --bootstrap-server $BOOTSTRAP_SERVERS --command-config client.properties --create --topic cms-telemetry-raw --partitions 3 --replication-factor 2 || true",
+            "bin/kafka-topics.sh --bootstrap-server $BOOTSTRAP_SERVERS --command-config client.properties --create --topic cms-telemetry-processed --partitions 3 --replication-factor 2 || true", 
+            "bin/kafka-topics.sh --bootstrap-server $BOOTSTRAP_SERVERS --command-config client.properties --create --topic cms-telemetry-maintenance --partitions 3 --replication-factor 2 || true",
+            "bin/kafka-topics.sh --bootstrap-server $BOOTSTRAP_SERVERS --command-config client.properties --create --topic cms-trip-events --partitions 3 --replication-factor 2 || true",
+            "bin/kafka-topics.sh --bootstrap-server $BOOTSTRAP_SERVERS --command-config client.properties --create --topic cms-safety-events --partitions 3 --replication-factor 2 || true",
+            "bin/kafka-topics.sh --bootstrap-server $BOOTSTRAP_SERVERS --command-config client.properties --create --topic cms-maintenance-events --partitions 3 --replication-factor 2 || true",
+            "echo 'Topics created successfully'",
+            "shutdown -h now"  # Terminate instance after creating topics
         )
         
-        # Custom Resource to get bootstrap servers after cluster is ready
-        self.bootstrap_servers_resource = CustomResource(
-            self, "MSKBootstrapServers",
-            service_token=bootstrap_getter_fn.function_arn,
-            properties={"ClusterArn": self.cluster.attr_arn}
+        # Create EC2 instance for topic creation
+        topic_creator_instance = ec2.Instance(
+            self, "TopicCreatorInstance",
+            instance_type=ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MICRO),
+            machine_image=ec2.AmazonLinuxImage(generation=ec2.AmazonLinuxGeneration.AMAZON_LINUX_2),
+            vpc=self.vpc,
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
+            role=topic_creator_role,
+            user_data=user_data,
+            security_group=self.msk_security_group
         )
         
-        # Add dependency on cluster
-        self.bootstrap_servers_resource.node.add_dependency(self.cluster)
-        
-        # IAM policy for MSK access + VPC permissions for IoT Core
-        msk_policy = iam.PolicyDocument(
-            statements=[
-                iam.PolicyStatement(
-                    effect=iam.Effect.ALLOW,
-                    actions=[
-                        "kafka-cluster:Connect",
-                        "kafka-cluster:AlterCluster",
-                        "kafka-cluster:DescribeCluster"
-                    ],
-                    resources=[self.cluster.attr_arn]
-                ),
-                iam.PolicyStatement(
-                    effect=iam.Effect.ALLOW,
-                    actions=[
-                        "kafka-cluster:*Topic*",
-                        "kafka-cluster:WriteData",
-                        "kafka-cluster:ReadData"
-                    ],
-                    resources=[f"{self.cluster.attr_arn}/topic/*"]
-                ),
-                iam.PolicyStatement(
-                    effect=iam.Effect.ALLOW,
-                    actions=[
-                        "kafka-cluster:AlterGroup",
-                        "kafka-cluster:DescribeGroup"
-                    ],
-                    resources=[f"{self.cluster.attr_arn}/group/*"]
-                ),
-                # VPC permissions for IoT Core VPC destination (complete set from working implementation)
-                iam.PolicyStatement(
-                    effect=iam.Effect.ALLOW,
-                    actions=[
-                        "ec2:CreateNetworkInterface",
-                        "ec2:CreateNetworkInterfacePermission",  # Critical missing permission!
-                        "ec2:DeleteNetworkInterface", 
-                        "ec2:DescribeNetworkInterfaces",
-                        "ec2:DescribeSecurityGroups",
-                        "ec2:DescribeSubnets",
-                        "ec2:DescribeVpcs",
-                        "ec2:DescribeVpcAttribute"
-                    ],
-                    resources=["*"]
-                ),
-                # MSK service permissions
-                iam.PolicyStatement(
-                    effect=iam.Effect.ALLOW,
-                    actions=[
-                        "kafka:DescribeCluster",
-                        "kafka:DescribeClusterV2",
-                        "kafka:GetBootstrapBrokers"
-                    ],
-                    resources=[self.cluster.attr_arn]
-                )
-            ]
-        )
-        
-        # Store cluster ARN and bootstrap servers as properties for other stacks
-        self.cluster_arn = self.cluster.attr_arn
+        # Ensure instance starts after cluster is ready
+        topic_creator_instance.node.add_dependency(self.cluster)
         
         # Outputs for other stacks to reference
         CfnOutput(
@@ -296,18 +378,25 @@ def lambda_handler(event, context):
         )
         
         CfnOutput(
-            self, "MSKBootstrapServersOutput",
-            value=self.bootstrap_servers_resource.get_att_string("BootstrapBrokerStringSaslScram"),
-            export_name=f"{construct_id}-bootstrap-servers"
+            self, "MSKSecurityGroupId",
+            value=self.msk_security_group.security_group_id,
+            export_name=f"{construct_id}-security-group-id"
         )
         
         CfnOutput(
-            self, "IoTUserSecretArn",
-            value=self.iot_user_secret.secret_arn,
-            export_name=f"{construct_id}-iot-user-secret-arn"
+            self, "MSKVpcId",
+            value=self.vpc.vpc_id,
+            export_name=f"{construct_id}-vpc-id"
         )
-    
-    @property
-    def bootstrap_servers(self) -> str:
-        # Return IAM bootstrap servers for Flink (port 9098)
-        return self.bootstrap_servers_resource.get_att_string("BootstrapBrokerStringSaslIam")
+        
+        CfnOutput(
+            self, "MSKPrivateSubnetIds",
+            value=",".join([subnet.subnet_id for subnet in self.vpc.private_subnets]),
+            export_name=f"{construct_id}-private-subnet-ids"
+        )
+        
+        CfnOutput(
+            self, "MSKPublicSubnetIds",
+            value=",".join([subnet.subnet_id for subnet in self.vpc.public_subnets]),
+            export_name=f"{construct_id}-public-subnet-ids"
+        )

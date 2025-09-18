@@ -87,6 +87,10 @@ class StorageStack(Stack):
                 name="eventId",
                 type=dynamodb.AttributeType.STRING
             ),
+            sort_key=dynamodb.Attribute(
+                name="timestamp",
+                type=dynamodb.AttributeType.NUMBER
+            ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=RemovalPolicy.RETAIN,
             point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(
@@ -103,6 +107,28 @@ class StorageStack(Stack):
             )
         )
         
+        # Add GSI for vehicleId queries
+        self.tables['safety_events'].add_global_secondary_index(
+            index_name="vehicleId-index",
+            partition_key=dynamodb.Attribute(
+                name="vehicleId",
+                type=dynamodb.AttributeType.STRING
+            )
+        )
+        
+        # Add GSI for vehicleId-timestamp queries (proper design for time range queries)
+        self.tables['safety_events'].add_global_secondary_index(
+            index_name="vehicleId-timestamp-index",
+            partition_key=dynamodb.Attribute(
+                name="vehicleId",
+                type=dynamodb.AttributeType.STRING
+            ),
+            sort_key=dynamodb.Attribute(
+                name="timestamp",
+                type=dynamodb.AttributeType.NUMBER
+            )
+        )
+        
         # Maintenance Events Table - matches cms-631ca2-591631-maintenance-alerts-new
         self.tables['maintenance_events'] = dynamodb.Table(
             self, "MaintenanceEventsTable",
@@ -111,10 +137,36 @@ class StorageStack(Stack):
                 name="alertId",
                 type=dynamodb.AttributeType.STRING
             ),
+            sort_key=dynamodb.Attribute(
+                name="timestamp",
+                type=dynamodb.AttributeType.NUMBER
+            ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=RemovalPolicy.RETAIN,
             point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(
                 point_in_time_recovery_enabled=True
+            )
+        )
+        
+        # Add GSI for vehicleId queries
+        self.tables['maintenance_events'].add_global_secondary_index(
+            index_name="vehicleId-index",
+            partition_key=dynamodb.Attribute(
+                name="vehicleId",
+                type=dynamodb.AttributeType.STRING
+            )
+        )
+        
+        # Add GSI for vehicleId-timestamp queries (proper design for time range queries)
+        self.tables['maintenance_events'].add_global_secondary_index(
+            index_name="vehicleId-timestamp-index",
+            partition_key=dynamodb.Attribute(
+                name="vehicleId",
+                type=dynamodb.AttributeType.STRING
+            ),
+            sort_key=dynamodb.Attribute(
+                name="timestamp",
+                type=dynamodb.AttributeType.NUMBER
             )
         )
         

@@ -26,10 +26,11 @@ import { useAuth } from "../../../auth/useAuth";
 import { getRealtimeApiClient } from "../../../services/RealtimeDataService";
 
 // MapLibre GL JS with React Map GL (works with both OpenStreetMap and Amazon Location Services)
-import Map, { NavigationControl, Marker, Popup } from 'react-map-gl/maplibre';
+import Map, { NavigationControl, Marker, Popup, Source, Layer } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 interface Vehicle {
+  vehicleId: string;
   vin: string;
   fleet_id: string;
   fleet_name: string;
@@ -74,24 +75,69 @@ export default function FleetVehicleMapView() {
     isAllFleets
   } = useAlertsFleetFilter();
 
-  // Time range filter state
-  const [selectedTimeRange, setSelectedTimeRange] = useState('24h');
+  // Map visualization options - default to clusters
+  const [mapVisualization, setMapVisualization] = useState('clusters');
   
-  const timeRangeOptions = [
-    { label: 'Last hour', value: '1h' },
-    { label: 'Last 6 hours', value: '6h' },
-    { label: 'Last 24 hours', value: '24h' },
-    { label: 'Last 3 days', value: '3d' },
-    { label: 'Last 7 days', value: '7d' },
-    { label: 'Last 30 days', value: '30d' },
+  // Track if user has manually interacted with the map
+  const [userHasInteracted, setUserHasInteracted] = useState(false);
+  
+  
+  const visualizationOptions = [
+    { label: 'Individual markers', value: 'markers' },
+    { label: 'Clustered bubbles', value: 'clusters' },
+    { label: 'Heat map', value: 'heatmap' },
+  ];
+  // Connection status filter state
+  const [selectedConnectionStatus, setSelectedConnectionStatus] = useState('all');
+  
+  const connectionStatusOptions = [
+    { label: 'All Status', value: 'all' },
+    { label: 'Connected', value: 'connected' },
+    { label: 'Offline', value: 'offline' },
+    { label: 'Maintenance', value: 'maintenance' }
   ];
 
-  // Dynamic map viewport - starts with a default view and adjusts to vehicle locations
+  // Dynamic map viewport - starts centered on US 
   const [viewState, setViewState] = useState({
-    longitude: -95.7129, // Center of US
+    longitude: -95.7129, 
     latitude: 37.0902,
     zoom: 4
   });
+
+  // Handle map clicks - clusters and individual vehicles
+  const handleMapClick = (event: any) => {
+    const features = event.features;
+    if (features && features.length > 0) {
+      const feature = features[0];
+      
+      // Check if it's a cluster
+      if (feature.properties && feature.properties.point_count) {
+        const coordinates = feature.geometry.coordinates;
+        
+        console.log('🎯 Cluster clicked, centering and zooming in');
+        
+        // Zoom in by 3 levels and center on cluster
+        setViewState(prev => ({
+          longitude: coordinates[0],
+          latitude: coordinates[1], 
+          zoom: Math.min(prev.zoom + 3, 16) // Max zoom of 16
+        }));
+        
+        // Mark that user has interacted with the map
+        setUserHasInteracted(true);
+      }
+      // Check if it's an individual vehicle
+      else if (feature.properties && feature.properties.id) {
+        const vehicleId = feature.properties.id;
+        const vehicle = filteredVehicles.find(v => v.vin === vehicleId);
+        
+        if (vehicle) {
+          console.log('🚗 Vehicle clicked:', vehicle.make, vehicle.model, vehicle.vin);
+          setSelectedVehicle(vehicle);
+        }
+      }
+    }
+  };
 
   // OpenStreetMap style (ready for Amazon Location Services upgrade)
   const mapStyle = {
@@ -131,17 +177,22 @@ export default function FleetVehicleMapView() {
       }
       
       const vehiclesResult = await vehiclesResponse.json();
+      console.log('🔍 Raw API response:', vehiclesResult);
       console.log('🔍 Number of vehicles returned:', vehiclesResult.vehicles?.length || 0);
+      console.log('🔍 First vehicle sample:', vehiclesResult.vehicles?.[0]);
+      console.log('🔍 Vehicle fields available:', Object.keys(vehiclesResult.vehicles?.[0] || {}));
 
       // Transform vehicles with real locations from optimized API
       const transformedVehicles: Vehicle[] = (vehiclesResult.vehicles || []).map((v: any) => {
         // Only include vehicles with actual location data for map display
-        if (!v.hasLocation || !v.lat || !v.lng) {
+        if (!v.lat || !v.lng || typeof v.lat !== 'number' || typeof v.lng !== 'number') {
+          console.log('Skipping vehicle without valid coordinates:', v.vehicleId, v.lat, v.lng);
           return null;
         }
         
         return {
-          vin: v.vehicleId, // Use vehicleId as VIN
+          vehicleId: v.vehicleId, // Keep original vehicleId for navigation
+          vin: v.vin || v.vehicleId, // Use VIN field from API, fallback to vehicleId
           fleet_id: v.fleetId || 'unknown',
           fleet_name: `Fleet ${v.fleetId?.replace('FLEET-', '') || 'Unknown'}`,
           telemetry_fleet_id: v.fleetId || 'unknown',
@@ -149,12 +200,12 @@ export default function FleetVehicleMapView() {
             lat: v.lat,
             lon: v.lng
           },
-          status: v.status === 'active' ? 'CONNECTED' : 'OFFLINE',
+          status: v.connectionStatus === 'connected' ? 'CONNECTED' : 'OFFLINE',
           speed: Math.random() * 60, // Mock speed
           fuel_level: Math.random() * 100, // Mock fuel
           driver_score: 85 + Math.random() * 15,
           auto_registered: true,
-          last_update: v.lastUpdate || new Date().toISOString(),
+          last_update: v.lastUpdate ? new Date(v.lastUpdate * 1000).toISOString() : new Date().toISOString(),
           make: v.make || 'Fleet Vehicle',
           model: v.model || 'Fleet Unit',
           maintenance_status: Math.random() > 0.8 ? 'critical' : Math.random() > 0.6 ? 'engine_light' : 'none',
@@ -163,45 +214,67 @@ export default function FleetVehicleMapView() {
       }).filter(v => v !== null); // Remove vehicles without locations
 
       // Store total counts from API response
-      const totalVehicleCount = vehiclesResult.total || 0;
-      const vehiclesWithLocations = vehiclesResult.withLocations || 0;
+      const totalVehicleCount = vehiclesResult.total || vehiclesResult.vehicles?.length || 0;
+      const vehiclesWithLocations = vehiclesResult.withLocations || transformedVehicles.length;
       
       setVehicles(transformedVehicles);
       setTotalVehicleCount(totalVehicleCount);
       setVehiclesWithLocations(vehiclesWithLocations);
       console.log('✅ Successfully loaded', transformedVehicles.length, 'vehicles with locations out of', totalVehicleCount, 'total vehicles');
 
-      // Auto-fit map to show all vehicles
-      if (transformedVehicles.length > 0) {
-        const lats = transformedVehicles.map(v => v.location.lat);
-        const lons = transformedVehicles.map(v => v.location.lon);
+      // Auto-fit map to show all vehicles - only on initial load, not on refresh
+      if (transformedVehicles.length > 0 && !userHasInteracted) {
+        // Filter to US coordinates only (longitude between -125 and -65)
+        const usVehicles = transformedVehicles.filter(v => 
+          v.location.lon >= -125 && v.location.lon <= -65
+        );
         
-        const minLat = Math.min(...lats);
-        const maxLat = Math.max(...lats);
-        const minLon = Math.min(...lons);
-        const maxLon = Math.max(...lons);
-        
-        // Calculate center and zoom to fit all vehicles
-        const centerLat = (minLat + maxLat) / 2;
-        const centerLon = (minLon + maxLon) / 2;
-        
-        // Calculate appropriate zoom level based on bounds
-        const latDiff = maxLat - minLat;
-        const lonDiff = maxLon - minLon;
-        const maxDiff = Math.max(latDiff, lonDiff);
-        
-        let zoom = 10;
-        if (maxDiff > 10) zoom = 4;
-        else if (maxDiff > 5) zoom = 6;
-        else if (maxDiff > 1) zoom = 8;
-        else if (maxDiff > 0.1) zoom = 10;
-        else zoom = 12;
-        
-        setViewState({
-          longitude: centerLon,
-          latitude: centerLat,
-          zoom: zoom
-        });
+        if (usVehicles.length > 0) {
+          const lats = usVehicles.map(v => v.location.lat);
+          const lons = usVehicles.map(v => v.location.lon);
+          
+          const minLat = Math.min(...lats);
+          const maxLat = Math.max(...lats);
+          const minLon = Math.min(...lons);
+          const maxLon = Math.max(...lons);
+          
+          const centerLat = (minLat + maxLat) / 2;
+          const centerLon = (minLon + maxLon) / 2;
+          
+          console.log('🗺️ Centering on US vehicles only:', usVehicles.length, 'vehicles');
+          console.log('🗺️ US center:', centerLat, centerLon);
+          
+          // Calculate appropriate zoom based on vehicle spread
+          const latDiff = maxLat - minLat;
+          const lonDiff = maxLon - minLon;
+          const maxDiff = Math.max(latDiff, lonDiff);
+          
+          let zoom = 4; // Default for US fleet view
+          if (maxDiff > 15) zoom = 3;      // Very spread out (coast to coast)
+          else if (maxDiff > 8) zoom = 4;  // Multi-state
+          else if (maxDiff > 4) zoom = 5;  // Regional
+          else if (maxDiff > 2) zoom = 6;  // State-level
+          else zoom = 7;                   // City-level
+          
+          setViewState({
+            longitude: centerLon,
+            latitude: centerLat,
+            zoom: zoom
+          });
+        } else {
+          // Fallback to all vehicles if no US vehicles found
+          const lats = transformedVehicles.map(v => v.location.lat);
+          const lons = transformedVehicles.map(v => v.location.lon);
+          const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+          const centerLon = (Math.min(...lons) + Math.max(...lons)) / 2;
+          
+          console.log('🗺️ No US vehicles found, centering on all vehicles:', centerLat, centerLon);
+          setViewState({
+            longitude: centerLon,
+            latitude: centerLat,
+            zoom: 3
+          });
+        }
       }
     } catch (error) {
       console.error('Error fetching vehicle data:', error);
@@ -224,8 +297,163 @@ export default function FleetVehicleMapView() {
   // Filter vehicles based on user selections
   const filteredVehicles = vehicles.filter(vehicle => {
     const fleetMatch = isAllFleets || vehicle.telemetry_fleet_id === selectedFleet;
-    return fleetMatch;
+    
+    // Connection status filter
+    let statusMatch = true;
+    if (selectedConnectionStatus !== 'all') {
+      switch (selectedConnectionStatus) {
+        case 'connected':
+          statusMatch = vehicle.status === 'CONNECTED';
+          break;
+        case 'offline':
+          statusMatch = vehicle.status === 'OFFLINE';
+          break;
+        case 'maintenance':
+          statusMatch = vehicle.status === 'MAINTENANCE';
+          break;
+      }
+    }
+    
+    return fleetMatch && statusMatch;
   });
+
+  // Prepare GeoJSON data for clustering and heatmap
+  const vehicleGeoJSON = {
+    type: 'FeatureCollection',
+    features: filteredVehicles.map(vehicle => ({
+      type: 'Feature',
+      properties: {
+        id: vehicle.vin,
+        status: vehicle.status,
+        make: vehicle.make,
+        model: vehicle.model,
+        fleetId: vehicle.fleet_id
+      },
+      geometry: {
+        type: 'Point',
+        coordinates: [vehicle.location.lon, vehicle.location.lat]
+      }
+    }))
+  };
+
+  // Cluster layer configuration with AWS CloudScape colors and transparency
+  const clusterLayer = {
+    id: 'clusters',
+    type: 'circle',
+    source: 'vehicles',
+    filter: ['has', 'point_count'],
+    paint: {
+      'circle-color': [
+        'step',
+        ['get', 'point_count'],
+        'rgba(22, 78, 99, 0.25)',    // AWS Blue-900 with 25% opacity (small clusters)
+        50,
+        'rgba(59, 130, 246, 0.25)',  // AWS Blue-500 with 25% opacity (medium clusters)  
+        200,
+        'rgba(147, 197, 253, 0.25)'  // AWS Blue-300 with 25% opacity (large clusters)
+      ],
+      'circle-radius': [
+        'step',
+        ['get', 'point_count'],
+        15, 50,    // Small clusters: 15px radius
+        25, 200,   // Medium clusters: 25px radius  
+        35         // Large clusters: 35px radius
+      ],
+      'circle-stroke-width': 2,
+      'circle-stroke-color': [
+        'step',
+        ['get', 'point_count'],
+        '#164e63',  // AWS Blue-900 (small clusters)
+        50,
+        '#3b82f6',  // AWS Blue-500 (medium clusters)
+        200,
+        '#93c5fd'   // AWS Blue-300 (large clusters)
+      ]
+    }
+  };
+
+  const clusterCountLayer = {
+    id: 'cluster-count',
+    type: 'symbol',
+    source: 'vehicles',
+    filter: ['has', 'point_count'],
+    layout: {
+      'text-field': ['get', 'point_count_abbreviated'],
+      'text-size': 14
+    },
+    paint: {
+      'text-color': '#164e63'  // AWS Blue-900 for better contrast
+    }
+  };
+
+  const unclusteredPointLayer = {
+    id: 'unclustered-point',
+    type: 'circle',
+    source: 'vehicles',
+    filter: ['!', ['has', 'point_count']],
+    paint: {
+      'circle-color': [
+        'case',
+        ['==', ['get', 'status'], 'CONNECTED'], '#059669',  // AWS Green-600
+        '#dc2626'  // AWS Red-600
+      ],
+      'circle-radius': [
+        'case',
+        ['boolean', ['feature-state', 'hover'], false],
+        8,  // Larger when hovered
+        6   // Normal size
+      ],
+      'circle-stroke-width': [
+        'case',
+        ['boolean', ['feature-state', 'hover'], false],
+        3,  // Thicker stroke when hovered
+        2   // Normal stroke
+      ],
+      'circle-stroke-color': '#fff'
+    }
+  };
+
+  // Heatmap layer configuration
+  const heatmapLayer = {
+    id: 'vehicles-heat',
+    type: 'heatmap',
+    source: 'vehicles',
+    maxzoom: 15,
+    paint: {
+      'heatmap-weight': [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        0, 1,
+        15, 1
+      ],
+      'heatmap-intensity': [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        0, 1,
+        15, 3
+      ],
+      'heatmap-color': [
+        'interpolate',
+        ['linear'],
+        ['heatmap-density'],
+        0, 'rgba(33,102,172,0)',
+        0.2, 'rgb(103,169,207)',
+        0.4, 'rgb(209,229,240)',
+        0.6, 'rgb(253,219,199)',
+        0.8, 'rgb(239,138,98)',
+        1, 'rgb(178,24,43)'
+      ],
+      'heatmap-radius': [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        0, 2,
+        15, 20
+      ]
+    }
+  };
 
   // Create vehicle markers with status-based styling
   const createVehicleMarker = (vehicle: Vehicle) => {
@@ -391,10 +619,10 @@ export default function FleetVehicleMapView() {
               actions={
                 <SpaceBetween direction="horizontal" size="s">
                   <Select
-                    selectedOption={timeRangeOptions.find(option => option.value === selectedTimeRange)}
-                    onChange={({ detail }) => setSelectedTimeRange(detail.selectedOption.value!)}
-                    options={timeRangeOptions}
-                    placeholder="Select time range"
+                    selectedOption={connectionStatusOptions.find(option => option.value === selectedConnectionStatus)}
+                    onChange={({ detail }) => setSelectedConnectionStatus(detail.selectedOption.value!)}
+                    options={connectionStatusOptions}
+                    placeholder="Select connection status"
                   />
                   <AlertsFleetFilter
                     selectedFleet={selectedFleet}
@@ -435,15 +663,48 @@ export default function FleetVehicleMapView() {
             <div style={{ height: '600px', width: '100%', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
               <Map
                 {...viewState}
-                onMove={evt => setViewState(evt.viewState)}
+                onMove={evt => {
+                  setViewState(evt.viewState);
+                  setUserHasInteracted(true); // Mark interaction on any map movement
+                }}
+                onClick={handleMapClick}
+                interactiveLayerIds={['clusters', 'unclustered-point']}
                 mapStyle={mapStyle}
                 attributionControl={true}
-                style={{ width: '100%', height: '100%' }}
+                style={{ width: '100%', height: '100%', cursor: 'pointer' }}
               >
                 <NavigationControl position="top-right" />
                 
-                {/* Vehicle markers */}
-                {filteredVehicles.map(createVehicleMarker).filter(marker => marker !== null)}
+                {/* Vehicle data source */}
+                <Source
+                  id="vehicles"
+                  type="geojson"
+                  data={vehicleGeoJSON}
+                  cluster={mapVisualization === 'clusters'}
+                  clusterMaxZoom={12}  // Stop clustering at zoom 12, show individual vehicles after
+                  clusterRadius={60}   // Larger cluster radius for better grouping
+                >
+                  {/* Render based on selected visualization */}
+                  {mapVisualization === 'clusters' && (
+                    <>
+                      <Layer {...clusterLayer} />
+                      <Layer {...unclusteredPointLayer} />
+                    </>
+                  )}
+                  
+                  {mapVisualization === 'heatmap' && (
+                    <Layer {...heatmapLayer} />
+                  )}
+                  
+                  {mapVisualization === 'markers' && (
+                    <Layer {...unclusteredPointLayer} />
+                  )}
+                </Source>
+                
+                {/* Individual markers for very detailed view (zoom > 12 and < 100 vehicles visible) */}
+                {viewState.zoom > 12 && filteredVehicles.length <= 100 && 
+                  filteredVehicles.map(createVehicleMarker).filter(marker => marker !== null)
+                }
                 
                 {/* Selected vehicle popup */}
                 {selectedVehicle && 
@@ -460,21 +721,37 @@ export default function FleetVehicleMapView() {
                     closeButton={true}
                     closeOnClick={false}
                   >
-                  <div style={{ padding: '10px', minWidth: '200px' }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>
-                      {selectedVehicle.fleet_name}
+                  <div style={{ padding: '10px', minWidth: '220px' }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '14px' }}>
+                      {selectedVehicle.make} {selectedVehicle.model}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>
+                      VIN: <span 
+                        style={{ cursor: 'pointer', color: '#0073bb', textDecoration: 'underline' }}
+                        onClick={() => {
+                          // Navigate to vehicle detail page using vehicleId
+                          window.location.href = `/fleets/vehicles/${selectedVehicle.vehicleId || selectedVehicle.vin}`;
+                        }}
+                      >
+                        {selectedVehicle.vin}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>
+                      Fleet: {selectedVehicle.fleet_name}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>
+                      Status: <span style={{ 
+                        color: selectedVehicle.status === 'CONNECTED' ? '#059669' : '#dc2626',
+                        fontWeight: 'bold'
+                      }}>
+                        {selectedVehicle.status}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>
+                      Speed: {Math.round(selectedVehicle.speed || 0)} mph
                     </div>
                     <div style={{ fontSize: '12px', color: '#666' }}>
-                      VIN: {selectedVehicle.vin}
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#666' }}>
-                      Status: {selectedVehicle.status}
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#666' }}>
-                      Speed: {selectedVehicle.speed} mph
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#666' }}>
-                      Fuel: {selectedVehicle.fuel_level}%
+                      Fuel: {Math.round(selectedVehicle.fuel_level || 0)}%
                     </div>
                   </div>
                 </Popup>

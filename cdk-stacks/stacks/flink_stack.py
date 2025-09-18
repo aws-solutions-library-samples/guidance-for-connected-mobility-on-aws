@@ -7,15 +7,14 @@ from aws_cdk import (
     aws_kinesisanalytics as kinesisanalytics,
     aws_iam as iam,
     aws_s3 as s3,
-    aws_s3_deployment as s3deploy,
     aws_dynamodb as dynamodb,
     aws_ec2 as ec2,
     aws_logs as logs,
     aws_lambda as lambda_,
-    CustomResource,
     CfnOutput,
     RemovalPolicy,
-    Duration
+    Duration,
+    Fn
 )
 from constructs import Construct
 from typing import Dict
@@ -24,34 +23,77 @@ class FlinkStack(Stack):
     
     def __init__(self, scope: Construct, construct_id: str, 
                  storage_tables: Dict[str, dynamodb.Table], 
-                 msk_stack=None, **kwargs) -> None:
+                 msk_stack=None, 
+                 msk_cluster_arn: str = None,
+                 msk_vpc_id: str = None,
+                 msk_security_group_id: str = None,
+                 msk_subnet_ids: list = None,
+                 **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
         
-        # Get VPC - use default VPC (same as MSK stack)
-        self.vpc = ec2.Vpc.from_lookup(self, "DefaultVPC", is_default=True)
+        # Get VPC - prioritize hardcoded MSK values, then MSK stack, then default VPC
+        if msk_vpc_id and msk_security_group_id and msk_subnet_ids:
+            # Use hardcoded MSK VPC values (highest priority)
+            self.vpc = ec2.Vpc.from_lookup(self, "DefaultVPC", is_default=True)  # For stack resources
+            subnets = self.vpc.private_subnets if self.vpc.private_subnets else self.vpc.public_subnets
+            msk_security_group = None  # Not needed for hardcoded approach
+            msk_available = True
+            print(f"✅ Using hardcoded MSK VPC: {msk_vpc_id}")
+        elif msk_stack:
+            # MSK stack passed as parameter (full deployment)
+            self.vpc = msk_stack.vpc
+            subnets = self.vpc.private_subnets if self.vpc.private_subnets else self.vpc.public_subnets
+            msk_security_group = msk_stack.msk_security_group
+            msk_available = True
+        elif msk_cluster_arn:
+            # MSK cluster ARN provided - use CloudFormation imports for VPC config
+            stage = construct_id.split('-')[1]  # Extract 'dev' from 'cms-dev-flink'
+            
+            # Use default VPC for the Flink stack itself, but configure applications with MSK VPC
+            self.vpc = ec2.Vpc.from_lookup(self, "DefaultVPC", is_default=True)
+            subnets = self.vpc.private_subnets if self.vpc.private_subnets else self.vpc.public_subnets
+            
+            # Create a placeholder security group (won't be used in VPC config)
+            msk_security_group = ec2.SecurityGroup(
+                self, "FlinkSecurityGroup",
+                vpc=self.vpc,
+                description="Security group for Flink applications",
+                allow_all_outbound=True
+            )
+            
+            # Store MSK configuration for use in application VPC config
+            self.msk_vpc_id = Fn.import_value(f"cms-{stage}-msk-vpc-id")
+            self.msk_sg_id = Fn.import_value(f"cms-{stage}-msk-security-group-id")
+            self.msk_subnet_ids = Fn.split(",", Fn.import_value(f"cms-{stage}-msk-private-subnet-ids"))
+            
+            msk_available = True
+        else:
+            # No MSK configuration - use default VPC
+            self.vpc = ec2.Vpc.from_lookup(self, "DefaultVPC", is_default=True)
+            subnets = self.vpc.private_subnets if self.vpc.private_subnets else self.vpc.public_subnets
+            # Create a basic security group for Flink
+            msk_security_group = ec2.SecurityGroup(
+                self, "FlinkSecurityGroup",
+                vpc=self.vpc,
+                description="Security group for Flink applications",
+                allow_all_outbound=True
+            )
+            msk_available = False
+            msk_available = False
         
-        # Use private subnets if available, otherwise public subnets
-        subnets = self.vpc.private_subnets if self.vpc.private_subnets else self.vpc.public_subnets
         if len(subnets) < 2:
             subnets = self.vpc.public_subnets + self.vpc.private_subnets
         
-        # S3 bucket for Flink JARs
+        # S3 bucket for Flink JARs (created by CDK, JAR uploaded by Makefile)
         self.jar_bucket = s3.Bucket(
             self, "FlinkJarBucket",
-            bucket_name=f"{construct_id}-flink-jars-{self.account}",
+            # Let AWS auto-generate unique bucket name to avoid conflicts
             versioned=True,
             removal_policy=RemovalPolicy.DESTROY
         )
         
-        # Use existing pre-built JAR directly
-        self.jar_deployment = s3deploy.BucketDeployment(
-            self, "FlinkJarDeployment",
-            sources=[
-                s3deploy.Source.asset("../modules/flink/target/cms-telemetry-processor-1.0.0.jar")
-            ],
-            destination_bucket=self.jar_bucket,
-            destination_key_prefix="jars/"
-        )
+        # JAR S3 location (uploaded by Makefile build-jar target)
+        jar_s3_key = "jars/cms-telemetry-processor-1.0.0.jar"
         
         # IAM role for Flink applications (matches working target account)
         self.flink_role = iam.Role(
@@ -65,41 +107,102 @@ class FlinkStack(Stack):
             ]
         )
         
-        # Add permissions for MSK access (conditional)
-        if msk_stack:
-            self.flink_role.add_to_policy(
-                iam.PolicyStatement(
-                    effect=iam.Effect.ALLOW,
-                    actions=[
-                        "kafka-cluster:Connect",
-                        "kafka-cluster:AlterCluster", 
-                        "kafka-cluster:DescribeCluster",
-                        "kafka-cluster:*Topic*",
-                        "kafka-cluster:WriteData",
-                        "kafka-cluster:ReadData",
-                        "kafka-cluster:AlterGroup",
-                        "kafka-cluster:DescribeGroup"
-                    ],
-                    resources=[
-                        msk_stack.cluster_arn,
-                        f"{msk_stack.cluster_arn}/topic/*",
-                        f"{msk_stack.cluster_arn}/group/*"
-                    ]
-                )
+        # Add comprehensive MSK access policy (matches FlinkMSKAccess from target account)
+        self.flink_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "kafka-cluster:Connect",
+                    "kafka-cluster:AlterCluster",
+                    "kafka-cluster:DescribeCluster",
+                    "kafka-cluster:CreateTopic",
+                    "kafka-cluster:DeleteTopic", 
+                    "kafka-cluster:DescribeTopic",
+                    "kafka-cluster:AlterTopic",
+                    "kafka-cluster:DescribeTopicDynamicConfiguration",
+                    "kafka-cluster:AlterTopicDynamicConfiguration",
+                    "kafka-cluster:WriteData", 
+                    "kafka-cluster:ReadData",
+                    "kafka-cluster:AlterGroup",
+                    "kafka-cluster:DescribeGroup",
+                    "kafka:DescribeCluster",
+                    "kafka:DescribeClusterV2",
+                    "kafka:GetBootstrapBrokers",
+                    "kafka:ListClusters"
+                ],
+                resources=["*"]
             )
-            
-            # Add permissions for MSK cluster metadata
-            self.flink_role.add_to_policy(
-                iam.PolicyStatement(
-                    effect=iam.Effect.ALLOW,
-                    actions=[
-                        "kafka:DescribeCluster",
-                        "kafka:DescribeClusterV2", 
-                        "kafka:GetBootstrapBrokers"
-                    ],
-                    resources=["*"]
-                )
         )
+        
+        # Add enhanced VPC access policy (matches EnhancedFlinkVPCAccess from target account)
+        self.flink_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "ec2:CreateNetworkInterface",
+                    "ec2:DeleteNetworkInterface", 
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DescribeVpcs",
+                    "ec2:DescribeSubnets",
+                    "ec2:DescribeSecurityGroups",
+                    "ec2:DescribeDhcpOptions",
+                    "ec2:CreateNetworkInterfacePermission",
+                    "ec2:AttachNetworkInterface",
+                    "ec2:DetachNetworkInterface"
+                ],
+                resources=["*"]
+            )
+        )
+        
+        # Add CloudWatch logs permissions for Flink applications
+        self.flink_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                    "logs:DescribeLogGroups",
+                    "logs:DescribeLogStreams"
+                ],
+                resources=[
+                    f"arn:aws:logs:{self.region}:{self.account}:log-group:/aws/kinesis-analytics/*"
+                ]
+            )
+        )
+
+        
+        # Add specific MSK cluster permissions if MSK is available
+        if msk_available:
+            try:
+                cluster_arn = Fn.import_value(f"cms-{construct_id.split('-')[1]}-msk-cluster-arn")
+                self.flink_role.add_to_policy(
+                    iam.PolicyStatement(
+                        effect=iam.Effect.ALLOW,
+                        actions=[
+                            "kafka-cluster:Connect",
+                            "kafka-cluster:AlterCluster",
+                            "kafka-cluster:DescribeCluster",
+                            "kafka-cluster:CreateTopic",
+                            "kafka-cluster:DeleteTopic", 
+                            "kafka-cluster:DescribeTopic",
+                            "kafka-cluster:AlterTopic",
+                            "kafka-cluster:DescribeTopicDynamicConfiguration",
+                            "kafka-cluster:AlterTopicDynamicConfiguration",
+                            "kafka-cluster:WriteData",
+                            "kafka-cluster:ReadData", 
+                            "kafka-cluster:AlterGroup",
+                            "kafka-cluster:DescribeGroup"
+                        ],
+                        resources=[
+                            cluster_arn,
+                            f"{cluster_arn}/topic/*",
+                            f"{cluster_arn}/group/*"
+                        ]
+                    )
+                )
+            except Exception as e:
+                print(f"Could not import MSK cluster ARN: {e}")
         
         # Add DynamoDB permissions for all tables
         for table in storage_tables.values():
@@ -108,49 +211,49 @@ class FlinkStack(Stack):
         # Add S3 permissions for JAR bucket
         self.jar_bucket.grant_read(self.flink_role)
         
-        # CloudWatch Log Groups for all Flink applications (must be created before apps)
+        # CloudWatch Log Groups for all Flink applications
         self.event_driven_telemetry_log_group = logs.LogGroup(
             self, "EventDrivenTelemetryProcessorLogGroup",
             log_group_name=f"/aws/kinesis-analytics/{construct_id}-event-driven-telemetry-processor",
-            removal_policy=RemovalPolicy.DESTROY
+            removal_policy=RemovalPolicy.RETAIN
         )
         
         self.telemetry_enhanced_log_group = logs.LogGroup(
             self, "TelemetryEnhancedLogGroup",
             log_group_name=f"/aws/kinesis-analytics/{construct_id}-telemetry-enhanced-final",
-            removal_policy=RemovalPolicy.DESTROY
+            removal_policy=RemovalPolicy.RETAIN
         )
         
         self.trip_log_group = logs.LogGroup(
             self, "TripProcessorLogGroup", 
             log_group_name=f"/aws/kinesis-analytics/{construct_id}-trip-processor",
-            removal_policy=RemovalPolicy.DESTROY
+            removal_policy=RemovalPolicy.RETAIN
         )
         
         self.safety_log_group = logs.LogGroup(
             self, "SafetyProcessorLogGroup",
             log_group_name=f"/aws/kinesis-analytics/{construct_id}-safety-processor", 
-            removal_policy=RemovalPolicy.DESTROY
+            removal_policy=RemovalPolicy.RETAIN
         )
         
         self.maintenance_log_group = logs.LogGroup(
             self, "MaintenanceProcessorLogGroup",
             log_group_name=f"/aws/kinesis-analytics/{construct_id}-maintenance-processor",
-            removal_policy=RemovalPolicy.DESTROY
+            removal_policy=RemovalPolicy.RETAIN
         )
         
-        # Create log streams for each log group (required by flinkSetup.md)
+        # Create log streams for each log group
         for log_group in [self.event_driven_telemetry_log_group, self.telemetry_enhanced_log_group, 
                          self.trip_log_group, self.safety_log_group, self.maintenance_log_group]:
             logs.LogStream(
                 self, f"{log_group.node.id}Stream",
                 log_group=log_group,
                 log_stream_name="kinesis-analytics-log-stream",
-                removal_policy=RemovalPolicy.DESTROY
+                removal_policy=RemovalPolicy.RETAIN
             )
         
         # Common application configuration (matching flinkSetup.md requirements)
-        def create_flink_app_config(processor_type: str, log_group: logs.LogGroup, additional_properties: Dict[str, str] = None):
+        def create_flink_app_config(processor_type: str, additional_properties: Dict[str, str] = None):
             base_properties = {
                 "PROCESSOR_TYPE": processor_type,
                 "auto.offset.reset": "earliest",
@@ -158,38 +261,38 @@ class FlinkStack(Stack):
                 "aws.region": self.region
             }
             
-            # Add MSK configuration only if MSK stack is available
-            if msk_stack:
+            # Add MSK configuration only if MSK is available
+            if msk_available:
                 base_properties.update({
-                    "bootstrap.servers": msk_stack.bootstrap_servers,
-                    "security.protocol": "SASL_SSL",
-                    "sasl.mechanism": "AWS_MSK_IAM",
-                    "sasl.jaas.config": "software.amazon.msk.auth.iam.IAMLoginModule required;",
-                    "sasl.client.callback.handler.class": "software.amazon.msk.auth.iam.IAMClientCallbackHandler",
-                    "sasl.login.callback.handler.class": "software.amazon.msk.auth.iam.IAMClientCallbackHandler"
+                    # Bootstrap servers will be set by integration script
+                    "security.protocol": "SSL"
+                    # IAM authentication is handled at transport layer, no SASL properties needed
                 })
             
             if additional_properties:
                 base_properties.update(additional_properties)
                 
-            return {
+            app_config = {
                 "ApplicationCodeConfiguration": {
                     "CodeContent": {
                         "S3ContentLocation": {
                             "BucketARN": self.jar_bucket.bucket_arn,
-                            "FileKey": "jars/cms-telemetry-processor.jar"
+                            "FileKey": jar_s3_key
                         }
                     },
                     "CodeContentType": "ZIPFILE"
                 },
                 "FlinkApplicationConfiguration": {
                     "CheckpointConfiguration": {
-                        "ConfigurationType": "DEFAULT"
+                        "ConfigurationType": "CUSTOM",
+                        "CheckpointingEnabled": True,
+                        "CheckpointInterval": 60000,
+                        "MinPauseBetweenCheckpoints": 5000
                     },
                     "MonitoringConfiguration": {
                         "ConfigurationType": "CUSTOM",
                         "MetricsLevel": "APPLICATION", 
-                        "LogLevel": "INFO"
+                        "LogLevel": "DEBUG"
                     },
                     "ParallelismConfiguration": {
                         "ConfigurationType": "DEFAULT",
@@ -206,12 +309,27 @@ class FlinkStack(Stack):
                 }
             }
             
-            # Add VPC configuration only if MSK stack is available
-            if msk_stack:
-                app_config["VpcConfigurations"] = [{
-                    "SubnetIds": [subnet.subnet_id for subnet in subnets[:2]],
-                    "SecurityGroupIds": [msk_stack.msk_security_group.security_group_id]
-                }]
+            # Add VPC configuration for MSK connectivity
+            vpc_config = None
+            if msk_available:
+                if msk_stack:
+                    # Use MSK stack subnets and security group
+                    vpc_config = {
+                        "SubnetIds": [subnet.subnet_id for subnet in subnets[:2]],
+                        "SecurityGroupIds": [msk_security_group.security_group_id]
+                    }
+                elif hasattr(self, 'msk_vpc_id'):
+                    # Use imported MSK VPC configuration
+                    vpc_config = {
+                        "SubnetIds": [
+                            Fn.select(0, self.msk_subnet_ids),
+                            Fn.select(1, self.msk_subnet_ids)
+                        ],
+                        "SecurityGroupIds": [self.msk_sg_id]
+                    }
+            
+            if vpc_config:
+                app_config["VpcConfigurations"] = [vpc_config]
             
             return app_config
         
@@ -313,24 +431,49 @@ def lambda_handler(event, context):
             """)
         )
         
+        # Create VPC configuration for applications
+        vpc_configuration = None
+        if msk_vpc_id and msk_security_group_id and msk_subnet_ids:
+            # Use hardcoded MSK VPC values
+            vpc_configuration = {
+                "SubnetIds": msk_subnet_ids[:2],  # Use first 2 subnets
+                "SecurityGroupIds": [msk_security_group_id]
+            }
+        elif msk_stack:
+            # Use MSK stack subnets and security group
+            vpc_configuration = {
+                "SubnetIds": [subnet.subnet_id for subnet in subnets[:2]],
+                "SecurityGroupIds": [msk_security_group.security_group_id]
+            }
+
         # 1. Event-Driven Telemetry Processor (matches cms-event-driven-telemetry-processor)
+        app_config = {
+            "EnvironmentPropertyDescriptions": {
+                "PropertyGroupDescriptions": [{
+                    "PropertyGroupId": "consumer.config.0",
+                    "PropertyMap": {
+                        "PROCESSOR_TYPE": "EventDrivenTelemetryProcessor",
+                        "auto.offset.reset": "earliest",
+                        "enable.auto.commit": "false",
+                        "aws.region": self.region,
+                        "KAFKA_TOPIC": "cms-telemetry-raw",
+                        "group.id": f"{construct_id}-event-driven-telemetry-consumer"
+                    }
+                }]
+            }
+        }
+        
+        if vpc_configuration:
+            app_config["VpcConfigurations"] = [vpc_configuration]
+            
         self.event_driven_telemetry_processor = kinesisanalytics.CfnApplicationV2(
             self, "EventDrivenTelemetryProcessor",
             application_name=f"{construct_id}-event-driven-telemetry-processor",
             runtime_environment="FLINK-1_18",
             service_execution_role=self.flink_role.role_arn,
-            application_configuration=create_flink_app_config(
-                "EventDrivenTelemetryProcessor",
-                self.event_driven_telemetry_log_group,
-                {
-                    "KAFKA_TOPIC": "cms-telemetry-raw",
-                    "group.id": f"{construct_id}-event-driven-telemetry-consumer"
-                }
-            ),
+            application_configuration=app_config,
             application_description="Event-driven telemetry processor with MSK integration"
         )
-        # Ensure JAR is deployed before application is created
-        self.event_driven_telemetry_processor.node.add_dependency(self.jar_deployment)
         
         # Add CloudWatch logging to event-driven telemetry processor
         kinesisanalytics.CfnApplicationCloudWatchLoggingOptionV2(
@@ -349,17 +492,10 @@ def lambda_handler(event, context):
             runtime_environment="FLINK-1_18",
             service_execution_role=self.flink_role.role_arn,
             application_configuration=create_flink_app_config(
-                "TelemetryDataProcessor",  # Matches target account
-                self.telemetry_enhanced_log_group,
-                {
-                    "KAFKA_TOPIC": "cms-telemetry-processed",
-                    "TELEMETRY_TABLE_NAME": storage_tables["telemetry"].table_name,
-                    "group.id": f"{construct_id}-telemetry-enhanced-consumer"
-                }
+                "TelemetryEnhancedProcessor",
+                {"group.id": "cms-enhanced-telemetry-processor-consumer"}
             )
         )
-        # Ensure JAR is deployed before application is created
-        self.telemetry_enhanced_processor.node.add_dependency(self.jar_deployment)
         
         # Add CloudWatch logging to telemetry enhanced processor
         kinesisanalytics.CfnApplicationCloudWatchLoggingOptionV2(
@@ -379,15 +515,12 @@ def lambda_handler(event, context):
             service_execution_role=self.flink_role.role_arn,
             application_configuration=create_flink_app_config(
                 "TripProcessor",
-                self.trip_log_group,
                 {
                     "group.id": "trip-processor-consumer-fixed",
                     "TRIPS_TABLE_NAME": storage_tables['trips'].table_name
                 }
             )
         )
-        # Ensure JAR is deployed before application is created
-        self.trip_processor.node.add_dependency(self.jar_deployment)
         
         # Add CloudWatch logging to trip processor
         kinesisanalytics.CfnApplicationCloudWatchLoggingOptionV2(
@@ -407,15 +540,12 @@ def lambda_handler(event, context):
             service_execution_role=self.flink_role.role_arn,
             application_configuration=create_flink_app_config(
                 "SafetyProcessor",
-                self.safety_log_group,
                 {
                     "group.id": "safety-processor-consumer",
                     "SAFETY_EVENTS_TABLE_NAME": storage_tables['safety_events'].table_name
                 }
             )
         )
-        # Ensure JAR is deployed before application is created
-        self.safety_processor.node.add_dependency(self.jar_deployment)
         
         # Add CloudWatch logging to safety processor
         kinesisanalytics.CfnApplicationCloudWatchLoggingOptionV2(
@@ -435,15 +565,12 @@ def lambda_handler(event, context):
             service_execution_role=self.flink_role.role_arn,
             application_configuration=create_flink_app_config(
                 "MaintenanceProcessor",
-                self.maintenance_log_group,
                 {
                     "group.id": "cms-maintenance-processor-template-consumer",
                     "MAINTENANCE_TABLE_NAME": storage_tables['maintenance_events'].table_name
                 }
             )
         )
-        # Ensure JAR is deployed before application is created
-        self.maintenance_processor.node.add_dependency(self.jar_deployment)
         
         # Add CloudWatch logging to maintenance processor
         kinesisanalytics.CfnApplicationCloudWatchLoggingOptionV2(
@@ -454,38 +581,8 @@ def lambda_handler(event, context):
             )
         )
         
-        # Auto-start all Flink applications after they're created        
-        CustomResource(
-            self, "StartEventDrivenTelemetry",
-            service_token=flink_starter_fn.function_arn,
-            properties={"ApplicationName": self.event_driven_telemetry_processor.ref}
-        )
-        
-        CustomResource(
-            self, "StartTelemetryEnhanced", 
-            service_token=flink_starter_fn.function_arn,
-            properties={"ApplicationName": self.telemetry_enhanced_processor.ref}
-        )
-        
-        CustomResource(
-            self, "StartTripProcessor",
-            service_token=flink_starter_fn.function_arn,
-            properties={"ApplicationName": self.trip_processor.ref}
-        )
-        
-        CustomResource(
-            self, "StartSafetyProcessor",
-            service_token=flink_starter_fn.function_arn,
-            properties={"ApplicationName": self.safety_processor.ref}
-        )
-        
-        CustomResource(
-            self, "StartMaintenanceProcessor",
-            service_token=flink_starter_fn.function_arn,
-            properties={"ApplicationName": self.maintenance_processor.ref}
-        )
-        
-        # Store applications for easy access
+        # Store applications for easy access (removed auto-start custom resources)
+        # Note: Applications will be started manually after JAR upload
         self.applications = {
             'event_driven_telemetry_processor': self.event_driven_telemetry_processor,
             'telemetry_enhanced_processor': self.telemetry_enhanced_processor,

@@ -75,45 +75,87 @@ export default function DeviceStatusOverview() {
 
         {/* Device status breakdown */}
         <Grid gridDefinition={[{ colspan: 6 }, { colspan: 6 }]}>
-          <Container header={<Header variant="h3">Connected Devices</Header>}>
+          <Container 
+            header={
+              <Header 
+                variant="h3" 
+                counter={`(${connectedDevices.length})`}
+              >
+                Connected Devices
+              </Header>
+            }
+          >
             {connectedDevices.length > 0 ? (
               <SpaceBetween size="s">
-                {connectedDevices.slice(0, 5).map(device => (
+                {connectedDevices.slice(0, 10).map(device => (
                   <Box key={device.client_id}>
                     <StatusIndicator type="success">
-                      {device.client_id} ({device.ip_address})
+                      <strong>{device.thing_name || device.client_id}</strong>
+                      <br />
+                      <small style={{ color: '#5f6b7a' }}>
+                        {device.client_id} • {device.ip_address} • {device.protocol}
+                      </small>
                     </StatusIndicator>
                   </Box>
                 ))}
-                {connectedDevices.length > 5 && (
-                  <Box color="text-body-secondary">
-                    +{connectedDevices.length - 5} more devices
+                {connectedDevices.length > 10 && (
+                  <Box color="text-body-secondary" textAlign="center">
+                    <Button variant="link">
+                      View all {connectedDevices.length} connected devices
+                    </Button>
                   </Box>
                 )}
               </SpaceBetween>
             ) : (
-              <Box color="text-body-secondary">No connected devices</Box>
+              <Box color="text-body-secondary" textAlign="center" padding="l">
+                <StatusIndicator type="info">
+                  No devices currently connected
+                </StatusIndicator>
+                <br />
+                <small>Devices will appear here when they connect to IoT Core</small>
+              </Box>
             )}
           </Container>
 
-          <Container header={<Header variant="h3">Recent Disconnections</Header>}>
+          <Container 
+            header={
+              <Header 
+                variant="h3" 
+                counter={`(${disconnectedDevices.length})`}
+              >
+                Recent Disconnections
+              </Header>
+            }
+          >
             {disconnectedDevices.length > 0 ? (
               <SpaceBetween size="s">
-                {disconnectedDevices.slice(0, 5).map(device => (
+                {disconnectedDevices.slice(0, 10).map(device => (
                   <Box key={device.client_id}>
                     <StatusIndicator type="stopped">
-                      {device.client_id} ({device.ip_address})
+                      <strong>{device.thing_name || device.client_id}</strong>
+                      <br />
+                      <small style={{ color: '#5f6b7a' }}>
+                        {device.client_id} • {device.ip_address} • {device.protocol}
+                      </small>
                     </StatusIndicator>
                   </Box>
                 ))}
-                {disconnectedDevices.length > 5 && (
-                  <Box color="text-body-secondary">
-                    +{disconnectedDevices.length - 5} more devices
+                {disconnectedDevices.length > 10 && (
+                  <Box color="text-body-secondary" textAlign="center">
+                    <Button variant="link">
+                      View all {disconnectedDevices.length} disconnected devices
+                    </Button>
                   </Box>
                 )}
               </SpaceBetween>
             ) : (
-              <Box color="text-body-secondary">No disconnected devices</Box>
+              <Box color="text-body-secondary" textAlign="center" padding="l">
+                <StatusIndicator type="success">
+                  No recent disconnections
+                </StatusIndicator>
+                <br />
+                <small>All devices are maintaining stable connections</small>
+              </Box>
             )}
           </Container>
         </Grid>

@@ -80,8 +80,10 @@ def handle_subscribed_event(event_data):
                     'created_at': datetime.utcnow().isoformat(),
                     'updated_at': datetime.utcnow().isoformat()
                 },
-                ConditionExpression='attribute_not_exists(#name)'
+                ConditionExpression='attribute_not_exists(#name)',
+                ExpressionAttributeNames={'#name': 'name'}
             )
+        except dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
         except dynamodb.meta.client.exceptions.ConditionalCheckFailedException:
             pass  # Topic already exists
         

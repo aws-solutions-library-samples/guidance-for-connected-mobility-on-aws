@@ -358,7 +358,14 @@ export function SafetyAlertsContent() {
                 <Box variant="awsui-key-label">Time Range</Box>
                 <Select
                   selectedOption={timeRangeOptions.find(option => option.value === selectedTimeRange)}
-                  onChange={({ detail }) => setSelectedTimeRange(detail.selectedOption.value!)}
+                  onChange={({ detail }) => {
+                    const newTimeRange = detail.selectedOption.value!;
+                    setSelectedTimeRange(newTimeRange);
+                    // Trigger new API call with updated time range
+                    const updatedFilters = { ...currentFilters, timeRange: newTimeRange };
+                    setCurrentFilters(updatedFilters);
+                    fetchSafetyEvents(1, pagination.limit, updatedFilters);
+                  }}
                   options={timeRangeOptions}
                   placeholder="Select time range"
                 />

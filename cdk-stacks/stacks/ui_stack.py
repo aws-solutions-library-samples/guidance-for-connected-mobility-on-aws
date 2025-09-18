@@ -14,16 +14,32 @@ from aws_cdk import (
     aws_iam as iam,
     aws_dynamodb as dynamodb,
     CfnOutput,
-    Duration
+    Duration,
+    Size
 )
 from constructs import Construct
+from typing import Dict
 from typing import Dict
 
 class UIStack(Stack):
     
-    def __init__(self, scope: Construct, construct_id: str,
+    def __init__(self, scope: Construct, construct_id: str, 
                  storage_tables: Dict[str, dynamodb.Table], **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
+        
+        # Use actual table names from storage stack (with suffixes)
+        table_names = {
+            'fleets': storage_tables['fleets'].table_name,
+            'vehicles': storage_tables['vehicles'].table_name,
+            'trips': storage_tables['trips'].table_name,
+            'telemetry': storage_tables['telemetry'].table_name,
+            'safety_events': storage_tables['safety_events'].table_name,
+            'maintenance_events': storage_tables['maintenance_events'].table_name,
+            'user_preferences': storage_tables['user_preferences'].table_name,
+            'dashboard_metrics_cache': storage_tables['dashboard_metrics_cache'].table_name,
+            'vehicle_certificates': storage_tables['vehicle_certificates'].table_name,
+            'drivers': storage_tables['drivers'].table_name
+        }
         
         # Cognito User Pool
         self.user_pool = cognito.UserPool(
@@ -65,26 +81,33 @@ class UIStack(Stack):
             ]
         )
         
-        # S3 bucket for frontend hosting
+        # Private S3 bucket (secure)
         self.frontend_bucket = s3.Bucket(
             self, "FrontendBucket",
             bucket_name=f"{construct_id}-frontend-{self.account}",
-            website_index_document="index.html",
-            website_error_document="error.html",
-            public_read_access=True,
-            block_public_access=s3.BlockPublicAccess(
-                block_public_acls=False,
-                block_public_policy=False,
-                ignore_public_acls=False,
-                restrict_public_buckets=False
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            public_read_access=False
+        )
+        
+        # Origin Access Control for secure CloudFront access
+        oac = cloudfront.CfnOriginAccessControl(
+            self, "FrontendOAC",
+            origin_access_control_config=cloudfront.CfnOriginAccessControl.OriginAccessControlConfigProperty(
+                name=f"{construct_id}-oac",
+                origin_access_control_origin_type="s3",
+                signing_behavior="always",
+                signing_protocol="sigv4"
             )
         )
         
-        # CloudFront distribution
+        # CloudFront distribution with OAC
         self.distribution = cloudfront.Distribution(
             self, "FrontendDistribution",
             default_behavior=cloudfront.BehaviorOptions(
-                origin=origins.S3BucketOrigin(self.frontend_bucket),
+                origin=origins.S3BucketOrigin(
+                    self.frontend_bucket,
+                    origin_access_control_id=oac.attr_id
+                ),
                 viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
                 cache_policy=cloudfront.CachePolicy.CACHING_OPTIMIZED
             ),
@@ -94,8 +117,47 @@ class UIStack(Stack):
                     http_status=404,
                     response_http_status=200,
                     response_page_path="/index.html"
+                ),
+                cloudfront.ErrorResponse(
+                    http_status=403,
+                    response_http_status=200,
+                    response_page_path="/index.html"
                 )
             ]
+        )
+        
+        # Bucket policy to allow CloudFront OAC access
+        bucket_policy = iam.PolicyDocument(
+            statements=[
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    principals=[iam.ServicePrincipal("cloudfront.amazonaws.com")],
+                    actions=["s3:GetObject"],
+                    resources=[f"{self.frontend_bucket.bucket_arn}/*"],
+                    conditions={
+                        "StringEquals": {
+                            "AWS:SourceArn": f"arn:aws:cloudfront::{self.account}:distribution/{self.distribution.distribution_id}"
+                        }
+                    }
+                )
+            ]
+        )
+        
+        s3.CfnBucketPolicy(
+            self, "FrontendBucketPolicy",
+            bucket=self.frontend_bucket.bucket_name,
+            policy_document=bucket_policy
+        )
+        
+        # Deploy frontend assets from the built React app
+        frontend_deployment = s3deploy.BucketDeployment(
+            self, "FrontendDeployment",
+            sources=[s3deploy.Source.asset("../modules/cms_ui/source/frontend/build")],
+            destination_bucket=self.frontend_bucket,
+            distribution=self.distribution,
+            distribution_paths=["/*"],
+            memory_limit=512,
+            ephemeral_storage_size=Size.mebibytes(1024)
         )
         
         # Lambda execution role
@@ -107,9 +169,10 @@ class UIStack(Stack):
             ]
         )
         
-        # Grant DynamoDB access to Lambda
-        for table in storage_tables.values():
-            table.grant_read_write_data(lambda_role)
+        # Grant DynamoDB access to Lambda (using managed policy since tables exist outside stack)
+        lambda_role.add_managed_policy(
+            iam.ManagedPolicy.from_aws_managed_policy_name("AmazonDynamoDBFullAccess")
+        )
         
         # API Lambda functions
         self.api_functions = {}
@@ -120,36 +183,22 @@ class UIStack(Stack):
             runtime=lambda_.Runtime.PYTHON_3_9,
             handler="index.handler",
             role=lambda_role,
-            code=lambda_.Code.from_inline("""
-import json
-import boto3
-from boto3.dynamodb.conditions import Key
-
-dynamodb = boto3.resource('dynamodb')
-
-def handler(event, context):
-    # Basic fleet API implementation
-    method = event['httpMethod']
-    path = event['path']
-    
-    if method == 'GET' and path == '/fleet':
-        # Return fleet data
-        return {
-            'statusCode': 200,
-            'headers': {'Content-Type': 'application/json'},
-            'body': json.dumps({'vehicles': []})
-        }
-    
-    return {
-        'statusCode': 404,
-        'body': json.dumps({'error': 'Not found'})
-    }
-            """),
+            code=lambda_.Code.from_asset("../modules/cms_ui/source/handlers/main_api"),
             environment={
-                'FLEETS_TABLE': storage_tables['fleets'].table_name,
-                'TELEMETRY_TABLE': storage_tables['telemetry'].table_name
+                'FLEETS_TABLE_NAME': table_names['fleets'],
+                'VEHICLES_TABLE_NAME': table_names['vehicles'],
+                'TRIPS_TABLE_NAME': table_names['trips'],
+                'TELEMETRY_TABLE_NAME': table_names['telemetry'],
+                'SAFETY_EVENTS_TABLE_NAME': table_names['safety_events'],
+                'MAINTENANCE_ALERTS_TABLE_NAME': table_names['maintenance_events'],
+                'USER_PREFERENCES_TABLE_NAME': table_names['user_preferences'],
+                'DASHBOARD_METRICS_CACHE_TABLE': table_names['dashboard_metrics_cache'],
+                'VEHICLE_CERTIFICATES_TABLE_NAME': table_names['vehicle_certificates'],
+                'USER_POOL_ID': self.user_pool.user_pool_id,
+                'CLIENT_ID': self.user_pool_client.user_pool_client_id
             },
-            timeout=Duration.seconds(30)
+            timeout=Duration.seconds(60),
+            memory_size=512
         )
         
         # API Gateway
@@ -164,12 +213,89 @@ def handler(event, context):
             )
         )
         
-        # API resources
-        fleet_resource = self.api.root.add_resource("fleet")
-        fleet_resource.add_method(
-            "GET",
-            apigateway.LambdaIntegration(self.api_functions['fleet'])
-        )
+        # API resources - match target-account structure
+        api_resource = self.api.root.add_resource("api")
+        v1_resource = api_resource.add_resource("v1")
+        
+        # Health endpoint
+        health_resource = self.api.root.add_resource("health")
+        health_resource.add_method("GET", apigateway.LambdaIntegration(self.api_functions['fleet']))
+        
+        # Realtime endpoints
+        realtime_resource = self.api.root.add_resource("realtime")
+        realtime_vehicles = realtime_resource.add_resource("vehicles")
+        realtime_vehicles.add_method("GET", apigateway.LambdaIntegration(self.api_functions['fleet']))
+        realtime_trips = realtime_resource.add_resource("trips")
+        realtime_trips.add_method("GET", apigateway.LambdaIntegration(self.api_functions['fleet']))
+        
+        # IoT endpoint
+        iot_endpoint = self.api.root.add_resource("discover-iot-endpoint")
+        iot_endpoint.add_method("GET", apigateway.LambdaIntegration(self.api_functions['fleet']))
+        
+        # Fleets endpoints
+        fleets_resource = v1_resource.add_resource("fleets")
+        fleets_resource.add_method("GET", apigateway.LambdaIntegration(self.api_functions['fleet']))
+        fleets_resource.add_method("POST", apigateway.LambdaIntegration(self.api_functions['fleet']))
+        
+        # Fleet by ID endpoint
+        fleet_id_resource = fleets_resource.add_resource("{fleetId}")
+        fleet_id_resource.add_method("GET", apigateway.LambdaIntegration(self.api_functions['fleet']))
+        
+        # Fleet vehicles endpoint
+        fleet_vehicles = fleet_id_resource.add_resource("vehicles")
+        fleet_vehicles.add_method("GET", apigateway.LambdaIntegration(self.api_functions['fleet']))
+        
+        # Vehicles endpoints
+        vehicles_resource = v1_resource.add_resource("vehicles")
+        vehicles_resource.add_method("GET", apigateway.LambdaIntegration(self.api_functions['fleet']))
+        vehicles_resource.add_method("POST", apigateway.LambdaIntegration(self.api_functions['fleet']))
+        
+        # Vehicle locations
+        vehicle_locations = vehicles_resource.add_resource("locations")
+        vehicle_locations.add_method("GET", apigateway.LambdaIntegration(self.api_functions['fleet']))
+        
+        # Vehicle by ID endpoints
+        vehicle_id_resource = vehicles_resource.add_resource("{vehicleId}")
+        vehicle_id_resource.add_method("GET", apigateway.LambdaIntegration(self.api_functions['fleet']))
+        
+        # Vehicle trips
+        vehicle_trips = vehicle_id_resource.add_resource("trips")
+        vehicle_trips.add_method("GET", apigateway.LambdaIntegration(self.api_functions['fleet']))
+        
+        # Vehicle trip by ID
+        trip_id_resource = vehicle_trips.add_resource("{tripId}")
+        trip_id_resource.add_method("GET", apigateway.LambdaIntegration(self.api_functions['fleet']))
+        
+        # Vehicle safety alerts
+        vehicle_safety = vehicle_id_resource.add_resource("safety-alerts")
+        vehicle_safety.add_method("GET", apigateway.LambdaIntegration(self.api_functions['fleet']))
+        
+        # Vehicle maintenance alerts
+        vehicle_maintenance = vehicle_id_resource.add_resource("maintenance-alerts")
+        vehicle_maintenance.add_method("GET", apigateway.LambdaIntegration(self.api_functions['fleet']))
+        
+        # Global trips endpoint
+        trips_resource = v1_resource.add_resource("trips")
+        trips_resource.add_method("GET", apigateway.LambdaIntegration(self.api_functions['fleet']))
+        
+        # Global safety alerts
+        safety_alerts = v1_resource.add_resource("safety-alerts")
+        safety_alerts.add_method("GET", apigateway.LambdaIntegration(self.api_functions['fleet']))
+        
+        # Global maintenance alerts
+        maintenance_alerts = v1_resource.add_resource("maintenance-alerts")
+        maintenance_alerts.add_method("GET", apigateway.LambdaIntegration(self.api_functions['fleet']))
+        
+        # Dashboard endpoints
+        dashboard_resource = v1_resource.add_resource("dashboard")
+        dashboard_metrics = dashboard_resource.add_resource("metrics")
+        dashboard_metrics.add_method("GET", apigateway.LambdaIntegration(self.api_functions['fleet']))
+        dashboard_comparison = dashboard_resource.add_resource("fleet-comparison")
+        dashboard_comparison.add_method("GET", apigateway.LambdaIntegration(self.api_functions['fleet']))
+        
+        # Proxy for any other endpoints
+        proxy_resource = self.api.root.add_resource("{proxy+}")
+        proxy_resource.add_method("ANY", apigateway.LambdaIntegration(self.api_functions['fleet']))
         
         # Outputs
         CfnOutput(

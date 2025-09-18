@@ -1,7 +1,0 @@
-metadata:
-  description: A CDK Python app containing the CMS UI
-  name: cms-ui
-spec:
-  parameters:
-  - properties: {}
-  steps: []

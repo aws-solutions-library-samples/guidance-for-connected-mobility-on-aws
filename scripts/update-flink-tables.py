@@ -24,7 +24,7 @@ def update_flink_deployment(environment="prod"):
         **flink_props,
         "bootstrap.servers": "b-1.cmstelemetryclustersas.7v7vwf.c7.kafka.us-east-1.amazonaws.com:9096,b-2.cmstelemetryclustersas.7v7vwf.c7.kafka.us-east-1.amazonaws.com:9096",
         "group.id": "flink-telemetry-consumer",
-        "sasl.jaas.config": "org.apache.kafka.common.security.scram.ScramLoginModule required username=\\\"iot-user\\\" password=\\\"SecurePassword123!\\\";",
+        "sasl.jaas.config": f"org.apache.kafka.common.security.scram.ScramLoginModule required username=\\\"{os.environ.get('IOT_USERNAME', 'iot-user')}\\\" password=\\\"{os.environ.get('IOT_PASSWORD', 'CHANGE_ME')}\\\";",
         "sasl.mechanism": "SCRAM-SHA-512",
         "security.protocol": "SASL_SSL"
     }
