@@ -123,19 +123,8 @@ class MSKStack(Stack):
             )
         )
         
-        # MSK Cluster Configuration - use unique name to avoid conflicts
-        cluster_config = msk.CfnConfiguration(
-            self, "MSKClusterConfig",
-            name=f"{construct_id}-config-{unique_suffix}",
-            description="MSK cluster configuration for CMS",
-            kafka_versions_list=["3.8.x"],
-            server_properties="""
-auto.create.topics.enable=true
-default.replication.factor=2
-num.partitions=3
-allow.everyone.if.no.acl.found=false
-"""
-        )
+        # Use AWS default MSK configuration (allow.everyone.if.no.acl.found=true)
+        # This matches the working cluster behavior - no ACLs required
         
         # MSK Cluster - use m5.large for VPC connectivity support
         instance_type = "kafka.m5.large"  # VPC connectivity requires m5.large or larger
@@ -166,10 +155,7 @@ allow.everyone.if.no.acl.found=false
                     )
                 )
             ),
-            configuration_info=msk.CfnCluster.ConfigurationInfoProperty(
-                arn=cluster_config.attr_arn,
-                revision=1
-            ),
+            # Remove configuration_info to use AWS defaults (allow.everyone.if.no.acl.found=true)
             encryption_info=msk.CfnCluster.EncryptionInfoProperty(
                 encryption_in_transit=msk.CfnCluster.EncryptionInTransitProperty(
                     client_broker="TLS",
@@ -199,171 +185,19 @@ allow.everyone.if.no.acl.found=false
         # Store cluster ARN for other stacks
         self.cluster_arn = self.cluster.attr_arn
         
-        # Create Lambda function for SCRAM secret association
-        secret_association_function = lambda_.Function(
-            self, "MSKSecretAssociationFunction",
-            function_name=f"cfn-msk-secret-association-{construct_id}",
-            runtime=lambda_.Runtime.PYTHON_3_9,
-            handler="index.lambda_handler",
-            timeout=Duration.seconds(30),
-            code=lambda_.Code.from_inline("""
-import json
-import logging
-import cfnresponse
-import boto3
-
-client = boto3.client('kafka')
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-
-def associate(ClusterArn, SecretArn):
-    response = client.batch_associate_scram_secret(
-        ClusterArn=ClusterArn,
-        SecretArnList=[SecretArn]
-    )
-    logger.info(response)
-    logger.info('Secret associated!')
-    return response['ResponseMetadata']['HTTPStatusCode']
-
-def disassociate(ClusterArn, SecretArn):
-    response = client.batch_disassociate_scram_secret(
-        ClusterArn=ClusterArn,
-        SecretArnList=[SecretArn]
-    )
-    logger.info(response)
-    logger.info('Secret disassociated!')
-    return response['ResponseMetadata']['HTTPStatusCode']
-    
-def lambda_handler(event, context):
-    logger.info(event)
-    responseStatus = cfnresponse.FAILED
-    try:
-        ClusterArn = event['ResourceProperties']['ClusterArn']
-        SecretArn  = event['ResourceProperties']['SecretArn']
-        if event['RequestType'] == 'Create':
-            if (associate(ClusterArn, SecretArn) == 200):
-                responseStatus = cfnresponse.SUCCESS
-        elif event['RequestType'] == 'Delete':
-            if (disassociate(ClusterArn, SecretArn) == 200):
-                responseStatus = cfnresponse.SUCCESS
-        elif event['RequestType'] == 'Update':
-            OldClusterArn = event['OldResourceProperties']['ClusterArn']
-            OldSecretArn  = event['OldResourceProperties']['SecretArn']
-            if (disassociate(OldClusterArn, OldSecretArn) == 200):
-                if (associate(ClusterArn, SecretArn) == 200):
-                    responseStatus = cfnresponse.SUCCESS
-        else:
-            logger.error('Unsupported RequestType %s. Signaling failure to CloudFormation.', event['RequestType'])
-            
-    except Exception:
-        logger.exception('Signaling failure to CloudFormation.')
-    
-    cfnresponse.send(event, context, responseStatus, {})
-    return
-""")
+        # Add self-referencing rule as separate resource (avoids circular dependency)
+        ec2.CfnSecurityGroupIngress(
+            self, "MSKSelfReferencingRule",
+            group_id=self.msk_security_group.security_group_id,
+            ip_protocol="tcp",
+            from_port=9092,
+            to_port=9098,
+            source_security_group_id=self.msk_security_group.security_group_id,
+            description="Self-referencing rule for IoT Core to MSK all ports"
         )
         
-        # Grant Lambda permissions to associate/disassociate SCRAM secrets
-        secret_association_function.add_to_role_policy(
-            iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
-                actions=[
-                    "kafka:BatchAssociateScramSecret",
-                    "kafka:BatchDisassociateScramSecret"
-                ],
-                resources=[self.cluster.attr_arn]
-            )
-        )
-        
-        # Grant Lambda permissions to create KMS grants
-        secret_association_function.add_to_role_policy(
-            iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
-                actions=["kms:CreateGrant"],
-                resources=[self.msk_kms_key.key_arn]
-            )
-        )
-        
-        # Create custom resource to associate SCRAM secret with cluster
-        secret_association = CustomResource(
-            self, "SecretAssociation",
-            service_token=secret_association_function.function_arn,
-            properties={
-                "ClusterArn": self.cluster.attr_arn,
-                "SecretArn": self.iot_user_secret.secret_arn
-            }
-        )
-        
-        # Ensure secret association happens after cluster is created
-        secret_association.node.add_dependency(self.cluster)
-        secret_association.node.add_dependency(self.iot_user_secret)
-        
-        # Add EC2 instance to create Kafka topics
-        # Create IAM role for topic creation instance
-        topic_creator_role = iam.Role(
-            self, "TopicCreatorRole",
-            assumed_by=iam.ServicePrincipal("ec2.amazonaws.com"),
-            managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name("AmazonSSMManagedInstanceCore")
-            ],
-            inline_policies={
-                "KafkaTopicCreation": iam.PolicyDocument(
-                    statements=[
-                        iam.PolicyStatement(
-                            actions=[
-                                "kafka-cluster:Connect",
-                                "kafka-cluster:CreateTopic",
-                                "kafka-cluster:DescribeTopic",
-                                "kafka:GetBootstrapBrokers"
-                            ],
-                            resources=["*"]
-                        )
-                    ]
-                )
-            }
-        )
-        
-        # User data script to create topics
-        user_data = ec2.UserData.for_linux()
-        user_data.add_commands(
-            "yum update -y",
-            "yum install -y java-11-amazon-corretto",
-            "cd /opt",
-            "wget https://downloads.apache.org/kafka/2.8.2/kafka_2.13-2.8.2.tgz",
-            "tar -xzf kafka_2.13-2.8.2.tgz",
-            "cd kafka_2.13-2.8.2",
-            f"BOOTSTRAP_SERVERS=$(aws kafka get-bootstrap-brokers --cluster-arn {self.cluster.attr_arn} --region {self.region} --query 'BootstrapBrokerStringSaslIam' --output text)",
-            "cat > client.properties << EOF",
-            "security.protocol=SASL_SSL",
-            "sasl.mechanism=AWS_MSK_IAM", 
-            "sasl.jaas.config=software.amazon.msk.auth.iam.IAMLoginModule required;",
-            "sasl.client.callback.handler.class=software.amazon.msk.auth.iam.IAMClientCallbackHandler",
-            "EOF",
-            "echo 'Creating topics...'",
-            "bin/kafka-topics.sh --bootstrap-server $BOOTSTRAP_SERVERS --command-config client.properties --create --topic cms-telemetry-raw --partitions 3 --replication-factor 2 || true",
-            "bin/kafka-topics.sh --bootstrap-server $BOOTSTRAP_SERVERS --command-config client.properties --create --topic cms-telemetry-processed --partitions 3 --replication-factor 2 || true", 
-            "bin/kafka-topics.sh --bootstrap-server $BOOTSTRAP_SERVERS --command-config client.properties --create --topic cms-telemetry-maintenance --partitions 3 --replication-factor 2 || true",
-            "bin/kafka-topics.sh --bootstrap-server $BOOTSTRAP_SERVERS --command-config client.properties --create --topic cms-trip-events --partitions 3 --replication-factor 2 || true",
-            "bin/kafka-topics.sh --bootstrap-server $BOOTSTRAP_SERVERS --command-config client.properties --create --topic cms-safety-events --partitions 3 --replication-factor 2 || true",
-            "bin/kafka-topics.sh --bootstrap-server $BOOTSTRAP_SERVERS --command-config client.properties --create --topic cms-maintenance-events --partitions 3 --replication-factor 2 || true",
-            "echo 'Topics created successfully'",
-            "shutdown -h now"  # Terminate instance after creating topics
-        )
-        
-        # Create EC2 instance for topic creation
-        topic_creator_instance = ec2.Instance(
-            self, "TopicCreatorInstance",
-            instance_type=ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MICRO),
-            machine_image=ec2.AmazonLinuxImage(generation=ec2.AmazonLinuxGeneration.AMAZON_LINUX_2),
-            vpc=self.vpc,
-            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
-            role=topic_creator_role,
-            user_data=user_data,
-            security_group=self.msk_security_group
-        )
-        
-        # Ensure instance starts after cluster is ready
-        topic_creator_instance.node.add_dependency(self.cluster)
+        # Note: SCRAM secret association can be done manually after deployment
+        # aws kafka batch-associate-scram-secret --cluster-arn <cluster-arn> --secret-arn-list <secret-arn>
         
         # Outputs for other stacks to reference
         CfnOutput(

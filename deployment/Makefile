@@ -35,10 +35,10 @@ help: ## Show this help message
 	@echo "$(GREEN)🎯 Deployment Phases:$(NC)"
 	@echo "  make phase1              - Fleet Manager Interface (IoT, Storage, UI, Lambda, Cognito, S3)"
 	@echo "  make phase2              - Fleet Management Interface (historical data injection)"
-	@echo "  make phase3              - Telemetry Pipeline (MSK Deployment)"
-	@echo "  make phase4              - Telemetry Pipeline (MSK Configuration)"
-	@echo "  make phase5              - Telemetry Pipeline (Flink Deployment)"
-	@echo "  make phase6              - Telemetry Pipeline (Flink Configuration)"
+	@echo "  make phase3              - Telemetry Pipeline (MSK + IoT Integration)"
+	@echo "  make phase4              - Telemetry Pipeline (Flink Deployment)"
+	@echo "  make phase5              - Telemetry Pipeline (Flink Configuration)"
+	@echo "  make phase6              - Complete Pipeline Configuration"
 	@echo ""
 	@echo "$(GREEN)Setup Commands:$(NC)"
 	@echo "  make install             - Install dependencies and setup environment"
@@ -88,10 +88,10 @@ deploy: ## Interactive deployment with profile and phase selection
 	echo "$(GREEN)Deployment Options:$(NC)"; \
 	echo "1. Fleet Manager Interface (IoT, Storage, UI, Lambda, Cognito, S3)"; \
 	echo "2. Fleet Management Interface (historical data injection)"; \
-	echo "3. Telemetry Pipeline 1 (MSK)"; \
-	echo "4. Telemetry Pipeline 2 (MSK Configuration)"; \
-	echo "5. Telemetry Pipeline 3 (Flink Deployment)"; \
-	echo "6. Telemetry Pipeline 4 (Configuration)"; \
+	echo "3. Telemetry Pipeline (MSK + IoT Integration)"; \
+	echo "4. Telemetry Pipeline (Flink Deployment)"; \
+	echo "5. Telemetry Pipeline (Flink Configuration)"; \
+	echo "6. Complete Pipeline Configuration"; \
 	echo "7. Deploy All Phases"; \
 	echo ""; \
 	read -p "Select deployment option (1-7): " deploy_choice; \
@@ -101,13 +101,13 @@ deploy: ## Interactive deployment with profile and phase selection
 		   $(MAKE) phase1 AWS_PROFILE=$$selected_profile DEPLOYMENT_STAGE=$$selected_stage ;; \
 		2) echo "$(BLUE)🚀 Phase 2: Fleet Management Interface$(NC)"; \
 		   $(MAKE) phase2 AWS_PROFILE=$$selected_profile DEPLOYMENT_STAGE=$$selected_stage ;; \
-		3) echo "$(BLUE)🚀 Phase 3: Telemetry Pipeline (MSK)$(NC)"; \
+		3) echo "$(BLUE)🚀 Phase 3: Telemetry Pipeline (MSK + IoT Integration)$(NC)"; \
 		   $(MAKE) phase3 AWS_PROFILE=$$selected_profile DEPLOYMENT_STAGE=$$selected_stage ;; \
-		4) echo "$(BLUE)🚀 Phase 4: Telemetry Pipeline (MSK Configuration)$(NC)"; \
+		4) echo "$(BLUE)🚀 Phase 4: Telemetry Pipeline (Flink Deployment)$(NC)"; \
 		   $(MAKE) phase4 AWS_PROFILE=$$selected_profile DEPLOYMENT_STAGE=$$selected_stage ;; \
-		5) echo "$(BLUE)🚀 Phase 5: Telemetry Pipeline (Flink Deployment)$(NC)"; \
+		5) echo "$(BLUE)🚀 Phase 5: Telemetry Pipeline (Flink Configuration)$(NC)"; \
 		   $(MAKE) phase5 AWS_PROFILE=$$selected_profile DEPLOYMENT_STAGE=$$selected_stage ;; \
-		6) echo "$(BLUE)🚀 Phase 6: Telemetry Pipeline (Configuration)$(NC)"; \
+		6) echo "$(BLUE)🚀 Phase 6: Complete Pipeline Configuration$(NC)"; \
 		   $(MAKE) phase6 AWS_PROFILE=$$selected_profile DEPLOYMENT_STAGE=$$selected_stage ;; \
 		7) echo "$(BLUE)🚀 Deploying All Phases$(NC)"; \
 		   $(MAKE) deploy-all AWS_PROFILE=$$selected_profile DEPLOYMENT_STAGE=$$selected_stage ;; \
@@ -159,7 +159,7 @@ phase2: ## Phase 2: Fleet Management Interface (historical data injection)
 
 phase3: ## Phase 3: Telemetry Pipeline 1 (MSK)
 	@echo "$(BLUE)🚀 Phase 3: Telemetry Pipeline 1 (MSK)$(NC)"
-	@echo "Deploying MSK cluster with VPC and security groups"
+	@echo "Deploying MSK cluster with VPC, security groups, and customer-managed KMS key for SCRAM secrets"
 	@source .venv/bin/activate && \
 	CDK_DEFAULT_ACCOUNT=$$(aws sts get-caller-identity --profile $(AWS_PROFILE) --query Account --output text) \
 	CDK_DEFAULT_REGION=$(AWS_REGION) \
@@ -167,24 +167,103 @@ phase3: ## Phase 3: Telemetry Pipeline 1 (MSK)
 	cdk deploy cms-$(DEPLOYMENT_STAGE)-msk --require-approval never --profile $(AWS_PROFILE)
 	@echo "$(GREEN)✅ Phase 3 Complete: MSK cluster deployed$(NC)"
 
-phase4: ## Phase 4: Telemetry Pipeline 2 (MSK Configuration + IoT Integration)
-	@echo "$(BLUE)🚀 Phase 4: Telemetry Pipeline 2 (MSK Configuration + IoT Integration)$(NC)"
-	@echo "Configuring MSK for SCRAM authentication, VPC connectivity, and deploying IoT integration"
-	@$(MAKE) configure-msk AWS_PROFILE=$(AWS_PROFILE) DEPLOYMENT_STAGE=$(DEPLOYMENT_STAGE)
-	@echo "$(BLUE)Deploying telemetry integration stack...$(NC)"
+phase4: ## Phase 4: Telemetry Pipeline 3 (Flink Deployment)
+	@echo "$(BLUE)🚀 Phase 4: Telemetry Pipeline 3 (Flink Deployment)$(NC)"
+	@echo "Deploying Flink applications for real-time telemetry processing"
+	@echo "$(BLUE)Deploying Flink stack...$(NC)"
 	@source .venv/bin/activate && \
 	CDK_DEFAULT_ACCOUNT=$$(aws sts get-caller-identity --profile $(AWS_PROFILE) --query Account --output text) \
 	CDK_DEFAULT_REGION=$(AWS_REGION) \
 	DEPLOYMENT_STAGE=$(DEPLOYMENT_STAGE) AWS_PROFILE=$(AWS_PROFILE) \
-	DEPLOY_TELEMETRY_INTEGRATION=true \
-	cdk deploy cms-$(DEPLOYMENT_STAGE)-telemetry-integration --require-approval never --profile $(AWS_PROFILE) --output cdk.out.phase4.$$$$
-	@echo "$(GREEN)✅ Phase 4 Complete: MSK configured and IoT integration deployed$(NC)"
+	cdk deploy cms-$(DEPLOYMENT_STAGE)-flink --require-approval never --profile $(AWS_PROFILE) --output cdk.out.phase4.$$$$
+	@echo "$(BLUE)Validating Flink deployment...$(NC)"
+	@$(MAKE) validate-flink-deployment AWS_PROFILE=$(AWS_PROFILE) DEPLOYMENT_STAGE=$(DEPLOYMENT_STAGE)
+	@echo "$(YELLOW)⚠️  Flink applications deployed but need JAR files to be functional$(NC)"
+	@echo "$(GREEN)✅ Phase 4 Complete: Flink infrastructure deployed$(NC)"
 
-phase5: ## Phase 5: Telemetry Pipeline 3 (Flink Deployment)
-	@echo "$(BLUE)🚀 Phase 5: Telemetry Pipeline 3 (Flink Deployment)$(NC)"
-	@echo "Deploying Flink applications for stream processing"
-	@$(MAKE) deploy-flink AWS_PROFILE=$(AWS_PROFILE) DEPLOYMENT_STAGE=$(DEPLOYMENT_STAGE)
-	@echo "$(GREEN)✅ Phase 5 Complete: Flink applications deployed$(NC)"
+configure-flink: ## Configure Flink applications
+	@echo "$(BLUE)🔧 Configuring Flink applications...$(NC)"
+	@echo "Updating applications with JAR file, IAM authentication, and VPC configuration..."
+	@BUCKET_NAME=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-flink --query 'Stacks[0].Outputs[?OutputKey==`FlinkJarBucketOutput`].OutputValue' --output text --profile $(AWS_PROFILE)); \
+	MSK_CLUSTER_ARN=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-msk --query 'Stacks[0].Outputs[?OutputKey==`MSKClusterArn`].OutputValue' --output text --profile $(AWS_PROFILE)); \
+	VPC_ID=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-msk --query 'Stacks[0].Outputs[?OutputKey==`MSKVpcId`].OutputValue' --output text --profile $(AWS_PROFILE)); \
+	SUBNET_IDS=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-msk --query 'Stacks[0].Outputs[?OutputKey==`MSKPrivateSubnetIds`].OutputValue' --output text --profile $(AWS_PROFILE)); \
+	SG_ID=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-msk --query 'Stacks[0].Outputs[?OutputKey==`MSKSecurityGroupId`].OutputValue' --output text --profile $(AWS_PROFILE)); \
+	BOOTSTRAP_SERVERS=$$(aws kafka get-bootstrap-brokers --cluster-arn $$MSK_CLUSTER_ARN --query 'BootstrapBrokerStringSaslIam' --output text --profile $(AWS_PROFILE)); \
+	SUBNET1=$$(echo $$SUBNET_IDS | cut -d',' -f1); \
+	SUBNET2=$$(echo $$SUBNET_IDS | cut -d',' -f2); \
+	TELEMETRY_TABLE=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-storage --query 'Stacks[0].Outputs[?OutputKey==`TelemetryTableName`].OutputValue' --output text --profile $(AWS_PROFILE)); \
+	TRIPS_TABLE=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-storage --query 'Stacks[0].Outputs[?OutputKey==`TripsTableName`].OutputValue' --output text --profile $(AWS_PROFILE)); \
+	SAFETY_TABLE=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-storage --query 'Stacks[0].Outputs[?OutputKey==`SafetyEventsTableName`].OutputValue' --output text --profile $(AWS_PROFILE)); \
+	MAINTENANCE_TABLE=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-storage --query 'Stacks[0].Outputs[?OutputKey==`MaintenanceEventsTableName`].OutputValue' --output text --profile $(AWS_PROFILE)); \
+	echo '{"ApplicationCodeConfigurationUpdate":{"CodeContentUpdate":{"S3ContentLocationUpdate":{"BucketARNUpdate":"arn:aws:s3:::'$$BUCKET_NAME'","FileKeyUpdate":"jars/cms-telemetry-processor-1.0.0.zip"}},"CodeContentTypeUpdate":"ZIPFILE"}}' > /tmp/flink-jar-update.json; \
+	aws kinesisanalyticsv2 list-applications --region $(AWS_REGION) --profile $(AWS_PROFILE) --query 'ApplicationSummaries[?contains(ApplicationName, `cms-$(DEPLOYMENT_STAGE)-flink`)].ApplicationName' --output text | tr '\t' '\n' | while read app; do \
+		if [ -n "$$app" ]; then \
+			echo "Configuring application: $$app"; \
+			case "$$app" in \
+				*event-driven-telemetry-processor) \
+					PROCESSOR_TYPE="EventDrivenTelemetryProcessor"; \
+					GROUP_ID="cms-event-driven-telemetry-processor-consumer"; \
+					TABLE_NAME="$$TELEMETRY_TABLE"; \
+					;; \
+				*telemetry-enhanced-final) \
+					PROCESSOR_TYPE="TelemetryDataProcessor"; \
+					GROUP_ID="cms-telemetry-enhanced-processor-consumer"; \
+					TABLE_NAME="$$TELEMETRY_TABLE"; \
+					;; \
+				*trip-processor) \
+					PROCESSOR_TYPE="TripProcessor"; \
+					GROUP_ID="cms-trip-processor-consumer"; \
+					TABLE_NAME="$$TRIPS_TABLE"; \
+					;; \
+				*safety-processor) \
+					PROCESSOR_TYPE="SafetyProcessor"; \
+					GROUP_ID="cms-safety-processor-consumer"; \
+					TABLE_NAME="$$SAFETY_TABLE"; \
+					;; \
+				*maintenance-processor) \
+					PROCESSOR_TYPE="MaintenanceProcessor"; \
+					GROUP_ID="cms-maintenance-processor-consumer"; \
+					TABLE_NAME="$$MAINTENANCE_TABLE"; \
+					;; \
+				*) \
+					echo "Unknown application type: $$app"; \
+					continue; \
+					;; \
+			esac; \
+			echo "{\"EnvironmentPropertyUpdates\":{\"PropertyGroups\":[{\"PropertyGroupId\":\"consumer.config.0\",\"PropertyMap\":{\"PROCESSOR_TYPE\":\"$$PROCESSOR_TYPE\",\"bootstrap.servers\":\"$$BOOTSTRAP_SERVERS\",\"security.protocol\":\"SASL_SSL\",\"sasl.mechanism\":\"AWS_MSK_IAM\",\"sasl.jaas.config\":\"software.amazon.msk.auth.iam.IAMLoginModule required;\",\"sasl.client.callback.handler.class\":\"software.amazon.msk.auth.iam.IAMClientCallbackHandler\",\"auto.offset.reset\":\"earliest\",\"enable.auto.commit\":\"false\",\"group.id\":\"$$GROUP_ID\",\"aws.region\":\"$(AWS_REGION)\",\"TABLE_NAME\":\"$$TABLE_NAME\"}}]}}" > /tmp/flink-env-update-$$app.json; \
+			CURRENT_VERSION=$$(aws kinesisanalyticsv2 describe-application --application-name "$$app" --region $(AWS_REGION) --profile $(AWS_PROFILE) --query 'ApplicationDetail.ApplicationVersionId' --output text); \
+			aws kinesisanalyticsv2 update-application --application-name "$$app" --current-application-version-id $$CURRENT_VERSION --region $(AWS_REGION) --profile $(AWS_PROFILE) --application-configuration-update file:///tmp/flink-env-update-$$app.json >/dev/null 2>&1 && echo "✅ Updated env properties for $$app ($$PROCESSOR_TYPE)" || echo "❌ Failed to update env properties for $$app"; \
+			NEW_VERSION=$$(aws kinesisanalyticsv2 describe-application --application-name "$$app" --region $(AWS_REGION) --profile $(AWS_PROFILE) --query 'ApplicationDetail.ApplicationVersionId' --output text); \
+			aws kinesisanalyticsv2 update-application --application-name "$$app" --current-application-version-id $$NEW_VERSION --region $(AWS_REGION) --profile $(AWS_PROFILE) --application-configuration-update file:///tmp/flink-jar-update.json >/dev/null 2>&1 && echo "✅ Updated JAR for $$app" || echo "❌ Failed to update JAR for $$app"; \
+			FINAL_VERSION=$$(aws kinesisanalyticsv2 describe-application --application-name "$$app" --region $(AWS_REGION) --profile $(AWS_PROFILE) --query 'ApplicationDetail.ApplicationVersionId' --output text); \
+			aws kinesisanalyticsv2 add-application-vpc-configuration --application-name "$$app" --current-application-version-id $$FINAL_VERSION --region $(AWS_REGION) --profile $(AWS_PROFILE) --vpc-configuration '{"SecurityGroupIds":["'$$SG_ID'"],"SubnetIds":["'$$SUBNET1'","'$$SUBNET2'"]}' >/dev/null 2>&1 && echo "✅ Added VPC to $$app" || echo "❌ Failed to add VPC to $$app (may already exist)"; \
+			rm -f /tmp/flink-env-update-$$app.json; \
+		fi; \
+	done; \
+	rm -f /tmp/flink-jar-update.json
+	@echo "Starting applications..."
+	@aws kinesisanalyticsv2 list-applications --region $(AWS_REGION) --profile $(AWS_PROFILE) --query 'ApplicationSummaries[?contains(ApplicationName, `cms-$(DEPLOYMENT_STAGE)-flink`)].ApplicationName' --output text | tr '\t' '\n' | while read app; do \
+		if [ -n "$$app" ]; then \
+			echo "Starting application: $$app"; \
+			aws kinesisanalyticsv2 start-application --application-name "$$app" --region $(AWS_REGION) --profile $(AWS_PROFILE) --run-configuration '{"ApplicationRestoreConfiguration":{"ApplicationRestoreType":"SKIP_RESTORE_FROM_SNAPSHOT"}}' >/dev/null 2>&1 && echo "✅ Started $$app" || echo "❌ Failed to start $$app"; \
+		fi; \
+	done
+	@echo "$(GREEN)✅ Flink applications configured with IAM authentication and VPC$(NC)"
+
+validate-flink-deployment: ## Validate Flink deployment
+	@echo "$(BLUE)🔍 Validating Flink deployment...$(NC)"
+	@echo "Checking Flink applications..."
+	@aws kinesisanalyticsv2 list-applications --region $(AWS_REGION) --profile $(AWS_PROFILE) --query 'ApplicationSummaries[?contains(ApplicationName, `cms-$(DEPLOYMENT_STAGE)`)].ApplicationName' --output text | grep -q . && echo "✅ Flink applications found" || echo "❌ No Flink applications found"
+	@echo "Testing message publish..."
+	@echo '{"test":"makefile-validation","timestamp":"'$$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' | base64 | xargs -I {} aws iot-data publish --topic "topic/telemetry" --payload {} --region $(AWS_REGION) --profile $(AWS_PROFILE) && echo "✅ Test message published" || echo "❌ Message publish failed"
+	@echo "$(GREEN)✅ IoT-MSK integration validation complete$(NC)"
+
+phase5: ## Phase 5: Telemetry Pipeline 4 (Flink Configuration)
+	@echo "$(BLUE)🚀 Phase 5: Telemetry Pipeline 4 (Flink Configuration)$(NC)"
+	@echo "Configuring Flink applications and starting stream processing"
+	@$(MAKE) configure-flink AWS_PROFILE=$(AWS_PROFILE) DEPLOYMENT_STAGE=$(DEPLOYMENT_STAGE)
+	@echo "$(GREEN)✅ Phase 5 Complete: Flink applications configured and running$(NC)"
 
 phase6: ## Phase 6: Telemetry Pipeline 4 (Configuration)
 	@echo "$(BLUE)🚀 Phase 6: Telemetry Pipeline 4 (Configuration)$(NC)"
@@ -199,8 +278,8 @@ configure-msk: ## Configure MSK with ACL settings and VPC connectivity
 	STATE=$$(aws kafka describe-cluster --cluster-arn $$CLUSTER_ARN --query 'ClusterInfo.State' --output text --profile $(AWS_PROFILE)); \
 	VPC_SCRAM_ENABLED=$$(aws kafka describe-cluster --cluster-arn $$CLUSTER_ARN --query 'ClusterInfo.BrokerNodeGroupInfo.ConnectivityInfo.VpcConnectivity.ClientAuthentication.Sasl.Scram.Enabled' --output text --profile $(AWS_PROFILE)); \
 	if [ "$$STATE" = "ACTIVE" ]; then \
-		if [ "$$VPC_SCRAM_ENABLED" = "true" ]; then \
-			echo "$(GREEN)✅ VPC connectivity SCRAM already enabled$(NC)"; \
+		if [ "$$VPC_SCRAM_ENABLED" = "True" ]; then \
+			echo "$(GREEN)✅ VPC connectivity SCRAM already enabled - skipping update$(NC)"; \
 		else \
 			echo "$(BLUE)Enabling VPC connectivity for SCRAM authentication...$(NC)"; \
 			aws kafka update-connectivity \

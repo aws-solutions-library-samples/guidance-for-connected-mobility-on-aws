@@ -67,34 +67,23 @@ iot_stack = IoTStack(
     description="Guidance for Connected Mobility (SO5947) - Fleet Management Interface"
 )
 
-# 4. Telemetry Integration Stack (MSK-IoT connectivity) - only if MSK stack exists
-telemetry_integration_stack = None
-if msk_stack:
+# 4. Telemetry Integration Stack (MSK-IoT connectivity) - independent of MSK stack
+if os.environ.get('DEPLOY_TELEMETRY_INTEGRATION') == 'true':
     telemetry_integration_stack = TelemetryIntegrationStack(
         app,
         f"{stack_prefix}-telemetry-integration",
-        msk_cluster_arn=msk_stack.cluster_arn,
-        msk_vpc_id=msk_stack.vpc.vpc_id,
-        msk_subnet_ids=[subnet.subnet_id for subnet in msk_stack.vpc.private_subnets[:2]],
-        msk_security_group_id=msk_stack.msk_security_group.security_group_id,
-        msk_secret_arn=msk_stack.iot_user_secret.secret_arn,
-        msk_bootstrap_servers=msk_stack.cluster.attr_bootstrap_broker_string_vpc_connectivity_sasl_scram,
         env=env,
         description="Guidance for Connected Mobility (SO5947) - Telemetry Integration"
     )
 
-# 5. Flink Stack (Stream processing)
+# 5. Flink Stack (With MSK VPC configuration)
 flink_stack = FlinkStack(
     app, 
     f"{stack_prefix}-flink",
-    env=env,
-    description="Guidance for Connected Mobility (SO5947) - Processing Layer",
     storage_tables=storage_stack.tables,
-    msk_stack=msk_stack,  # Add MSK stack for VPC configuration
-    msk_cluster_arn=MSK_CLUSTER_ARN,  # Add MSK cluster ARN for independent deployment
-    msk_vpc_id=MSK_VPC_ID,
-    msk_security_group_id=MSK_SECURITY_GROUP_ID,
-    msk_subnet_ids=MSK_SUBNET_IDS
+    msk_stack=msk_stack,
+    env=env,
+    description="Flink Stack with MSK VPC configuration"
 )
 
 # 6. UI Stack (Frontend and API)

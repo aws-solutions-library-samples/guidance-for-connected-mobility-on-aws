@@ -4,18 +4,20 @@ Flink Stack - Stream processing applications with MSK integration
 
 from aws_cdk import (
     Stack,
-    aws_kinesisanalytics as kinesisanalytics,
     aws_iam as iam,
     aws_s3 as s3,
+    aws_s3_deployment as s3deploy,
     aws_dynamodb as dynamodb,
     aws_ec2 as ec2,
-    aws_logs as logs,
     aws_lambda as lambda_,
+    aws_logs as logs,
+    aws_kinesisanalytics as kinesisanalytics,
     CfnOutput,
     RemovalPolicy,
     Duration,
     Fn
 )
+import aws_cdk.aws_kinesisanalytics_flink_alpha as flink
 from constructs import Construct
 from typing import Dict
 
@@ -78,22 +80,27 @@ class FlinkStack(Stack):
                 description="Security group for Flink applications",
                 allow_all_outbound=True
             )
-            msk_available = False
-            msk_available = False
+            # msk_available remains True from the MSK import logic above
         
         if len(subnets) < 2:
             subnets = self.vpc.public_subnets + self.vpc.private_subnets
         
-        # S3 bucket for Flink JARs (created by CDK, JAR uploaded by Makefile)
+        # S3 bucket for Flink JARs
         self.jar_bucket = s3.Bucket(
             self, "FlinkJarBucket",
-            # Let AWS auto-generate unique bucket name to avoid conflicts
             versioned=True,
             removal_policy=RemovalPolicy.DESTROY
         )
         
-        # JAR S3 location (uploaded by Makefile build-jar target)
-        jar_s3_key = "jars/cms-telemetry-processor-1.0.0.jar"
+        # Upload real Flink JAR file
+        jar_s3_key = "jars/cms-telemetry-processor-1.0.0.zip"
+        
+        s3deploy.BucketDeployment(
+            self, "FlinkJarDeployment",
+            sources=[s3deploy.Source.asset("../modules/flink/target", exclude=["**", "!cms-telemetry-processor-1.0.0.zip"])],
+            destination_bucket=self.jar_bucket,
+            destination_key_prefix="jars/"
+        )
         
         # IAM role for Flink applications (matches working target account)
         self.flink_role = iam.Role(
@@ -252,6 +259,25 @@ class FlinkStack(Stack):
                 removal_policy=RemovalPolicy.RETAIN
             )
         
+        # Create VPC configuration once for all applications (BEFORE the nested function)
+        vpc_configuration_for_apps = None
+        if msk_available:
+            if msk_stack:
+                # Use MSK stack subnets and security group
+                vpc_configuration_for_apps = {
+                    "SubnetIds": [subnet.subnet_id for subnet in subnets[:2]],
+                    "SecurityGroupIds": [msk_security_group.security_group_id]
+                }
+            elif hasattr(self, 'msk_vpc_id'):
+                # Use imported MSK VPC configuration
+                vpc_configuration_for_apps = {
+                    "SubnetIds": [
+                        Fn.select(0, self.msk_subnet_ids),
+                        Fn.select(1, self.msk_subnet_ids)
+                    ],
+                    "SecurityGroupIds": [self.msk_sg_id]
+                }
+        
         # Common application configuration (matching flinkSetup.md requirements)
         def create_flink_app_config(processor_type: str, additional_properties: Dict[str, str] = None):
             base_properties = {
@@ -264,9 +290,14 @@ class FlinkStack(Stack):
             # Add MSK configuration only if MSK is available
             if msk_available:
                 base_properties.update({
-                    # Bootstrap servers will be set by integration script
-                    "security.protocol": "SSL"
-                    # IAM authentication is handled at transport layer, no SASL properties needed
+                    # Bootstrap servers will be resolved at runtime from MSK cluster
+                    "msk.cluster.arn": Fn.import_value(f"{construct_id.replace('-flink', '-msk')}-cluster-arn"),
+                    "security.protocol": "SASL_SSL",
+                    "sasl.mechanism": "SCRAM-SHA-512",
+                    "sasl.username": "iot-user-fixed",
+                    "secret.arn": Fn.import_value(f"{construct_id.replace('-flink', '-msk')}-iot-user-secret-arn"),
+                    "input.topic": "cms-telemetry-raw",
+                    "group.id": f"cms-{construct_id.split('-')[1]}-flink-consumer-group"
                 })
             
             if additional_properties:
@@ -328,8 +359,9 @@ class FlinkStack(Stack):
                         "SecurityGroupIds": [self.msk_sg_id]
                     }
             
-            if vpc_config:
-                app_config["VpcConfigurations"] = [vpc_config]
+            # Add VPC configuration to ALL applications
+            if vpc_configuration_for_apps:
+                app_config["VpcConfigurations"] = [vpc_configuration_for_apps]
             
             return app_config
         

@@ -93,29 +93,65 @@ class EnhancedHistoricalDataInjector:
         }
     
     def _detect_table_names(self) -> Dict[str, str]:
-        """Detect CMS UI table names"""
-        dynamodb_client = boto3.Session(profile_name=self.profile_name).client('dynamodb', region_name=self.region)
-        
+        """Get table names from CloudFormation stack outputs"""
         try:
-            tables = dynamodb_client.list_tables()['TableNames']
-            table_names = {}
+            # Get table names from CloudFormation stack outputs
+            cf_client = boto3.Session(profile_name=self.profile_name).client('cloudformation', region_name=self.region)
             
-            for table in tables:
-                if 'vehicles' in table.lower():
-                    table_names['vehicles'] = table
-                elif 'trips' in table.lower():
-                    table_names['trips'] = table
-                elif 'fleets' in table.lower():
-                    table_names['fleets'] = table
-                elif 'safety' in table.lower():
-                    table_names['safety'] = table
-                elif 'maintenance' in table.lower():
-                    table_names['maintenance'] = table
+            response = cf_client.describe_stacks(StackName='cms-dev-storage')
+            outputs = response['Stacks'][0]['Outputs']
+            
+            table_names = {}
+            for output in outputs:
+                key = output['OutputKey']
+                value = output['OutputValue']
+                
+                if key == 'FleetsTableName':
+                    table_names['fleets'] = value
+                elif key == 'VehiclesTableName':
+                    table_names['vehicles'] = value
+                elif key == 'TripsTableName':
+                    table_names['trips'] = value
+                elif key == 'SafetyEventsTableName':
+                    table_names['safety'] = value
+                elif key == 'MaintenanceEventsTableName':
+                    table_names['maintenance'] = value
+                elif key == 'TelemetryTableName':
+                    table_names['telemetry'] = value
+                elif key == 'DriversTableName':
+                    table_names['drivers'] = value
+                elif key == 'VehicleCertificatesTableName':
+                    table_names['certificates'] = value
             
             return table_names
+            
         except Exception as e:
-            print(f"❌ Error detecting table names: {e}")
-            return {}
+            print(f"❌ Error getting table names from CloudFormation: {e}")
+            print("🔄 Falling back to table name detection...")
+            
+            # Fallback to old detection method
+            dynamodb_client = boto3.Session(profile_name=self.profile_name).client('dynamodb', region_name=self.region)
+            
+            try:
+                tables = dynamodb_client.list_tables()['TableNames']
+                table_names = {}
+                
+                for table in tables:
+                    if 'vehicles' in table.lower():
+                        table_names['vehicles'] = table
+                    elif 'trips' in table.lower():
+                        table_names['trips'] = table
+                    elif 'fleets' in table.lower():
+                        table_names['fleets'] = table
+                    elif 'safety' in table.lower():
+                        table_names['safety'] = table
+                    elif 'maintenance' in table.lower():
+                        table_names['maintenance'] = table
+                
+                return table_names
+            except Exception as e:
+                print(f"❌ Error detecting table names: {e}")
+                return {}
     
     def _setup_location_services(self):
         """Setup Amazon Location Services resources"""
@@ -478,7 +514,7 @@ class EnhancedHistoricalDataInjector:
                 'createdAt': datetime.now(timezone.utc).isoformat(),
                 'updatedAt': datetime.now(timezone.utc).isoformat(),
                 'region': city.replace('_', ' ').title(),
-                'operatingHours': self.trip_patterns[fleet_type]['peak_hours'],
+                'operatingHours': [list(hours) for hours in self.trip_patterns[fleet_type]['peak_hours']],  # Convert tuples to lists
                 'attributes': {
                     'primaryUse': fleet_type,
                     'operationalDays': self.trip_patterns[fleet_type]['days'],
@@ -659,7 +695,7 @@ class EnhancedHistoricalDataInjector:
                         'routeGeometry': route_geometry,  # Now DynamoDB compatible
                         'realRoute': route_info['real_route'],
                         'createdAt': trip_start.isoformat(),
-                        'timestamp': trip_start.isoformat(),  # For sorting
+                        'timestamp': int(trip_start.timestamp()),  # Numeric timestamp for DynamoDB key
                         'attributes': {
                             'city': city,
                             'pattern': fleet_type,
@@ -791,7 +827,7 @@ class EnhancedHistoricalDataInjector:
                         'driverId': trip['driverId'],
                         'eventType': event_type,
                         'severity': severity,
-                        'timestamp': event_time.isoformat(),
+                        'timestamp': int(event_time.timestamp()),  # Numeric timestamp for DynamoDB
                         'location': {
                             'latitude': Decimal(str(round(event_lat, 6))),
                             'longitude': Decimal(str(round(event_lng, 6)))
@@ -885,7 +921,7 @@ class EnhancedHistoricalDataInjector:
                         'estimatedCost': Decimal(str(random.randint(config['cost_range'][0], config['cost_range'][1]))),
                         'mileageAtAlert': vehicle_mileage,
                         'urgency': config['urgency'],
-                        'timestamp': alert_time.isoformat(),
+                        'timestamp': int(alert_time.timestamp()),  # Numeric timestamp for DynamoDB
                         'attributes': {
                             'vehicleAge': vehicle_age,
                             'fleetType': fleet_type,

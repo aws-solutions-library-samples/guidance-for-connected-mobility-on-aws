@@ -8,7 +8,58 @@ import sys
 import subprocess
 import argparse
 
+def detect_deployment_profile():
+    """Detect which AWS profile has the deployed CMS resources"""
+    import subprocess
+    
+    # Get list of available profiles
+    try:
+        result = subprocess.run(['aws', 'configure', 'list-profiles'], 
+                              capture_output=True, text=True, check=True)
+        profiles = result.stdout.strip().split('\n')
+    except:
+        profiles = ['default']
+    
+    # Check each profile for cms-dev-storage stack
+    for profile in profiles:
+        try:
+            result = subprocess.run([
+                'aws', 'cloudformation', 'describe-stacks', 
+                '--stack-name', 'cms-dev-storage',
+                '--profile', profile,
+                '--region', 'us-east-1'
+            ], capture_output=True, text=True, check=True)
+            
+            if result.returncode == 0:
+                print(f"✅ Found CMS deployment in profile: {profile}")
+                return profile
+        except:
+            continue
+    
+    # Fallback to default
+    print("⚠️  Could not detect deployment profile, using default")
+    return 'default'
+
 def get_user_input(prompt, default_value, input_type=str):
+    """Get user input with default value"""
+    if input_type == int:
+        prompt_text = f"{prompt} (default: {default_value}): "
+    else:
+        prompt_text = f"{prompt} (default: {default_value}): "
+    
+    user_input = input(prompt_text).strip()
+    
+    if not user_input:
+        return default_value
+    
+    if input_type == int:
+        try:
+            return int(user_input)
+        except ValueError:
+            print(f"Invalid input. Using default: {default_value}")
+            return default_value
+    
+    return user_input
     """Get user input with default value"""
     if input_type == int:
         prompt_text = f"{prompt} (default: {default_value}): "
@@ -85,7 +136,9 @@ def main():
     print()
     
     # Get environment variables with defaults
-    default_profile = os.environ.get('AWS_PROFILE', 'default')
+    # Dynamically detect which profile has the CMS deployment
+    detected_profile = detect_deployment_profile()
+    default_profile = os.environ.get('AWS_PROFILE', detected_profile)
     default_stage = os.environ.get('DEPLOYMENT_STAGE', 'dev')
     default_region = os.environ.get('AWS_REGION', 'us-east-1')
     

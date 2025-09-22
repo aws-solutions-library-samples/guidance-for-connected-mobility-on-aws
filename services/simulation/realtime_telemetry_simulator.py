@@ -641,7 +641,7 @@ class RealtimeTelemetrySimulator:
         #     }
         #     
         #     # Use Basic Ingest for heartbeat
-        #     topic = f"$aws/rules/cms_telemetry_sasl/{vehicle_id}/heartbeat"
+        #     topic = f"$aws/rules/cms_dev_iot_msk_rule/{vehicle_id}/heartbeat"
         #     payload = json.dumps(heartbeat_data)
         #     
         #     # Send heartbeat silently
@@ -698,7 +698,7 @@ class RealtimeTelemetrySimulator:
         #     }
         #     
         #     # Use Basic Ingest for emergency alerts
-        #     topic = f"$aws/rules/cms_telemetry_sasl/{vehicle_id}/emergency"
+        #     topic = f"$aws/rules/cms_dev_iot_msk_rule/{vehicle_id}/emergency"
         #     payload = json.dumps(emergency_data)
         #     
         #     result = mqtt_client.publish(topic, payload, qos=1)
@@ -868,7 +868,7 @@ class RealtimeTelemetrySimulator:
     def publish_to_iot_core(self, vehicle_id: str, telemetry_data: Dict):
         """Publish telemetry data to AWS IoT Core using paho-mqtt"""
         vin = telemetry_data.get('vin', vehicle_id)
-        topic = f"$aws/rules/cms_telemetry_sasl/{vehicle_id}"
+        topic = f"$aws/rules/cms_dev_iot_msk_rule/{vehicle_id}"
         
         try:
             # Create MQTT connection
@@ -1146,7 +1146,7 @@ class RealtimeTelemetrySimulator:
                         # Send final telemetry packet with ignitionOn: false
                         final_telemetry = self.generate_telemetry_data(vehicle, vehicle_state, force_maintenance_alert)
                         compressed_payload = self.compress_telemetry(final_telemetry)
-                        topic = f"$aws/rules/cms_telemetry_sasl/{vehicle_id}"
+                        topic = f"$aws/rules/cms_dev_iot_msk_rule/{vehicle_id}"
                         
                         result = mqtt_client.publish(topic, compressed_payload, qos=1)
                         if result.rc == 0:
@@ -1182,7 +1182,7 @@ class RealtimeTelemetrySimulator:
                     self.vehicle_states[vehicle_id] = vehicle_state
                     
                     # Publish telemetry using AWS Basic Ingest (policy now fixed)
-                    topic = f"$aws/rules/cms_telemetry_sasl/{vehicle_id}"
+                    topic = f"$aws/rules/cms_dev_iot_msk_rule/{vehicle_id}"
                     
                     # Send gzipped + base64 encoded payload as raw binary data
                     compressed_payload = self.compress_telemetry(telemetry_data)
