@@ -63,7 +63,7 @@ public class SafetyProcessor {
         String saslMechanism = applicationProperties.get("sasl.mechanism", "SCRAM-SHA-512");
         String saslJaasConfig = applicationProperties.get("sasl.jaas.config", "");
         String groupId = applicationProperties.get("group.id", "safety-processor-group");
-        String tableName = applicationProperties.get("SAFETY_EVENTS_TABLE_NAME", "cms-631ca2-591631-safety-events-new");
+        String tableName = applicationProperties.get("TABLE_NAME", "cms-dev-storage-safety-events");
         String jobName = applicationProperties.get("JOB_NAME", "Safety Processor");
         
         LOG.error("=== CONFIG LOADED: bootstrap.servers=" + bootstrapServers + " ===");

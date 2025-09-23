@@ -4,7 +4,7 @@ Test Flink Stack - For testing without MSK dependency
 
 from aws_cdk import (
     Stack,
-    aws_kinesisanalytics as kinesisanalytics,
+    aws_kinesisanalyticsv2 as kinesisanalytics,
     aws_iam as iam,
     aws_s3 as s3,
     aws_s3_deployment as s3deploy,
@@ -97,7 +97,7 @@ class FlinkTestStack(Stack):
         )
         
         # Test application (just one for testing)
-        self.test_processor = kinesisanalytics.CfnApplicationV2(
+        self.test_processor = kinesisanalytics.CfnApplication(
             self, "TestProcessor",
             application_name=f"{construct_id}-test-processor",
             application_description="Test Flink processor without MSK dependency",

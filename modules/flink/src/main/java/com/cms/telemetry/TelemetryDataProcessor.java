@@ -88,7 +88,7 @@ public class TelemetryDataProcessor {
         CloudWatchMetricsSink cloudWatchSink = new CloudWatchMetricsSink("CMS/TelemetryData", "ProcessedMessages");
         stream.addSink(cloudWatchSink);
         
-        stream.addSink(new com.cms.telemetry.sink.DynamoDBTelemetrySink(applicationProperties.get("TELEMETRY_TABLE_NAME", "cms-0a0e68e9-telemetry")));
+        stream.addSink(new com.cms.telemetry.sink.DynamoDBTelemetrySink(applicationProperties.get("TABLE_NAME", "cms-dev-storage-telemetry")));
         
         env.execute(jobName);
         

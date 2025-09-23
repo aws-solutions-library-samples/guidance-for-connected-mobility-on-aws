@@ -78,7 +78,7 @@ public class TripProcessor {
             String saslMechanism = applicationProperties.get("sasl.mechanism", "AWS_MSK_IAM");
             String saslJaasConfig = applicationProperties.get("sasl.jaas.config", "");
             String groupId = applicationProperties.get("group.id", "trip-processor-consumer");
-            String tripsTableName = applicationProperties.get("TRIPS_TABLE_NAME", "cms-631ca2-591631-trips-new");
+            String tripsTableName = applicationProperties.get("TABLE_NAME", "cms-dev-storage-trips");
             
             LOG.info("🔧 Configuration:");
             LOG.info("  Bootstrap Servers: {}", bootstrapServers);

@@ -4,7 +4,7 @@ Optimized Flink Stack - Deploys independently of MSK, connects later
 
 from aws_cdk import (
     Stack,
-    aws_kinesisanalytics as kinesisanalytics,
+    aws_kinesisanalyticsv2 as kinesisanalytics,
     aws_iam as iam,
     aws_s3 as s3,
     aws_dynamodb as dynamodb,
@@ -86,25 +86,25 @@ class FlinkStackOptimized(Stack):
         
         # Create Flink application with placeholder configuration
         # MSK configuration will be updated later via integration script
-        self.flink_app = kinesisanalytics.CfnApplicationV2(
+        self.flink_app = kinesisanalytics.CfnApplication(
             self, "FlinkApplication",
             runtime_environment="FLINK-1_18",
             service_execution_role=self.flink_role.role_arn,
             application_name=f"{construct_id}-telemetry-processor",
             application_description="CMS Telemetry Processing Application",
-            application_configuration=kinesisanalytics.CfnApplicationV2.ApplicationConfigurationProperty(
-                application_code_configuration=kinesisanalytics.CfnApplicationV2.ApplicationCodeConfigurationProperty(
-                    code_content=kinesisanalytics.CfnApplicationV2.CodeContentProperty(
-                        s3_content_location=kinesisanalytics.CfnApplicationV2.S3ContentLocationProperty(
+            application_configuration=kinesisanalytics.CfnApplication.ApplicationConfigurationProperty(
+                application_code_configuration=kinesisanalytics.CfnApplication.ApplicationCodeConfigurationProperty(
+                    code_content=kinesisanalytics.CfnApplication.CodeContentProperty(
+                        s3_content_location=kinesisanalytics.CfnApplication.S3ContentLocationProperty(
                             bucket_arn=self.jar_bucket.bucket_arn,
                             file_key="jars/cms-telemetry-processor-1.0.0.jar"
                         )
                     ),
                     code_content_type="ZIPFILE"
                 ),
-                environment_properties=kinesisanalytics.CfnApplicationV2.EnvironmentPropertiesProperty(
+                environment_properties=kinesisanalytics.CfnApplication.EnvironmentPropertiesProperty(
                     property_groups=[
-                        kinesisanalytics.CfnApplicationV2.PropertyGroupProperty(
+                        kinesisanalytics.CfnApplication.PropertyGroupProperty(
                             property_group_id="kinesis.analytics.flink.run.options",
                             property_map={
                                 "python.fn-execution.bundle.time": "1000",
@@ -112,7 +112,7 @@ class FlinkStackOptimized(Stack):
                             }
                         ),
                         # Placeholder for MSK configuration - will be updated by integration script
-                        kinesisanalytics.CfnApplicationV2.PropertyGroupProperty(
+                        kinesisanalytics.CfnApplication.PropertyGroupProperty(
                             property_group_id="kafka.config",
                             property_map={
                                 "bootstrap.servers": "placeholder-will-be-updated",
@@ -122,19 +122,19 @@ class FlinkStackOptimized(Stack):
                         )
                     ]
                 ),
-                flink_application_configuration=kinesisanalytics.CfnApplicationV2.FlinkApplicationConfigurationProperty(
-                    checkpoint_configuration=kinesisanalytics.CfnApplicationV2.CheckpointConfigurationProperty(
+                flink_application_configuration=kinesisanalytics.CfnApplication.FlinkApplicationConfigurationProperty(
+                    checkpoint_configuration=kinesisanalytics.CfnApplication.CheckpointConfigurationProperty(
                         configuration_type="CUSTOM",
                         checkpointing_enabled=True,
                         checkpoint_interval=60000,
                         min_pause_between_checkpoints=5000
                     ),
-                    monitoring_configuration=kinesisanalytics.CfnApplicationV2.MonitoringConfigurationProperty(
+                    monitoring_configuration=kinesisanalytics.CfnApplication.MonitoringConfigurationProperty(
                         configuration_type="CUSTOM",
                         log_level="INFO",
                         metrics_level="APPLICATION"
                     ),
-                    parallelism_configuration=kinesisanalytics.CfnApplicationV2.ParallelismConfigurationProperty(
+                    parallelism_configuration=kinesisanalytics.CfnApplication.ParallelismConfigurationProperty(
                         configuration_type="CUSTOM",
                         parallelism=2,
                         parallelism_per_kpu=1,

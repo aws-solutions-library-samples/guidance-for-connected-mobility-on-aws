@@ -203,12 +203,15 @@ class SimulationManager:
             if AWS_PROFILE:
                 env['AWS_PROFILE'] = AWS_PROFILE
             
+            # Use current workspace directory instead of hardcoded path
+            workspace_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            
             process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                cwd='/Users/<username>',
+                cwd=workspace_dir,
                 env=env
             )
             

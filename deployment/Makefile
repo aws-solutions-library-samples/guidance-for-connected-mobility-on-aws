@@ -35,7 +35,8 @@ help: ## Show this help message
 	@echo "$(GREEN)🎯 Deployment Phases:$(NC)"
 	@echo "  make phase1              - Fleet Manager Interface (IoT, Storage, UI, Lambda, Cognito, S3)"
 	@echo "  make phase2              - Fleet Management Interface (historical data injection)"
-	@echo "  make phase3              - Telemetry Pipeline (MSK + IoT Integration)"
+	@echo "  make phase3              - Telemetry Pipeline (MSK Deployment)"
+	@echo "  make phase3b             - Telemetry Pipeline (MSK Configuration + IoT Integration)"
 	@echo "  make phase4              - Telemetry Pipeline (Flink Deployment)"
 	@echo "  make phase5              - Telemetry Pipeline (Flink Configuration)"
 	@echo "  make phase6              - Complete Pipeline Configuration"
@@ -88,28 +89,31 @@ deploy: ## Interactive deployment with profile and phase selection
 	echo "$(GREEN)Deployment Options:$(NC)"; \
 	echo "1. Fleet Manager Interface (IoT, Storage, UI, Lambda, Cognito, S3)"; \
 	echo "2. Fleet Management Interface (historical data injection)"; \
-	echo "3. Telemetry Pipeline (MSK + IoT Integration)"; \
-	echo "4. Telemetry Pipeline (Flink Deployment)"; \
-	echo "5. Telemetry Pipeline (Flink Configuration)"; \
-	echo "6. Complete Pipeline Configuration"; \
-	echo "7. Deploy All Phases"; \
+	echo "3. Telemetry Pipeline (MSK Deployment)"; \
+	echo "4. Telemetry Pipeline (MSK Configuration + IoT Integration)"; \
+	echo "5. Telemetry Pipeline (Flink Deployment)"; \
+	echo "6. Telemetry Pipeline (Flink Configuration)"; \
+	echo "7. Complete Pipeline Configuration"; \
+	echo "8. Deploy All Phases"; \
 	echo ""; \
-	read -p "Select deployment option (1-7): " deploy_choice; \
+	read -p "Select deployment option (1-8): " deploy_choice; \
 	echo ""; \
 	case $$deploy_choice in \
 		1) echo "$(BLUE)🚀 Phase 1: Fleet Manager Interface$(NC)"; \
 		   $(MAKE) phase1 AWS_PROFILE=$$selected_profile DEPLOYMENT_STAGE=$$selected_stage ;; \
 		2) echo "$(BLUE)🚀 Phase 2: Fleet Management Interface$(NC)"; \
 		   $(MAKE) phase2 AWS_PROFILE=$$selected_profile DEPLOYMENT_STAGE=$$selected_stage ;; \
-		3) echo "$(BLUE)🚀 Phase 3: Telemetry Pipeline (MSK + IoT Integration)$(NC)"; \
+		3) echo "$(BLUE)🚀 Phase 3: Telemetry Pipeline (MSK Deployment)$(NC)"; \
 		   $(MAKE) phase3 AWS_PROFILE=$$selected_profile DEPLOYMENT_STAGE=$$selected_stage ;; \
-		4) echo "$(BLUE)🚀 Phase 4: Telemetry Pipeline (Flink Deployment)$(NC)"; \
+		4) echo "$(BLUE)🚀 Phase 3b: Telemetry Pipeline (MSK Configuration + IoT Integration)$(NC)"; \
+		   $(MAKE) phase3b AWS_PROFILE=$$selected_profile DEPLOYMENT_STAGE=$$selected_stage ;; \
+		5) echo "$(BLUE)🚀 Phase 4: Telemetry Pipeline (Flink Deployment)$(NC)"; \
 		   $(MAKE) phase4 AWS_PROFILE=$$selected_profile DEPLOYMENT_STAGE=$$selected_stage ;; \
-		5) echo "$(BLUE)🚀 Phase 5: Telemetry Pipeline (Flink Configuration)$(NC)"; \
+		6) echo "$(BLUE)🚀 Phase 5: Telemetry Pipeline (Flink Configuration)$(NC)"; \
 		   $(MAKE) phase5 AWS_PROFILE=$$selected_profile DEPLOYMENT_STAGE=$$selected_stage ;; \
-		6) echo "$(BLUE)🚀 Phase 6: Complete Pipeline Configuration$(NC)"; \
+		7) echo "$(BLUE)🚀 Phase 6: Complete Pipeline Configuration$(NC)"; \
 		   $(MAKE) phase6 AWS_PROFILE=$$selected_profile DEPLOYMENT_STAGE=$$selected_stage ;; \
-		7) echo "$(BLUE)🚀 Deploying All Phases$(NC)"; \
+		8) echo "$(BLUE)🚀 Deploying All Phases$(NC)"; \
 		   $(MAKE) deploy-all AWS_PROFILE=$$selected_profile DEPLOYMENT_STAGE=$$selected_stage ;; \
 		*) echo "$(RED)❌ Invalid deployment option$(NC)"; exit 1 ;; \
 	esac; \
@@ -133,17 +137,8 @@ phase1: ## Phase 1: Fleet Manager Interface (IoT, Storage, UI, Lambda, Cognito, 
 	@echo "$(BLUE)🚀 Phase 1: Fleet Manager Interface$(NC)"
 	@echo "Deploying: IoT Core, DynamoDB, S3, Lambda, Cognito, CloudFront UI"
 	@echo "$(YELLOW)⚠️  Checking for existing resources...$(NC)"
-	@EXISTING_TABLES=$$(aws dynamodb list-tables --profile $(AWS_PROFILE) --region $(AWS_REGION) --query 'TableNames[?contains(@, `cms-$(DEPLOYMENT_STAGE)-storage`)]' --output text 2>/dev/null || echo ""); \
-	if [ -n "$$EXISTING_TABLES" ]; then \
-		echo "$(YELLOW)⚠️  Found existing DynamoDB tables from previous deployment$(NC)"; \
-		echo "$(BLUE)🧹 Cleaning up orphaned tables...$(NC)"; \
-		for table in $$EXISTING_TABLES; do \
-			echo "Deleting table: $$table"; \
-			aws dynamodb delete-table --table-name $$table --profile $(AWS_PROFILE) --region $(AWS_REGION) 2>/dev/null || true; \
-		done; \
-		echo "$(BLUE)⏳ Waiting for table deletions to complete...$(NC)"; \
-		sleep 30; \
-	fi
+	# Tables are now managed by CloudFormation - skip cleanup
+	@echo "$(GREEN)✅ Using CloudFormation-managed tables$(NC)"
 	@source .venv/bin/activate && \
 	CDK_DEFAULT_ACCOUNT=$$(aws sts get-caller-identity --profile $(AWS_PROFILE) --query Account --output text) \
 	CDK_DEFAULT_REGION=$(AWS_REGION) \
@@ -166,6 +161,18 @@ phase3: ## Phase 3: Telemetry Pipeline 1 (MSK)
 	DEPLOYMENT_STAGE=$(DEPLOYMENT_STAGE) AWS_PROFILE=$(AWS_PROFILE) \
 	cdk deploy cms-$(DEPLOYMENT_STAGE)-msk --require-approval never --profile $(AWS_PROFILE)
 	@echo "$(GREEN)✅ Phase 3 Complete: MSK cluster deployed$(NC)"
+
+phase3b: ## Phase 3b: Configure MSK for IoT Integration
+	@echo "$(BLUE)🚀 Phase 3b: Configure MSK for IoT Integration$(NC)"
+	@echo "Deploying telemetry integration stack (VPC destination + IoT rule)"
+	@$(MAKE) configure-msk AWS_PROFILE=$(AWS_PROFILE) DEPLOYMENT_STAGE=$(DEPLOYMENT_STAGE)
+	@source .venv/bin/activate && \
+	CDK_DEFAULT_ACCOUNT=$$(aws sts get-caller-identity --profile $(AWS_PROFILE) --query Account --output text) \
+	CDK_DEFAULT_REGION=$(AWS_REGION) \
+	DEPLOYMENT_STAGE=$(DEPLOYMENT_STAGE) AWS_PROFILE=$(AWS_PROFILE) \
+	DEPLOY_TELEMETRY_INTEGRATION=true \
+	cdk deploy cms-$(DEPLOYMENT_STAGE)-telemetry-integration --require-approval never --profile $(AWS_PROFILE)
+	@echo "$(GREEN)✅ Phase 3b Complete: MSK configured with telemetry integration stack$(NC)"
 
 phase4: ## Phase 4: Telemetry Pipeline 3 (Flink Deployment)
 	@echo "$(BLUE)🚀 Phase 4: Telemetry Pipeline 3 (Flink Deployment)$(NC)"
@@ -271,24 +278,20 @@ phase6: ## Phase 6: Telemetry Pipeline 4 (Configuration)
 	@$(MAKE) configure-pipeline AWS_PROFILE=$(AWS_PROFILE) DEPLOYMENT_STAGE=$(DEPLOYMENT_STAGE)
 	@echo "$(GREEN)✅ Phase 6 Complete: Telemetry pipeline fully configured$(NC)"
 
-configure-msk: ## Configure MSK with ACL settings and VPC connectivity
+configure-msk: ## Configure MSK with SCRAM secret and VPC destination
 	@echo "$(BLUE)🔧 Configuring MSK cluster...$(NC)"
 	@CLUSTER_ARN=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-msk --query 'Stacks[0].Outputs[?OutputKey==`MSKClusterArn`].OutputValue' --output text --profile $(AWS_PROFILE)); \
-	CURRENT_VERSION=$$(aws kafka describe-cluster --cluster-arn $$CLUSTER_ARN --query 'ClusterInfo.CurrentVersion' --output text --profile $(AWS_PROFILE)); \
+	SECRET_ARN=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-msk --query 'Stacks[0].Outputs[?OutputKey==`IoTUserSecretArn`].OutputValue' --output text --profile $(AWS_PROFILE)); \
 	STATE=$$(aws kafka describe-cluster --cluster-arn $$CLUSTER_ARN --query 'ClusterInfo.State' --output text --profile $(AWS_PROFILE)); \
-	VPC_SCRAM_ENABLED=$$(aws kafka describe-cluster --cluster-arn $$CLUSTER_ARN --query 'ClusterInfo.BrokerNodeGroupInfo.ConnectivityInfo.VpcConnectivity.ClientAuthentication.Sasl.Scram.Enabled' --output text --profile $(AWS_PROFILE)); \
 	if [ "$$STATE" = "ACTIVE" ]; then \
-		if [ "$$VPC_SCRAM_ENABLED" = "True" ]; then \
-			echo "$(GREEN)✅ VPC connectivity SCRAM already enabled - skipping update$(NC)"; \
+		echo "$(BLUE)Associating SCRAM secret with MSK cluster...$(NC)"; \
+		RESULT=$$(aws kafka batch-associate-scram-secret --cluster-arn $$CLUSTER_ARN --secret-arn-list $$SECRET_ARN --profile $(AWS_PROFILE) 2>&1); \
+		if echo "$$RESULT" | grep -q "already associated"; then \
+			echo "$(GREEN)✅ SCRAM secret already associated$(NC)"; \
 		else \
-			echo "$(BLUE)Enabling VPC connectivity for SCRAM authentication...$(NC)"; \
-			aws kafka update-connectivity \
-				--cluster-arn $$CLUSTER_ARN \
-				--current-version $$CURRENT_VERSION \
-				--connectivity-info '{"VpcConnectivity":{"ClientAuthentication":{"Sasl":{"Iam":{"Enabled":false},"Scram":{"Enabled":true}}}}}' \
-				--profile $(AWS_PROFILE); \
-			echo "$(GREEN)✅ VPC connectivity configuration initiated$(NC)"; \
+			echo "$(GREEN)✅ SCRAM secret associated$(NC)"; \
 		fi; \
+		echo "$(GREEN)✅ MSK SCRAM configuration complete$(NC)"; \
 	else \
 		echo "$(YELLOW)⏳ Cluster state: $$STATE - waiting for ACTIVE state$(NC)"; \
 	fi

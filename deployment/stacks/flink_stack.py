@@ -11,7 +11,7 @@ from aws_cdk import (
     aws_ec2 as ec2,
     aws_lambda as lambda_,
     aws_logs as logs,
-    aws_kinesisanalytics as kinesisanalytics,
+    aws_kinesisanalyticsv2 as kinesisanalytics,
     CfnOutput,
     RemovalPolicy,
     Duration,
@@ -80,7 +80,7 @@ class FlinkStack(Stack):
                 description="Security group for Flink applications",
                 allow_all_outbound=True
             )
-            # msk_available remains True from the MSK import logic above
+            msk_available = False
         
         if len(subnets) < 2:
             subnets = self.vpc.public_subnets + self.vpc.private_subnets
@@ -215,6 +215,27 @@ class FlinkStack(Stack):
         for table in storage_tables.values():
             table.grant_read_write_data(self.flink_role)
         
+        # Add explicit DynamoDB permissions for storage tables
+        self.flink_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "dynamodb:PutItem",
+                    "dynamodb:GetItem",
+                    "dynamodb:UpdateItem",
+                    "dynamodb:DeleteItem",
+                    "dynamodb:Query",
+                    "dynamodb:Scan",
+                    "dynamodb:BatchGetItem",
+                    "dynamodb:BatchWriteItem"
+                ],
+                resources=[
+                    f"arn:aws:dynamodb:{self.region}:{self.account}:table/cms-*-storage-*",
+                    f"arn:aws:dynamodb:{self.region}:{self.account}:table/cms-*-storage-*/index/*"
+                ]
+            )
+        )
+        
         # Add S3 permissions for JAR bucket
         self.jar_bucket.grant_read(self.flink_role)
         
@@ -282,7 +303,7 @@ class FlinkStack(Stack):
         def create_flink_app_config(processor_type: str, additional_properties: Dict[str, str] = None):
             base_properties = {
                 "PROCESSOR_TYPE": processor_type,
-                "auto.offset.reset": "earliest",
+                "auto.offset.reset": "latest",
                 "enable.auto.commit": "false",
                 "aws.region": self.region
             }
@@ -485,11 +506,13 @@ def lambda_handler(event, context):
                     "PropertyGroupId": "consumer.config.0",
                     "PropertyMap": {
                         "PROCESSOR_TYPE": "EventDrivenTelemetryProcessor",
-                        "auto.offset.reset": "earliest",
+                        "auto.offset.reset": "latest",
                         "enable.auto.commit": "false",
                         "aws.region": self.region,
                         "KAFKA_TOPIC": "cms-telemetry-raw",
-                        "group.id": f"{construct_id}-event-driven-telemetry-consumer"
+                        "group.id": f"{construct_id}-event-driven-telemetry-consumer",
+                        "TABLE_NAME": storage_tables['telemetry'].table_name,
+                        "TELEMETRY_TABLE_NAME": storage_tables['telemetry'].table_name
                     }
                 }]
             }
@@ -498,7 +521,7 @@ def lambda_handler(event, context):
         if vpc_configuration:
             app_config["VpcConfigurations"] = [vpc_configuration]
             
-        self.event_driven_telemetry_processor = kinesisanalytics.CfnApplicationV2(
+        self.event_driven_telemetry_processor = kinesisanalytics.CfnApplication(
             self, "EventDrivenTelemetryProcessor",
             application_name=f"{construct_id}-event-driven-telemetry-processor",
             runtime_environment="FLINK-1_18",
@@ -508,38 +531,42 @@ def lambda_handler(event, context):
         )
         
         # Add CloudWatch logging to event-driven telemetry processor
-        kinesisanalytics.CfnApplicationCloudWatchLoggingOptionV2(
+        kinesisanalytics.CfnApplicationCloudWatchLoggingOption(
             self, "EventDrivenTelemetryLogging",
             application_name=self.event_driven_telemetry_processor.ref,
-            cloud_watch_logging_option=kinesisanalytics.CfnApplicationCloudWatchLoggingOptionV2.CloudWatchLoggingOptionProperty(
+            cloud_watch_logging_option=kinesisanalytics.CfnApplicationCloudWatchLoggingOption.CloudWatchLoggingOptionProperty(
                 log_stream_arn=f"arn:aws:logs:{self.region}:{self.account}:log-group:{self.event_driven_telemetry_log_group.log_group_name}:log-stream:kinesis-analytics-log-stream"
             )
         )
         
         # 2. Telemetry Enhanced Final Processor (matches cms-telemetry-enhanced-final)
-        self.telemetry_enhanced_processor = kinesisanalytics.CfnApplicationV2(
+        self.telemetry_enhanced_processor = kinesisanalytics.CfnApplication(
             self, "TelemetryEnhancedProcessor",
             application_name=f"{construct_id}-telemetry-enhanced-final",
             application_description="Enhanced telemetry processor with advanced analytics",
             runtime_environment="FLINK-1_18",
             service_execution_role=self.flink_role.role_arn,
             application_configuration=create_flink_app_config(
-                "TelemetryEnhancedProcessor",
-                {"group.id": "cms-enhanced-telemetry-processor-consumer"}
+                "TelemetryDataProcessor",
+                {
+                    "group.id": "cms-enhanced-telemetry-processor-consumer",
+                    "TABLE_NAME": storage_tables['telemetry'].table_name,
+                    "TELEMETRY_TABLE_NAME": storage_tables['telemetry'].table_name
+                }
             )
         )
         
         # Add CloudWatch logging to telemetry enhanced processor
-        kinesisanalytics.CfnApplicationCloudWatchLoggingOptionV2(
+        kinesisanalytics.CfnApplicationCloudWatchLoggingOption(
             self, "TelemetryEnhancedLogging",
             application_name=self.telemetry_enhanced_processor.ref,
-            cloud_watch_logging_option=kinesisanalytics.CfnApplicationCloudWatchLoggingOptionV2.CloudWatchLoggingOptionProperty(
+            cloud_watch_logging_option=kinesisanalytics.CfnApplicationCloudWatchLoggingOption.CloudWatchLoggingOptionProperty(
                 log_stream_arn=f"arn:aws:logs:{self.region}:{self.account}:log-group:{self.telemetry_enhanced_log_group.log_group_name}:log-stream:kinesis-analytics-log-stream"
             )
         )
         
         # 3. Trip Processor (matches cms-trip-processor)
-        self.trip_processor = kinesisanalytics.CfnApplicationV2(
+        self.trip_processor = kinesisanalytics.CfnApplication(
             self, "TripProcessor",
             application_name=f"{construct_id}-trip-processor", 
             application_description="Trip data processor with DynamoDB integration",
@@ -555,16 +582,16 @@ def lambda_handler(event, context):
         )
         
         # Add CloudWatch logging to trip processor
-        kinesisanalytics.CfnApplicationCloudWatchLoggingOptionV2(
+        kinesisanalytics.CfnApplicationCloudWatchLoggingOption(
             self, "TripProcessorLogging",
             application_name=self.trip_processor.ref,
-            cloud_watch_logging_option=kinesisanalytics.CfnApplicationCloudWatchLoggingOptionV2.CloudWatchLoggingOptionProperty(
+            cloud_watch_logging_option=kinesisanalytics.CfnApplicationCloudWatchLoggingOption.CloudWatchLoggingOptionProperty(
                 log_stream_arn=f"arn:aws:logs:{self.region}:{self.account}:log-group:{self.trip_log_group.log_group_name}:log-stream:kinesis-analytics-log-stream"
             )
         )
         
         # 4. Safety Processor (matches cms-safety-processor)
-        self.safety_processor = kinesisanalytics.CfnApplicationV2(
+        self.safety_processor = kinesisanalytics.CfnApplication(
             self, "SafetyProcessor",
             application_name=f"{construct_id}-safety-processor",
             application_description="Safety events processor with DynamoDB integration", 
@@ -580,16 +607,16 @@ def lambda_handler(event, context):
         )
         
         # Add CloudWatch logging to safety processor
-        kinesisanalytics.CfnApplicationCloudWatchLoggingOptionV2(
+        kinesisanalytics.CfnApplicationCloudWatchLoggingOption(
             self, "SafetyProcessorLogging",
             application_name=self.safety_processor.ref,
-            cloud_watch_logging_option=kinesisanalytics.CfnApplicationCloudWatchLoggingOptionV2.CloudWatchLoggingOptionProperty(
+            cloud_watch_logging_option=kinesisanalytics.CfnApplicationCloudWatchLoggingOption.CloudWatchLoggingOptionProperty(
                 log_stream_arn=f"arn:aws:logs:{self.region}:{self.account}:log-group:{self.safety_log_group.log_group_name}:log-stream:kinesis-analytics-log-stream"
             )
         )
         
         # 5. Maintenance Processor (matches cms-maintenance-processor-template)
-        self.maintenance_processor = kinesisanalytics.CfnApplicationV2(
+        self.maintenance_processor = kinesisanalytics.CfnApplication(
             self, "MaintenanceProcessor",
             application_name=f"{construct_id}-maintenance-processor",
             application_description="Maintenance processor with UniversalProcessor entry point",
@@ -605,10 +632,10 @@ def lambda_handler(event, context):
         )
         
         # Add CloudWatch logging to maintenance processor
-        kinesisanalytics.CfnApplicationCloudWatchLoggingOptionV2(
+        kinesisanalytics.CfnApplicationCloudWatchLoggingOption(
             self, "MaintenanceProcessorLogging",
             application_name=self.maintenance_processor.ref,
-            cloud_watch_logging_option=kinesisanalytics.CfnApplicationCloudWatchLoggingOptionV2.CloudWatchLoggingOptionProperty(
+            cloud_watch_logging_option=kinesisanalytics.CfnApplicationCloudWatchLoggingOption.CloudWatchLoggingOptionProperty(
                 log_stream_arn=f"arn:aws:logs:{self.region}:{self.account}:log-group:{self.maintenance_log_group.log_group_name}:log-stream:kinesis-analytics-log-stream"
             )
         )

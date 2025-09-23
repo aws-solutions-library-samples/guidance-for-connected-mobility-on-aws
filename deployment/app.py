@@ -83,7 +83,7 @@ flink_stack = FlinkStack(
     storage_tables=storage_stack.tables,
     msk_stack=msk_stack,
     env=env,
-    description="Flink Stack with MSK VPC configuration"
+    description="Guidance for Connected Mobility (SO5947) - Flink Deployment"
 )
 
 # 6. UI Stack (Frontend and API)

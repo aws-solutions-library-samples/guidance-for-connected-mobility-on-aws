@@ -38,6 +38,7 @@ class VehicleState:
         self.current_trip_id = None
         self.current_driver_id = None
         self.maintenance_alert_sent = False  # Track if maintenance alert sent for current trip
+        self.route = []  # Initialize empty route
 
 class RealtimeTelemetrySimulator:
     def __init__(self, profile_name: str = "target-account", region: str = "us-east-1", certificates_table_name: str = None):
@@ -724,53 +725,97 @@ class RealtimeTelemetrySimulator:
         
         return base64_encoded
     
-    def get_vehicle_certificate(self, vin: str) -> Dict:
+    def get_vehicle_certificate(self, vehicle_id: str) -> Dict:
         """Get vehicle certificate from DynamoDB table"""
         try:
-            # Use explicit certificates table if provided, otherwise construct from suffix
-            if hasattr(self, 'certificates_table'):
-                table_name = self.certificates_table
-            else:
-                table_name = f"cms-{self.table_suffix}-vehicle-certificates"
+            # Force the correct certificate table name
+            table_name = "cms-dev-storage-vehicle-certificates"
             
-            print(f"🔍 Looking up certificate for VIN: {vin} in table: {table_name}")
+            print(f"🔍 Looking up certificate for vehicleId: {vehicle_id} in table: {table_name}")
+            print(f"🔍 Using profile: {self.profile_name}")
             import sys
             sys.stdout.flush()
+            
+            # Use the script's configured profile
             table = self.dynamodb.Table(table_name)
             
-            response = table.get_item(Key={'vin': vin})
+            response = table.get_item(Key={'vehicleId': vehicle_id})
             if 'Item' not in response:
-                print(f"❌ Certificate not found for VIN: {vin} in table: {table_name}")
+                print(f"❌ Certificate not found for vehicleId: {vehicle_id} in table: {table_name}")
                 sys.stdout.flush()
-                raise Exception(f"Certificate not found for VIN: {vin}")
+                return None
                 
-            print(f"✅ Certificate found for VIN: {vin}")
+            print(f"✅ Certificate found for vehicleId: {vehicle_id}")
             sys.stdout.flush()
             return response['Item']
         except Exception as e:
-            print(f"❌ Error getting certificate for {vin}: {e}")
+            print(f"❌ Error getting certificate for {vehicle_id}: {e}")
             import sys
             sys.stdout.flush()
             return None
 
-    def create_mqtt_connection(self, vin: str):
+    def create_mqtt_connection(self, vehicle_id: str, vin: str = None):
         """Create MQTT connection using vehicle's X.509 certificate"""
-        import sys
-        print(f"🔗 Creating MQTT connection for {vin}...")
-        sys.stdout.flush()
-        
         if not MQTT_AVAILABLE:
-            print(f"❌ MQTT client not available - paho-mqtt not installed")
-            sys.stdout.flush()
             return None
             
-        print(f"✅ MQTT client available, looking up certificate...")
-        sys.stdout.flush()
+        # If only one parameter passed (old style), treat it as VIN and derive vehicle_id
+        if vin is None:
+            vin = vehicle_id
+            vehicle_id = vin
         
-        cert_data = self.get_vehicle_certificate(vin)
+        # Get certificate data
+        cert_data = self.get_vehicle_certificate(vehicle_id)
         if not cert_data:
-            print(f"❌ No certificate data returned for VIN: {vin}")
-            sys.stdout.flush()
+            return None
+            
+        try:
+            # Write certificate files temporarily
+            import tempfile
+            import os
+            
+            cert_dir = tempfile.mkdtemp()
+            cert_file = os.path.join(cert_dir, f"{vin}-cert.pem")
+            key_file = os.path.join(cert_dir, f"{vin}-key.pem")
+            
+            with open(cert_file, 'w') as f:
+                f.write(cert_data['certificatePem'])
+            with open(key_file, 'w') as f:
+                f.write(cert_data['privateKey'])
+                
+            # Create MQTT client
+            import ssl
+            
+            client_id = vin
+            client = mqtt.Client(
+                callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+                client_id=client_id, 
+                protocol=mqtt.MQTTv311,
+                clean_session=True
+            )
+            
+            # Create TLS context
+            context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+            
+            # Download AWS IoT Root CA
+            import urllib.request
+            root_ca_url = "https://www.amazontrust.com/repository/AmazonRootCA1.pem"
+            root_ca_file = os.path.join(cert_dir, "AmazonRootCA1.pem")
+            urllib.request.urlretrieve(root_ca_url, root_ca_file)
+            
+            # Load certificates
+            context.load_verify_locations(root_ca_file)
+            context.load_cert_chain(cert_file, key_file)
+            context.check_hostname = False
+            
+            # Set TLS context
+            client.tls_set_context(context)
+            
+            # Store cert files for cleanup
+            self.cert_files = [cert_file, key_file, cert_dir]
+            return client
+            
+        except Exception as e:
             return None
             
         try:
@@ -810,7 +855,7 @@ class RealtimeTelemetrySimulator:
             import ssl
             import time
             
-            client_id = f"vehicle-{vin}"  # Match IoT Thing naming convention
+            client_id = vin  # Use VIN directly as client ID to match IoT Thing name
             print(f"🔗 Using client ID: {client_id}")
             sys.stdout.flush()
             
@@ -873,7 +918,7 @@ class RealtimeTelemetrySimulator:
         try:
             # Create MQTT connection
             print(f"🔗 Creating MQTT connection for {vin}...")
-            client = self.create_mqtt_connection(vin)
+            client = self.create_mqtt_connection(vehicle_id, vin)
             
             # Connect to IoT Core with timeout
             print(f"🔗 Connecting to {self.iot_endpoint}:8883...")
@@ -1037,12 +1082,13 @@ class RealtimeTelemetrySimulator:
         try:
             print(f"🔗 Creating MQTT connection for {vin}...")
             sys.stdout.flush()
-            mqtt_client = self.create_mqtt_connection(vin)
+            mqtt_client = self.create_mqtt_connection(vehicle_id, vin)
             
             if not mqtt_client:
-                print(f"❌ Failed to create MQTT client for {vehicle_id} - skipping simulation")
+                print(f"❌ Failed to create MQTT client for {vehicle_id} - STOPPING simulation")
+                self.logger.error(f"❌ Failed to create MQTT client for {vehicle_id} - STOPPING simulation")
                 sys.stdout.flush()
-                return
+                return  # Exit this vehicle's simulation
             
             # Set all callbacks for debugging
             mqtt_client.on_connect = on_connect
@@ -1071,7 +1117,7 @@ class RealtimeTelemetrySimulator:
                 time.sleep(0.5)  # Check less frequently
             
             if not connected:
-                raise Exception(f"Connection timeout after {timeout}s")
+                raise Exception(f"Connection timeout after {timeout}s - check certificates and IoT policies")
             
             print(f"✅ Successfully connected to IoT Core for {vehicle_id}")
             self.logger.info(f"✅ Successfully connected to IoT Core for {vehicle_id}")
@@ -1086,7 +1132,7 @@ class RealtimeTelemetrySimulator:
             sys.stdout.flush()
             if mqtt_client:
                 mqtt_client.loop_stop()
-            return
+            return  # Exit this vehicle's simulation
         
         print(f"🔧 Setting up MQTT callbacks and subscriptions for {vehicle_id}")
         self.logger.info(f"🔧 Setting up MQTT callbacks and subscriptions for {vehicle_id}")
@@ -1286,8 +1332,7 @@ class RealtimeTelemetrySimulator:
         for vehicle in simulation_vehicles:
             thread = threading.Thread(
                 target=self.simulate_vehicle_telemetry,
-                args=(vehicle, trips_per_vehicle, force_maintenance_alert),
-                daemon=True
+                args=(vehicle, trips_per_vehicle, force_maintenance_alert)
             )
             thread.start()
             self.simulation_threads.append(thread)
@@ -1295,13 +1340,27 @@ class RealtimeTelemetrySimulator:
             # Small delay between starting each vehicle
             time.sleep(1)
         
-        print(f"✅ Started telemetry simulation for {len(simulation_vehicles)} vehicles")
-        print(f"🛣️ Each vehicle will complete {trips_per_vehicle} trips")
+        # Wait a moment for threads to initialize before declaring success
+        time.sleep(2)
+        
+        # Check if any threads are still alive (meaning they didn't exit immediately due to errors)
+        active_threads = [t for t in self.simulation_threads if t.is_alive()]
+        if active_threads:
+            print(f"✅ Started telemetry simulation for {len(active_threads)} vehicles")
+            print(f"🛣️ Each vehicle will complete {trips_per_vehicle} trips")
+        else:
+            print(f"❌ All simulation threads failed to start properly")
+            return
         
         # Wait for all threads to complete
         try:
             for thread in self.simulation_threads:
-                thread.join()
+                print(f"🔄 Waiting for thread {thread.name} to complete...")
+                thread.join(timeout=10)  # 10 second timeout
+                if thread.is_alive():
+                    print(f"⚠️ Thread {thread.name} is still running after timeout")
+                else:
+                    print(f"✅ Thread {thread.name} completed")
         except KeyboardInterrupt:
             print("\n🛑 Simulation interrupted by user")
             self.stop_simulation()

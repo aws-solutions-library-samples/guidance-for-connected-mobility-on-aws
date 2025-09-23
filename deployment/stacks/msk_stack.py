@@ -1,8 +1,9 @@
 """
-MSK Stack - Simplified Kafka cluster with SCRAM authentication
+MSK Stack - Amazon Managed Streaming for Apache Kafka cluster with customer-managed KMS keys for IoT Core integration
 """
 
 import json
+import os
 from aws_cdk import (
     Stack,
     aws_msk as msk,
@@ -25,12 +26,15 @@ class MSKStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
         
+        # Get deployment stage from environment
+        deployment_stage = os.environ.get('DEPLOYMENT_STAGE', 'dev')
+        
         # Create dedicated VPC for MSK with private subnets
-        print("Creating dedicated VPC for MSK with private subnets")
+        print("Creating dedicated VPC for MSK with customer-managed KMS keys for IoT Core integration")
         self.vpc = ec2.Vpc(
             self, "MSKVpc",
             max_azs=2,
-            cidr="10.0.0.0/16",
+            ip_addresses=ec2.IpAddresses.cidr("10.0.0.0/16"),
             subnet_configuration=[
                 ec2.SubnetConfiguration(
                     name="MSKPrivate",
@@ -93,6 +97,25 @@ class MSKStack(Stack):
             retention=logs.RetentionDays.ONE_WEEK
         )
         
+        # Create customer-managed KMS key for MSK cluster encryption at rest
+        self.msk_cluster_kms_key = kms.Key(
+            self, "MSKClusterKey",
+            description="Customer-managed key for MSK cluster encryption at rest"
+        )
+        
+        # Add policy to allow root account access
+        self.msk_cluster_kms_key.add_to_resource_policy(
+            iam.PolicyStatement(
+                sid="Enable IAM User Permissions",
+                effect=iam.Effect.ALLOW,
+                principals=[iam.ArnPrincipal(f"arn:aws:iam::{self.account}:root")],
+                actions=["kms:*"],
+                resources=["*"]
+            )
+        )
+        
+        # Note: IoT role access will be added by telemetry integration stack
+        
         # Create customer-managed KMS key for MSK secrets
         self.msk_kms_key = kms.Key(
             self, "MSKSecretsKey",
@@ -104,11 +127,13 @@ class MSKStack(Stack):
             iam.PolicyStatement(
                 sid="Enable IAM User Permissions",
                 effect=iam.Effect.ALLOW,
-                principals=[iam.AccountRootPrincipal()],
+                principals=[iam.ArnPrincipal(f"arn:aws:iam::{self.account}:root")],
                 actions=["kms:*"],
                 resources=["*"]
             )
         )
+        
+        # Note: IoT role access will be added by telemetry integration stack
         
         # Create SCRAM secret for iot-user with proper naming and KMS key
         self.iot_user_secret = secretsmanager.Secret(
@@ -121,6 +146,17 @@ class MSKStack(Stack):
                 generate_string_key="password",
                 exclude_characters=' "%@/\\'
             )
+        )
+        
+        # Create MSK configuration with auto-topic creation enabled (matches working clusters)
+        msk_config = msk.CfnConfiguration(
+            self, "MSKConfiguration",
+            name=f"cms-{deployment_stage}-msk-auto-topic-config",
+            description="MSK configuration with auto-topic creation enabled for IoT integration",
+            kafka_versions_list=["3.8.x"],
+            server_properties="""auto.create.topics.enable=true
+default.replication.factor=2
+num.partitions=3""".strip()
         )
         
         # Use AWS default MSK configuration (allow.everyone.if.no.acl.found=true)
@@ -155,8 +191,15 @@ class MSKStack(Stack):
                     )
                 )
             ),
-            # Remove configuration_info to use AWS defaults (allow.everyone.if.no.acl.found=true)
+            # Apply custom configuration with auto-topic creation
+            configuration_info=msk.CfnCluster.ConfigurationInfoProperty(
+                arn=msk_config.attr_arn,
+                revision=1
+            ),
             encryption_info=msk.CfnCluster.EncryptionInfoProperty(
+                encryption_at_rest=msk.CfnCluster.EncryptionAtRestProperty(
+                    data_volume_kms_key_id=self.msk_cluster_kms_key.key_arn
+                ),
                 encryption_in_transit=msk.CfnCluster.EncryptionInTransitProperty(
                     client_broker="TLS",
                     in_cluster=True

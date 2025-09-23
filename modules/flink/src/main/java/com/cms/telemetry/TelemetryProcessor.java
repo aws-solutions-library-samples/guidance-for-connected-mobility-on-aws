@@ -58,7 +58,7 @@ public class TelemetryProcessor {
 
         // Get topic and table from environment properties
         String kafkaTopic = consumerConfig.getProperty("KAFKA_TOPIC", "cms-telemetry-processed");
-        String tableName = consumerConfig.getProperty("TELEMETRY_TABLE_NAME", "cms-0a0e68e9-telemetry");
+        String tableName = consumerConfig.getProperty("TABLE_NAME", "cms-dev-storage-telemetry");
         LOG.info("📡 Using Kafka topic: {} and DynamoDB table: {}", kafkaTopic, tableName);
 
         // Create Kafka properties - exactly like working version

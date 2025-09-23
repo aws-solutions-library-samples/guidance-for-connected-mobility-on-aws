@@ -70,7 +70,7 @@ public class MaintenanceProcessor {
             String saslMechanism = applicationProperties.get("sasl.mechanism", "AWS_MSK_IAM");
             String saslJaasConfig = applicationProperties.get("sasl.jaas.config", "");
             String groupId = applicationProperties.get("group.id", "maintenance-processor-consumer");
-            String maintenanceTableName = applicationProperties.get("MAINTENANCE_TABLE_NAME", "cms-631ca2-591631-maintenance-alerts-new");
+            String maintenanceTableName = applicationProperties.get("TABLE_NAME", "cms-dev-storage-maintenance-alerts");
             
             LOG.info("🔧 Configuration:");
             LOG.info("  Bootstrap Servers: {}", bootstrapServers);

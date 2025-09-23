@@ -5,8 +5,9 @@
 
 set -e  # Exit on any error
 
-WORKSPACE_ROOT="/path/to/workspace"
-SIMULATION_DIR="$WORKSPACE_ROOT/services/simulation"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../../" && pwd)"
+SIMULATION_DIR="$SCRIPT_DIR"
 VENV_PATH="$WORKSPACE_ROOT/lib/.venv"
 
 echo "🚀 Starting Fleet Simulation Service"
@@ -77,7 +78,7 @@ else
 fi
 
 # Check if simulation script exists
-SIMULATION_SCRIPT="/Users/<username>/run_fleet_simulation.py"
+SIMULATION_SCRIPT="$SCRIPT_DIR/run_fleet_simulation.py"
 if [ ! -f "$SIMULATION_SCRIPT" ]; then
     echo ""
     echo "⚠️  Main simulation script not found at: $SIMULATION_SCRIPT"

@@ -126,22 +126,14 @@ def handler(event, context):
                                 "Effect": "Allow", 
                                 "Action": ["iot:Publish"],
                                 "Resource": [
-                                    "arn:aws:iot:*:*:topic/$aws/rules/cms_telemetry_sasl",
-                                    "arn:aws:iot:*:*:topic/$aws/rules/cms_telemetry_sasl/*",
-                                    "arn:aws:iot:*:*:topic/fleet/telemetry/vehicle/*",
-                                    "arn:aws:iot:*:*:topic/fleet/vehicle/*/telemetry",
-                                    "arn:aws:iot:*:*:topic/fleet/vehicle/*/heartbeat",
-                                    "arn:aws:iot:*:*:topic/fleet/alerts/emergency",
-                                    "arn:aws:iot:*:*:topic/cms/telemetry/vehicle/*",
-                                    "arn:aws:iot:*:*:topic/cms/data/vehicle/*"
+                                    "arn:aws:iot:*:*:topic/$aws/rules/cms_dev_iot_msk_rule/*",
                                 ]
                             },
                             {
                                 "Effect": "Allow",
                                 "Action": ["iot:Subscribe", "iot:Receive"], 
                                 "Resource": [
-                                    "arn:aws:iot:*:*:topicfilter/fleet/vehicle/*/commands",
-                                    "arn:aws:iot:*:*:topicfilter/cms/commands/vehicle/*"
+                                    "arn:aws:iot:*:*:topicfilter/fleet/vehicle/*/commands"
                                 ]
                             }
                         ]
@@ -909,6 +901,13 @@ def handler(event, context):
                     else:
                         # No certificates found, return empty result
                         print(f'🔐 No certificates found, returning empty result')
+                        
+                        def decimal_default(obj):
+                            from decimal import Decimal
+                            if isinstance(obj, Decimal):
+                                return float(obj)
+                            raise TypeError
+                        
                         return {
                             'statusCode': 200,
                             'headers': cors_headers,

@@ -1,6 +1,6 @@
 from aws_cdk import (
     Stack,
-    aws_kinesisanalytics as kinesisanalytics,
+    aws_kinesisanalyticsv2 as kinesisanalytics,
     aws_iam as iam,
     aws_s3 as s3,
     aws_logs as logs,
@@ -52,7 +52,7 @@ class SimpleFlinkStack(Stack):
         )
         
         # Create Flink application with VPC configuration
-        flink_app = kinesisanalytics.CfnApplicationV2(
+        flink_app = kinesisanalytics.CfnApplication(
             self, "SimpleFlinkApp",
             application_name=f"{construct_id}-simple-app",
             runtime_environment="FLINK-1_18",
@@ -79,10 +79,10 @@ class SimpleFlinkStack(Stack):
         )
         
         # Add CloudWatch logging
-        kinesisanalytics.CfnApplicationCloudWatchLoggingOptionV2(
+        kinesisanalytics.CfnApplicationCloudWatchLoggingOption(
             self, "SimpleFlinkLogging",
             application_name=flink_app.application_name,
-            cloud_watch_logging_option=kinesisanalytics.CfnApplicationCloudWatchLoggingOptionV2.CloudWatchLoggingOptionProperty(
+            cloud_watch_logging_option=kinesisanalytics.CfnApplicationCloudWatchLoggingOption.CloudWatchLoggingOptionProperty(
                 log_stream_arn=f"arn:aws:logs:{self.region}:{self.account}:log-group:{log_group.log_group_name}:log-stream:{log_stream.log_stream_name}"
             )
         )

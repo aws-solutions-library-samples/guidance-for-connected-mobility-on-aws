@@ -3,8 +3,8 @@
 # Fleet Simulation Service Management Script
 # Usage: ./manage_simulation.sh [start|stop|status|test-safety]
 
-WORKSPACE_ROOT="/path/to/workspace"
-SIMULATION_DIR="$WORKSPACE_ROOT/services/simulation"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SIMULATION_DIR="$SCRIPT_DIR"
 PID_FILE="$SIMULATION_DIR/simulation_api.pid"
 API_URL="http://localhost:5001"
 

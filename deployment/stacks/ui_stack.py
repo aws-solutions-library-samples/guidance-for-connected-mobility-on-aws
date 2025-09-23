@@ -13,6 +13,8 @@ from aws_cdk import (
     aws_lambda as lambda_,
     aws_iam as iam,
     aws_dynamodb as dynamodb,
+    aws_location as location,
+    custom_resources as custom_resource,
     CfnOutput,
     Duration,
     Size
@@ -20,6 +22,7 @@ from aws_cdk import (
 from constructs import Construct
 from typing import Dict
 import time
+import json
 
 class UIStack(Stack):
     
@@ -149,17 +152,6 @@ class UIStack(Stack):
             policy_document=bucket_policy
         )
         
-        # Deploy frontend assets from the built React app
-        frontend_deployment = s3deploy.BucketDeployment(
-            self, "FrontendDeployment",
-            sources=[s3deploy.Source.asset("../modules/cms_ui/source/frontend/build")],
-            destination_bucket=self.frontend_bucket,
-            distribution=self.distribution,
-            distribution_paths=["/*"],
-            memory_limit=512,
-            ephemeral_storage_size=Size.mebibytes(1024)
-        )
-        
         # Lambda execution role
         lambda_role = iam.Role(
             self, "LambdaExecutionRole",
@@ -172,6 +164,11 @@ class UIStack(Stack):
         # Grant DynamoDB access to Lambda (using managed policy since tables exist outside stack)
         lambda_role.add_managed_policy(
             iam.ManagedPolicy.from_aws_managed_policy_name("AmazonDynamoDBFullAccess")
+        )
+        
+        # Grant IoT access to Lambda for certificate creation
+        lambda_role.add_managed_policy(
+            iam.ManagedPolicy.from_aws_managed_policy_name("AWSIoTFullAccess")
         )
         
         # API Lambda functions
@@ -297,7 +294,111 @@ class UIStack(Stack):
         proxy_resource = self.api.root.add_resource("{proxy+}")
         proxy_resource.add_method("ANY", apigateway.LambdaIntegration(self.api_functions['fleet']))
         
-        # Outputs
+        # Create dynamic runtime config after API is created
+        runtime_config = {
+            "awsRegion": "us-east-1",
+            "mapAuth": {
+                "identityPoolClient": f"cognito-idp.us-east-1.amazonaws.com/{self.user_pool.user_pool_id}",
+                "mapName": "cms-map",
+                "identityPoolId": self.identity_pool.ref
+            },
+            "isDemoMode": "false",
+            "apiEndpoint": self.api.url,
+            "userPreferencesApiEndpoint": self.api.url,
+            "awsCredentials": {
+                "region": "us-east-1",
+                "identityPoolId": self.identity_pool.ref,
+                "userPoolId": self.user_pool.user_pool_id,
+                "userPoolWebClientId": self.user_pool_client.user_pool_client_id
+            }
+        }
+        
+        # Deploy frontend assets from the built React app
+        frontend_deployment = s3deploy.BucketDeployment(
+            self, "FrontendDeployment",
+            sources=[
+                s3deploy.Source.asset("../modules/cms_ui/source/frontend/build"),
+                s3deploy.Source.json_data("runtimeConfig.json", runtime_config)
+            ],
+            destination_bucket=self.frontend_bucket,
+            distribution=self.distribution,
+            distribution_paths=["/*"],
+            memory_limit=512,
+            ephemeral_storage_size=Size.mebibytes(1024)
+        )
+        
+        # Create default user with custom resource
+        default_user_email = "FleetManager@example.com"
+        default_password = "FleetManager123!"
+        
+        custom_resource.AwsCustomResource(
+            self, "DefaultUserResource",
+            on_create=custom_resource.AwsSdkCall(
+                service="CognitoIdentityServiceProvider",
+                action="adminCreateUser",
+                parameters={
+                    "UserPoolId": self.user_pool.user_pool_id,
+                    "Username": default_user_email,
+                    "MessageAction": "SUPPRESS",
+                    "UserAttributes": [
+                        {"Name": "email", "Value": default_user_email},
+                        {"Name": "email_verified", "Value": "true"}
+                    ]
+                },
+                physical_resource_id=custom_resource.PhysicalResourceId.of("default-user")
+            ),
+            on_update=custom_resource.AwsSdkCall(
+                service="CognitoIdentityServiceProvider", 
+                action="adminSetUserPassword",
+                parameters={
+                    "UserPoolId": self.user_pool.user_pool_id,
+                    "Username": default_user_email,
+                    "Password": default_password,
+                    "Permanent": True
+                },
+                physical_resource_id=custom_resource.PhysicalResourceId.of("default-user")
+            ),
+            policy=custom_resource.AwsCustomResourcePolicy.from_statements([
+                iam.PolicyStatement(
+                    actions=[
+                        "cognito-idp:AdminCreateUser",
+                        "cognito-idp:AdminSetUserPassword"
+                    ],
+                    resources=[self.user_pool.user_pool_arn]
+                )
+            ])
+        )
+        
+        # Set permanent password immediately after user creation
+        custom_resource.AwsCustomResource(
+            self, "SetPermanentPasswordResource",
+            on_create=custom_resource.AwsSdkCall(
+                service="CognitoIdentityServiceProvider",
+                action="adminSetUserPassword",
+                parameters={
+                    "UserPoolId": self.user_pool.user_pool_id,
+                    "Username": default_user_email,
+                    "Password": default_password,
+                    "Permanent": True
+                },
+                physical_resource_id=custom_resource.PhysicalResourceId.of("set-permanent-password")
+            ),
+            policy=custom_resource.AwsCustomResourcePolicy.from_statements([
+                iam.PolicyStatement(
+                    actions=["cognito-idp:AdminSetUserPassword"],
+                    resources=[self.user_pool.user_pool_arn]
+                )
+            ])
+        )
+        
+        # Location Services Route Calculator for telemetry simulation
+        self.route_calculator = location.CfnRouteCalculator(
+            self, "CMSRouteCalculator",
+            calculator_name="cms-route-calculator",
+            data_source="Here",  # Use HERE as the data source
+            description="Route calculator for CMS telemetry simulation"
+        )
+        
         CfnOutput(
             self, "UserPoolId",
             value=self.user_pool.user_pool_id,
@@ -326,4 +427,23 @@ class UIStack(Stack):
             self, "APIEndpoint",
             value=self.api.url,
             export_name=f"{construct_id}-api-endpoint"
+        )
+        
+        # Default user credentials
+        CfnOutput(
+            self, "DefaultUserEmail",
+            value=default_user_email,
+            description="Default user email for Fleet Manager login"
+        )
+        
+        CfnOutput(
+            self, "DefaultUserPassword", 
+            value=default_password,
+            description="Default user password for Fleet Manager login"
+        )
+        
+        CfnOutput(
+            self, "RouteCalculatorName",
+            value=self.route_calculator.calculator_name,
+            description="Location Services route calculator name for telemetry simulation"
         )
