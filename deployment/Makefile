@@ -190,7 +190,17 @@ phase4: ## Phase 4: Telemetry Pipeline 3 (Flink Deployment)
 
 configure-flink: ## Configure Flink applications
 	@echo "$(BLUE)🔧 Configuring Flink applications...$(NC)"
-	@echo "Updating applications with JAR file, IAM authentication, and VPC configuration..."
+	@echo "Building JAR from source and updating applications with JAR file, IAM authentication, and VPC configuration..."
+	@echo "$(BLUE)🔨 Building Flink JAR from source...$(NC)"
+	@cd ../modules/flink && \
+	export JAVA_HOME=/opt/homebrew/opt/openjdk@11 && \
+	mvn clean package -DskipTests -q
+	@echo "$(GREEN)✅ JAR built successfully$(NC)"
+	@echo "$(BLUE)📤 Uploading JAR to S3...$(NC)"
+	@BUCKET_NAME=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-flink --query 'Stacks[0].Outputs[?OutputKey==`FlinkJarBucketOutput`].OutputValue' --output text --profile $(AWS_PROFILE)); \
+	cd ../modules/flink && \
+	aws s3 cp target/cms-telemetry-processor-1.0.0.jar s3://$$BUCKET_NAME/jars/cms-telemetry-processor-1.0.0.zip --profile $(AWS_PROFILE)
+	@echo "$(GREEN)✅ JAR uploaded to S3$(NC)"
 	@BUCKET_NAME=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-flink --query 'Stacks[0].Outputs[?OutputKey==`FlinkJarBucketOutput`].OutputValue' --output text --profile $(AWS_PROFILE)); \
 	MSK_CLUSTER_ARN=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-msk --query 'Stacks[0].Outputs[?OutputKey==`MSKClusterArn`].OutputValue' --output text --profile $(AWS_PROFILE)); \
 	VPC_ID=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-msk --query 'Stacks[0].Outputs[?OutputKey==`MSKVpcId`].OutputValue' --output text --profile $(AWS_PROFILE)); \
@@ -268,9 +278,9 @@ validate-flink-deployment: ## Validate Flink deployment
 
 phase5: ## Phase 5: Telemetry Pipeline 4 (Flink Configuration)
 	@echo "$(BLUE)🚀 Phase 5: Telemetry Pipeline 4 (Flink Configuration)$(NC)"
-	@echo "Configuring Flink applications and starting stream processing"
+	@echo "Building JAR from source and configuring Flink applications"
 	@$(MAKE) configure-flink AWS_PROFILE=$(AWS_PROFILE) DEPLOYMENT_STAGE=$(DEPLOYMENT_STAGE)
-	@echo "$(GREEN)✅ Phase 5 Complete: Flink applications configured and running$(NC)"
+	@echo "$(GREEN)✅ Phase 5 Complete: Flink applications configured with latest JAR and running$(NC)"
 
 phase6: ## Phase 6: Telemetry Pipeline 4 (Configuration)
 	@echo "$(BLUE)🚀 Phase 6: Telemetry Pipeline 4 (Configuration)$(NC)"

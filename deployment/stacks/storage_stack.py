@@ -66,7 +66,7 @@ class StorageStack(Stack):
             time_to_live_attribute="ttl"
         )
         
-        # Add GSI for vehicleId queries
+        # Add GSI for vehicleId queries (REQUIRED for Lambda API)
         self.tables['trips'].add_global_secondary_index(
             index_name="vehicleId-index",
             partition_key=dynamodb.Attribute(
@@ -90,20 +90,20 @@ class StorageStack(Stack):
             time_to_live_attribute="ttl"
         )
         
+        # Add GSI for vehicleId queries (REQUIRED for Lambda API)
+        self.tables['safety_events'].add_global_secondary_index(
+            index_name="vehicleId-index",
+            partition_key=dynamodb.Attribute(
+                name="vehicleId",
+                type=dynamodb.AttributeType.STRING
+            )
+        )
+        
         # Add GSI for tripId queries
         self.tables['safety_events'].add_global_secondary_index(
             index_name="tripId-index",
             partition_key=dynamodb.Attribute(
                 name="tripId",
-                type=dynamodb.AttributeType.STRING
-            )
-        )
-        
-        # Add GSI for vehicleId queries
-        self.tables['safety_events'].add_global_secondary_index(
-            index_name="vehicleId-index",
-            partition_key=dynamodb.Attribute(
-                name="vehicleId",
                 type=dynamodb.AttributeType.STRING
             )
         )
@@ -136,7 +136,7 @@ class StorageStack(Stack):
             time_to_live_attribute="ttl"
         )
         
-        # Add GSI for vehicleId queries
+        # Add GSI for vehicleId queries (REQUIRED for Lambda API)
         self.tables['maintenance_events'].add_global_secondary_index(
             index_name="vehicleId-index",
             partition_key=dynamodb.Attribute(

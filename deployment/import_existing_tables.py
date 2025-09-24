@@ -39,9 +39,18 @@ def import_tables():
     
     resources_to_import = create_import_template()
     
-    # Read the synthesized template
+    # Read the synthesized template and modify it for import
     with open('cdk.out/cms-dev-storage.template.json', 'r') as f:
-        template_body = f.read()
+        template = json.load(f)
+    
+    # Remove CDKMetadata resource and Outputs for import
+    if 'CDKMetadata' in template.get('Resources', {}):
+        del template['Resources']['CDKMetadata']
+    
+    if 'Outputs' in template:
+        del template['Outputs']
+    
+    template_body = json.dumps(template)
     
     try:
         response = cf.create_change_set(

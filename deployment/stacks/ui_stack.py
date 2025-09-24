@@ -331,7 +331,7 @@ class UIStack(Stack):
         default_user_email = "FleetManager@example.com"
         default_password = "FleetManager123!"
         
-        custom_resource.AwsCustomResource(
+        default_user_resource = custom_resource.AwsCustomResource(
             self, "DefaultUserResource",
             on_create=custom_resource.AwsSdkCall(
                 service="CognitoIdentityServiceProvider",
@@ -364,28 +364,6 @@ class UIStack(Stack):
                         "cognito-idp:AdminCreateUser",
                         "cognito-idp:AdminSetUserPassword"
                     ],
-                    resources=[self.user_pool.user_pool_arn]
-                )
-            ])
-        )
-        
-        # Set permanent password immediately after user creation
-        custom_resource.AwsCustomResource(
-            self, "SetPermanentPasswordResource",
-            on_create=custom_resource.AwsSdkCall(
-                service="CognitoIdentityServiceProvider",
-                action="adminSetUserPassword",
-                parameters={
-                    "UserPoolId": self.user_pool.user_pool_id,
-                    "Username": default_user_email,
-                    "Password": default_password,
-                    "Permanent": True
-                },
-                physical_resource_id=custom_resource.PhysicalResourceId.of("set-permanent-password")
-            ),
-            policy=custom_resource.AwsCustomResourcePolicy.from_statements([
-                iam.PolicyStatement(
-                    actions=["cognito-idp:AdminSetUserPassword"],
                     resources=[self.user_pool.user_pool_arn]
                 )
             ])
