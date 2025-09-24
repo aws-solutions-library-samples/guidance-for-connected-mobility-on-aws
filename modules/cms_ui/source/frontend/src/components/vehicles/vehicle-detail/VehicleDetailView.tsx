@@ -543,6 +543,10 @@ const VehicleDetailView: React.FC = () => {
                               <div>{vehicleData.color || 'N/A'}</div>
                             </div>
                             <div>
+                              <Box variant="awsui-key-label">Software Version</Box>
+                              <div>{vehicleData.softwareVersion || vehicleData.software_version || 'v2.4.1'}</div>
+                            </div>
+                            <div>
                               <Box variant="awsui-key-label">Vehicle Type</Box>
                               <div>{vehicleData.vehicle_type || vehicleData.vehicleType || 'N/A'}</div>
                             </div>

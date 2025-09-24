@@ -133,7 +133,12 @@ bootstrap: ## Bootstrap CDK in current account
 	cdk bootstrap aws://$(shell aws sts get-caller-identity --query Account --output text)/$(AWS_REGION)
 	@echo "$(GREEN)✅ CDK bootstrapped$(NC)"
 
-phase1: ## Phase 1: Fleet Manager Interface (IoT, Storage, UI, Lambda, Cognito, S3)
+build-ui: ## Build the React frontend application
+	@echo "$(BLUE)🔨 Building React frontend...$(NC)"
+	@cd ../modules/cms_ui/source/frontend && npm run build
+	@echo "$(GREEN)✅ Frontend build completed$(NC)"
+
+phase1: build-ui ## Phase 1: Fleet Manager Interface (IoT, Storage, UI, Lambda, Cognito, S3)
 	@echo "$(BLUE)🚀 Phase 1: Fleet Manager Interface$(NC)"
 	@echo "Deploying: IoT Core, DynamoDB, S3, Lambda, Cognito, CloudFront UI"
 	@echo "$(YELLOW)⚠️  Checking for existing resources...$(NC)"

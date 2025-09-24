@@ -10,7 +10,8 @@ import { VehicleManagementContext } from "./VehicleManagementContext";
 import { VehiclesPage } from "./components/VehiclesPage";
 import { DeleteModal } from "./components/DeleteModal";
 import VehicleDashboardView from "./components/vehicle-dashboard/VehicleDashboardView";
-import { StatusIndicator } from "@cloudscape-design/components";
+import VehicleMapView from "./components/VehicleMapView";
+import { StatusIndicator, Tabs } from "@cloudscape-design/components";
 import { ApiContext } from "@/api/provider";
 import { UserContext } from "@/components/commons/UserContext";
 import { VehicleItem } from "@/types/fleet-types";
@@ -27,6 +28,7 @@ export function Content() {
   const [locationVehicle, setLocationVehicle] = useState<
     VehicleItem | undefined
   >(undefined);
+  const [activeTabId, setActiveTabId] = useState<string>('table');
   
   // Server-side pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -343,22 +345,38 @@ export function Content() {
       ) : vmc.vehicle.locationVehicle ? (
         <VehicleDashboardView />
       ) : (
-        <VehiclesPage
-          vehicles={vehicles}
-          totalVehicleCount={totalVehicleCount}
-          selectedItems={selectedItems}
-          setSelectedItems={setSelectedItems}
-          onDeleteInit={onDeleteInit}
-          notifications={notifications}
-          isLoading={isLoading}
-          error={error}
-          // Server-side pagination props
-          currentPage={currentPage}
-          pageSize={pageSize}
-          paginationInfo={paginationInfo}
-          onPageChange={handlePageChange}
-          onPageSizeChange={handlePageSizeChange}
-          onFleetFilterChange={handleFleetFilterChange}
+        <Tabs
+          activeTabId={activeTabId}
+          onChange={({ detail }) => setActiveTabId(detail.activeTabId)}
+          tabs={[
+            {
+              id: 'table',
+              label: 'Table View',
+              content: (
+                <VehiclesPage
+                  vehicles={vehicles}
+                  totalVehicleCount={totalVehicleCount}
+                  selectedItems={selectedItems}
+                  setSelectedItems={setSelectedItems}
+                  onDeleteInit={onDeleteInit}
+                  notifications={notifications}
+                  isLoading={isLoading}
+                  error={error}
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  paginationInfo={paginationInfo}
+                  onPageChange={handlePageChange}
+                  onPageSizeChange={handlePageSizeChange}
+                  onFleetFilterChange={handleFleetFilterChange}
+                />
+              )
+            },
+            {
+              id: 'map',
+              label: 'Map View',
+              content: <VehicleMapView />
+            }
+          ]}
         />
       )}
       <DeleteModal

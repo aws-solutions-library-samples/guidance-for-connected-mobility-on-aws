@@ -73,6 +73,12 @@ import TelemetryDashboard from "./components/analytics/TelemetryDashboard";
 import DriverBehaviorView from "./components/analytics/DriverBehaviorView";
 import GeofenceEventsView from "./components/analytics/GeofenceEventsView";
 import TripAnalyticsView from "./components/analytics/TripAnalyticsView";
+// New Navigation Components
+import DriversView from "./components/drivers/DriversView";
+import ChargingView from "./components/charging/ChargingView";
+import WarrantyView from "./components/warranty/WarrantyView";
+import SystemMonitoringView from "./components/system-monitoring/SystemMonitoringView";
+import AnalyticsView from "./components/analytics/AnalyticsView";
 // Common Components
 import NotFound from "./components/common/NotFound";
 
@@ -455,59 +461,15 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
                     }
                   }}
                   items={[
-                    {
-                      type: 'section',
-                      text: 'Fleet Management',
-                      items: [
-                        { type: 'link', text: 'Dashboard', href: UI_ROUTES.ROOT },
-                        { type: 'link', text: 'Manage Fleets', href: UI_ROUTES.FLEET_MANAGEMENT },
-                        { type: 'link', text: 'Manage Vehicles', href: UI_ROUTES.VEHICLE_MANAGEMENT },
-                        { type: 'link', text: 'Fleet Map', href: UI_ROUTES.FLEET_VEHICLES_MAP },
-                        { type: 'link', text: 'Safety Alerts', href: UI_ROUTES.ALERTS_SAFETY },
-                        { type: 'link', text: 'Maintenance Alerts', href: UI_ROUTES.ALERTS_MAINTENANCE },
-                      ],
-                    },
-                    {
-                      type: 'section',
-                      text: 'Vehicle Analytics',
-                      items: [
-                        { type: 'link', text: 'Telemetry Dashboard', href: '/telemetry-dashboard' },
-                        { type: 'link', text: 'Driver Behavior', href: '/driver-behavior' },
-                        { type: 'link', text: 'Geofence Events', href: '/geofence-events' },
-                        { type: 'link', text: 'Trip Analytics', href: '/trip-analytics' },
-                      ],
-                    },
-                    {
-                      type: 'section',
-                      text: 'Device Management',
-                      items: [
-                        { type: 'link', text: 'Status Overview', href: '/devices/overview' },
-                        { type: 'link', text: 'Client List', href: '/devices/connections' },
-                        { type: 'link', text: 'Topic List', href: '/devices/topics' },
-                        { type: 'link', text: 'Subscription List', href: '/devices/subscriptions' },
-                        { type: 'link', text: 'Retain Message List', href: '/devices/retain-messages' },
-                        { type: 'link', text: 'Alarm List', href: '/devices/alarms' },
-                        { type: 'link', text: 'Rule List', href: '/devices/rules' },
-                        { type: 'link', text: 'Log Trace', href: '/devices/logs' },
-                      ],
-                    },
-                    {
-                      type: 'section',
-                      text: 'Access Control',
-                      items: [
-                        { type: 'link', text: 'User List', href: '/user-list' },
-                        { type: 'link', text: 'Policy List', href: '/policy-list' },
-                      ],
-                    },
-                    {
-                      type: 'section',
-                      text: 'Data Collection',
-                      items: [
-                        { type: 'link', text: 'Signal Catalog', href: '/signal-catalog' },
-                        { type: 'link', text: 'Vehicle Models', href: '/vehicle-models' },
-                        { type: 'link', text: 'Campaigns', href: '/campaigns' },
-                      ],
-                    },
+                    { type: 'link', text: 'Fleets', href: UI_ROUTES.FLEET_MANAGEMENT },
+                    { type: 'link', text: 'Vehicles', href: UI_ROUTES.VEHICLE_MANAGEMENT },
+                    { type: 'link', text: 'Drivers', href: '/drivers' },
+                    { type: 'link', text: 'Charging', href: '/charging' },
+                    { type: 'link', text: 'Service', href: UI_ROUTES.ALERTS_MAINTENANCE },
+                    { type: 'link', text: 'Safety', href: UI_ROUTES.ALERTS_SAFETY },
+                    { type: 'link', text: 'Warranty', href: '/warranty' },
+                    { type: 'link', text: 'System Monitoring', href: '/system-monitoring' },
+                    { type: 'link', text: 'Analytics', href: '/analytics' },
                   ]}
                 />
               }
@@ -541,6 +503,71 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
                             buttons: [
                               { text: 'Refresh', iconName: 'refresh' },
                               { text: 'Create Vehicle', variant: 'primary' as const, onClick: () => navigate(UI_ROUTES.VEHICLE_CREATE) }
+                            ]
+                          };
+                        case '/drivers':
+                          return {
+                            title: 'Driver Management',
+                            description: 'Manage drivers, track performance, and monitor safety metrics across your fleet.',
+                            breadcrumbs: [
+                              { text: 'Home', href: '/' },
+                              { text: 'Driver Management', href: '/drivers' }
+                            ],
+                            buttons: [
+                              { text: 'Refresh', iconName: 'refresh' },
+                              { text: 'Add Driver', variant: 'primary' as const, onClick: () => navigate('/drivers/create') }
+                            ]
+                          };
+                        case '/charging':
+                          return {
+                            title: 'Charging Management',
+                            description: 'Monitor charging stations, track charging sessions, and manage charging infrastructure across your fleet.',
+                            breadcrumbs: [
+                              { text: 'Home', href: '/' },
+                              { text: 'Charging Management', href: '/charging' }
+                            ],
+                            buttons: [
+                              { text: 'Refresh', iconName: 'refresh' },
+                              { text: 'Add Station', variant: 'primary' as const, onClick: () => navigate('/charging/create') }
+                            ]
+                          };
+                        case '/warranty':
+                          return {
+                            title: 'Warranty Management',
+                            description: 'Track warranty coverage, manage claims, and monitor warranty compliance across your fleet.',
+                            breadcrumbs: [
+                              { text: 'Home', href: '/' },
+                              { text: 'Warranty Management', href: '/warranty' }
+                            ],
+                            buttons: [
+                              { text: 'Refresh', iconName: 'refresh' },
+                              { text: 'File Claim', variant: 'primary' as const, onClick: () => navigate('/warranty/claim') }
+                            ]
+                          };
+                        case '/system-monitoring':
+                          return {
+                            title: 'System Monitoring',
+                            description: 'Monitor IoT device connectivity, system health, and real-time diagnostics across your fleet infrastructure.',
+                            breadcrumbs: [
+                              { text: 'Home', href: '/' },
+                              { text: 'System Monitoring', href: '/system-monitoring' }
+                            ],
+                            buttons: [
+                              { text: 'Refresh', iconName: 'refresh' },
+                              { text: 'Export Logs', variant: 'primary' as const }
+                            ]
+                          };
+                        case '/analytics':
+                          return {
+                            title: 'Analytics & Reports',
+                            description: 'Analyze fleet performance, driver behavior, and operational metrics with comprehensive reporting and insights.',
+                            breadcrumbs: [
+                              { text: 'Home', href: '/' },
+                              { text: 'Analytics & Reports', href: '/analytics' }
+                            ],
+                            buttons: [
+                              { text: 'Refresh', iconName: 'refresh' },
+                              { text: 'Export Report', variant: 'primary' as const }
                             ]
                           };
                         case UI_ROUTES.VEHICLE_CREATE:
@@ -639,28 +666,28 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
                           };
                         case UI_ROUTES.ALERTS_SAFETY:
                           return {
-                            title: 'Safety Alerts',
-                            description: 'Monitor and manage safety alerts across your fleet to ensure driver and vehicle safety.',
+                            title: 'Safety Management',
+                            description: 'Monitor driver behavior, track safety incidents, and manage safety compliance across your fleet.',
                             breadcrumbs: [
                               { text: 'Home', href: '/' },
-                              { text: 'Safety Alerts', href: UI_ROUTES.ALERTS_SAFETY }
+                              { text: 'Safety Management', href: UI_ROUTES.ALERTS_SAFETY }
                             ],
                             buttons: [
                               { text: 'Refresh', iconName: 'refresh' },
-                              { text: 'Export Alerts', iconName: 'download' }
+                              { text: 'Create Alert', variant: 'primary' as const }
                             ]
                           };
                         case UI_ROUTES.ALERTS_MAINTENANCE:
                           return {
-                            title: 'Maintenance Alerts',
-                            description: 'Track maintenance schedules and alerts to keep your fleet operating at peak performance.',
+                            title: 'Service Management',
+                            description: 'Monitor service schedules, track maintenance compliance, and manage service appointments across your fleet.',
                             breadcrumbs: [
                               { text: 'Home', href: '/' },
-                              { text: 'Maintenance Alerts', href: UI_ROUTES.ALERTS_MAINTENANCE }
+                              { text: 'Service Management', href: UI_ROUTES.ALERTS_MAINTENANCE }
                             ],
                             buttons: [
                               { text: 'Refresh', iconName: 'refresh' },
-                              { text: 'Schedule Maintenance', variant: 'primary' as const }
+                              { text: 'Schedule Service', variant: 'primary' as const }
                             ]
                           };
                         default:
@@ -830,6 +857,13 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
                       path={UI_ROUTES.SETTINGS}
                       element={<SettingsView />}
                     />
+                    
+                    {/* New Navigation Routes */}
+                    <Route path="/drivers" element={<DriversView />} />
+                    <Route path="/charging" element={<ChargingView />} />
+                    <Route path="/warranty" element={<WarrantyView />} />
+                    <Route path="/system-monitoring" element={<SystemMonitoringView />} />
+                    <Route path="/analytics" element={<AnalyticsView />} />
                     
                     {/* Device Management Routes */}
                     <Route path="/devices/overview" element={<DeviceStatusOverview />} />

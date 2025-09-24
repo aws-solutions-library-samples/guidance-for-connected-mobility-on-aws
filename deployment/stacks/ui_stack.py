@@ -340,23 +340,13 @@ class UIStack(Stack):
                     "UserPoolId": self.user_pool.user_pool_id,
                     "Username": default_user_email,
                     "MessageAction": "SUPPRESS",
+                    "TemporaryPassword": default_password,
                     "UserAttributes": [
                         {"Name": "email", "Value": default_user_email},
                         {"Name": "email_verified", "Value": "true"}
                     ]
                 },
-                physical_resource_id=custom_resource.PhysicalResourceId.of("default-user")
-            ),
-            on_update=custom_resource.AwsSdkCall(
-                service="CognitoIdentityServiceProvider", 
-                action="adminSetUserPassword",
-                parameters={
-                    "UserPoolId": self.user_pool.user_pool_id,
-                    "Username": default_user_email,
-                    "Password": default_password,
-                    "Permanent": True
-                },
-                physical_resource_id=custom_resource.PhysicalResourceId.of("default-user")
+                physical_resource_id=custom_resource.PhysicalResourceId.of("default-user-create")
             ),
             policy=custom_resource.AwsCustomResourcePolicy.from_statements([
                 iam.PolicyStatement(
@@ -368,6 +358,31 @@ class UIStack(Stack):
                 )
             ])
         )
+        
+        # Set permanent password after user creation
+        set_password_resource = custom_resource.AwsCustomResource(
+            self, "SetPermanentPasswordResource",
+            on_create=custom_resource.AwsSdkCall(
+                service="CognitoIdentityServiceProvider",
+                action="adminSetUserPassword",
+                parameters={
+                    "UserPoolId": self.user_pool.user_pool_id,
+                    "Username": default_user_email,
+                    "Password": default_password,
+                    "Permanent": True
+                },
+                physical_resource_id=custom_resource.PhysicalResourceId.of("default-user-password")
+            ),
+            policy=custom_resource.AwsCustomResourcePolicy.from_statements([
+                iam.PolicyStatement(
+                    actions=["cognito-idp:AdminSetUserPassword"],
+                    resources=[self.user_pool.user_pool_arn]
+                )
+            ])
+        )
+        
+        # Ensure password is set after user creation
+        set_password_resource.node.add_dependency(default_user_resource)
         
         # Location Services Route Calculator for telemetry simulation
         self.route_calculator = location.CfnRouteCalculator(

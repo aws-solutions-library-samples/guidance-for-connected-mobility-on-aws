@@ -110,7 +110,8 @@ class FlinkStack(Stack):
                 # Use the same managed policies as working target account
                 iam.ManagedPolicy.from_aws_managed_policy_name("AmazonKinesisAnalyticsFullAccess"),
                 iam.ManagedPolicy.from_aws_managed_policy_name("AmazonVPCFullAccess"),
-                iam.ManagedPolicy.from_aws_managed_policy_name("SecretsManagerReadWrite")
+                iam.ManagedPolicy.from_aws_managed_policy_name("SecretsManagerReadWrite"),
+                iam.ManagedPolicy.from_aws_managed_policy_name("CloudWatchAgentServerPolicy")
             ]
         )
         
@@ -175,6 +176,18 @@ class FlinkStack(Stack):
                 resources=[
                     f"arn:aws:logs:{self.region}:{self.account}:log-group:/aws/kinesis-analytics/*"
                 ]
+            )
+        )
+        
+        # Add S3 delete permissions for checkpoint cleanup
+        self.flink_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "s3:DeleteObject",
+                    "s3:DeleteObjectVersion"
+                ],
+                resources=["arn:aws:s3:::*/*"]
             )
         )
 
