@@ -1,9 +1,0 @@
-
-[
-    {
-      "propertyLabel": "Fleet name",
-      "key": "name",
-      "groupValuesLabel": "Fleet name values",
-      "operators": [":", "!:", "=", "!=", "^", "!^"]
-    }
-  ]

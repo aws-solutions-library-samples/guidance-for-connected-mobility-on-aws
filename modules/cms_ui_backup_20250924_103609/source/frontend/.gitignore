@@ -1,6 +1,0 @@
-build
-public/runtimeConfig.json
-
-# Prevent old API config files
-public/api-config.js
-test-api-config.js
