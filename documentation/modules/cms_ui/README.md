@@ -4,22 +4,7 @@ A comprehensive web application for connected vehicle fleet management with real
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Fleet Manager Module                        │
-├─────────────────────────────────────────────────────────┤
-│  Frontend (React)           │  Backend (Lambda)         │
-│  ┌─────────────────────┐    │  ┌─────────────────────┐  │
-│  │ Fleet Dashboard     │    │  │ Main API Handler    │  │
-│  │ Vehicle Monitoring  │────┼──│ IoT Lifecycle       │  │
-│  │ User Management     │    │  │ IoT API             │  │
-│  │ Maintenance Alerts  │    │  │ Alarm Recorder      │  │
-│  └─────────────────────┘    │  └─────────────────────┘  │
-├─────────────────────────────────────────────────────────┤
-│              AWS Services Integration                   │
-│  API Gateway │ DynamoDB │ Cognito │ IoT Core │ S3      │
-└─────────────────────────────────────────────────────────┘
-```
+[img](/documentation/cms_ui_frontend_architecture.png)
 
 ## 📁 Project Structure
 
