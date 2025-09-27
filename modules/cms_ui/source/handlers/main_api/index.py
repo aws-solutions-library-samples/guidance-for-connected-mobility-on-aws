@@ -933,7 +933,9 @@ def handler(event, context):
                         'maxSpeed': float(item.get('maxSpeed', 0)),
                         'avgSpeed': float(item.get('averageSpeed', 0)),
                         'fuelConsumption': float(item.get('currentFuelLevel', 0)),
-                        'driverScore': float(item.get('driverScore', 0))
+                        'driverScore': float(item.get('driverScore', 0)),
+                        'driverName': item.get('driverName', 'Unknown Driver'),
+                        'assignedDriver': item.get('driverName', 'Unknown Driver')  # Fallback field
                     }
                     trips.append(trip)
                 

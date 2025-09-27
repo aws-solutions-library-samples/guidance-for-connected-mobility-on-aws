@@ -16,6 +16,7 @@ import {
 import {
   Box,
   Button,
+  ColumnLayout,
   Container,
   Header,
   KeyValuePairs,
@@ -144,7 +145,7 @@ export function FleetDetailsPage({
       console.log('📡 Making API call to fetch fleet...');
       
       // Use direct API call instead of GetFleetCommand
-      const apiEndpoint = getRuntimeConfig().apiEndpoint.replace(/\/$/, ''); // Remove trailing slash
+      const apiEndpoint = getRuntimeConfig().apiEndpoint;
       const response = await fetch(`${apiEndpoint}api/v1/fleets/${fleetId}`);
       const apiResponse = await response.json();
       const fleetData = apiResponse.fleet; // Extract fleet from response
@@ -342,7 +343,7 @@ export function FleetDetailsPage({
     <SpaceBetween size="l">
       <Header
         variant="h1"
-        description={`Detailed information for ${fleet?.name || fleetId}`}
+        description={`Detailed information for ${fleet?.name || 'Fleet'}`}
         actions={
           <SpaceBetween direction="horizontal" size="xs">
             <Button iconName="edit">Edit</Button>
@@ -350,8 +351,48 @@ export function FleetDetailsPage({
           </SpaceBetween>
         }
       >
-        {fleet?.name || `Fleet ${fleetId}`}
+        {fleet?.name || 'Fleet Details'}
       </Header>
+      
+      {/* Fleet Summary Tiles */}
+      <Container>
+        <SpaceBetween size="l">
+          <Header variant="h2">Fleet Overview</Header>
+          {isLoadingFleet ? (
+            <Box textAlign="center" padding="xl">
+              <Spinner size="large" />
+            </Box>
+          ) : fleet ? (
+            <ColumnLayout columns={4} variant="text-grid">
+              <div>
+                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{fleet.numTotalVehicles || 0}</div>
+                <Box variant="awsui-key-label">Total Vehicles</Box>
+              </div>
+              <div>
+                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#037f0c' }}>{fleet.numConnectedVehicles || 0}</div>
+                <Box variant="awsui-key-label">Connected Vehicles</Box>
+              </div>
+              <div>
+                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{fleet.numActiveCampaigns || 0}</div>
+                <Box variant="awsui-key-label">Active Campaigns</Box>
+              </div>
+              <div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
+                  <StatusIndicator type={fleet.status === 'ACTIVE' ? 'success' : 'warning'}>
+                    {fleet.status || 'ACTIVE'}
+                  </StatusIndicator>
+                </div>
+                <Box variant="awsui-key-label">Fleet Status</Box>
+              </div>
+            </ColumnLayout>
+          ) : (
+            <Box textAlign="center" padding="xl" color="text-body-secondary">
+              <Box variant="strong" color="inherit">No fleet data available</Box>
+            </Box>
+          )}
+        </SpaceBetween>
+      </Container>
+      
       <Container>
         <FleetDetails fleet={fleet} isLoadingFleet={isLoadingFleet} />
       </Container>
@@ -780,7 +821,7 @@ export function FleetVehiclesTable({
       console.log('🚗 Fetching vehicles for fleet using new API:', fleetId);
       
       // Use the working vehicles API endpoint with fleetId filter
-      const apiEndpoint = getRuntimeConfig().apiEndpoint.replace(/\/$/, ''); // Remove trailing slash
+      const apiEndpoint = getRuntimeConfig().apiEndpoint;
       const response = await fetch(`${apiEndpoint}api/v1/vehicles?fleetId=${fleetId}&limit=100&page=1`, {
         headers: {
           'Content-Type': 'application/json',
