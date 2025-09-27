@@ -152,23 +152,48 @@ class UIStack(Stack):
             policy_document=bucket_policy
         )
         
-        # Lambda execution role
+        # Lambda execution role with minimal permissions
         lambda_role = iam.Role(
             self, "LambdaExecutionRole",
             assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
             managed_policies=[
                 iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
-            ]
-        )
-        
-        # Grant DynamoDB access to Lambda (using managed policy since tables exist outside stack)
-        lambda_role.add_managed_policy(
-            iam.ManagedPolicy.from_aws_managed_policy_name("AmazonDynamoDBFullAccess")
-        )
-        
-        # Grant IoT access to Lambda for certificate creation
-        lambda_role.add_managed_policy(
-            iam.ManagedPolicy.from_aws_managed_policy_name("AWSIoTFullAccess")
+            ],
+            inline_policies={
+                "DynamoDBAccess": iam.PolicyDocument(
+                    statements=[
+                        iam.PolicyStatement(
+                            effect=iam.Effect.ALLOW,
+                            actions=[
+                                "dynamodb:GetItem",
+                                "dynamodb:PutItem", 
+                                "dynamodb:UpdateItem",
+                                "dynamodb:DeleteItem",
+                                "dynamodb:Query",
+                                "dynamodb:Scan"
+                            ],
+                            resources=[
+                                f"arn:aws:dynamodb:{self.region}:{self.account}:table/*"
+                            ]
+                        )
+                    ]
+                ),
+                "IoTAccess": iam.PolicyDocument(
+                    statements=[
+                        iam.PolicyStatement(
+                            effect=iam.Effect.ALLOW,
+                            actions=[
+                                "iot:CreateThing",
+                                "iot:CreateKeysAndCertificate",
+                                "iot:CreatePolicy",
+                                "iot:AttachThingPrincipal",
+                                "iot:AttachPrincipalPolicy"
+                            ],
+                            resources=["*"]
+                        )
+                    ]
+                )
+            }
         )
         
         # API Lambda functions
@@ -191,6 +216,7 @@ class UIStack(Stack):
                 'USER_PREFERENCES_TABLE_NAME': table_names['user_preferences'],
                 'DASHBOARD_METRICS_CACHE_TABLE': table_names['dashboard_metrics_cache'],
                 'VEHICLE_CERTIFICATES_TABLE_NAME': table_names['vehicle_certificates'],
+                'DRIVERS_TABLE_NAME': table_names['drivers'],
                 'USER_POOL_ID': self.user_pool.user_pool_id,
                 'CLIENT_ID': self.user_pool_client.user_pool_client_id
             },
@@ -384,13 +410,14 @@ class UIStack(Stack):
         # Ensure password is set after user creation
         set_password_resource.node.add_dependency(default_user_resource)
         
-        # Location Services Route Calculator for telemetry simulation
-        self.route_calculator = location.CfnRouteCalculator(
-            self, "CMSRouteCalculator",
-            calculator_name="cms-route-calculator",
-            data_source="Here",  # Use HERE as the data source
-            description="Route calculator for CMS telemetry simulation"
-        )
+        # Location Services Route Calculator - commented out since it already exists
+        # The simulator expects 'cms-route-calculator' to exist
+        # self.route_calculator = location.CfnRouteCalculator(
+        #     self, "CMSRouteCalculator", 
+        #     calculator_name="cms-route-calculator",
+        #     data_source="Here",
+        #     description="Route calculator for CMS telemetry simulation"
+        # )
         
         CfnOutput(
             self, "UserPoolId",
@@ -437,6 +464,6 @@ class UIStack(Stack):
         
         CfnOutput(
             self, "RouteCalculatorName",
-            value=self.route_calculator.calculator_name,
+            value="cms-route-calculator",
             description="Location Services route calculator name for telemetry simulation"
         )

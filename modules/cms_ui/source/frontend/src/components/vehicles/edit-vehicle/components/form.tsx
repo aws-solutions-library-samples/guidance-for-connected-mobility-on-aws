@@ -10,7 +10,6 @@ import {
   SpaceBetween,
 } from "@cloudscape-design/components";
 import { InfoLink } from "../../../commons";
-import { EditVehicleInputPanel } from "./input-panel";
 import { CreateVehicleAttributesInputPanel } from "./attributes-panel";
 import { TagsPanel } from "../../../commons";
 import { getRuntimeConfig } from "../../../../config/api";
@@ -26,8 +25,7 @@ interface EditVehicleEntry {
 
 import { UI_ROUTES } from "@/utils/constants";
 import { Modal, Box } from "@cloudscape-design/components";
-import { useNavigate } from "react-router-dom";
-import useLocationHash from "../../vehicle-management/use-location-hash";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 interface BaseFormProps {
   content: React.ReactElement;
@@ -46,9 +44,9 @@ export function FormHeader({ loadHelpPanelContent }: any) {
           onFollow={() => loadHelpPanelContent(0)}
         />
       }
-      description={"Edit a vehicle entity that currently exists."}
+      description={"Edit vehicle details and save changes."}
     >
-      Edit vehicle
+      Edit Vehicle
     </Header>
   );
 }
@@ -60,7 +58,7 @@ function FormActions({ onCancelClick, onSubmitClick }: any) {
         Cancel
       </Button>
       <Button data-testid="create" variant="primary" onClick={onSubmitClick}>
-        Edit vehicle
+        Save Changes
       </Button>
     </SpaceBetween>
   );
@@ -115,7 +113,8 @@ export function FormFull({ loadHelpPanelContent, header }: any) {
   const api = useContext(ApiContext);
 
   const navigate = useNavigate();
-  const locationHash = useLocationHash();
+  const [searchParams] = useSearchParams();
+  const vehicleId = searchParams.get('vehicleId');
 
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -153,32 +152,40 @@ export function FormFull({ loadHelpPanelContent, header }: any) {
 
   useEffect(() => {
     async function setVehicle() {
+      if (!vehicleId) return;
+      
       setLoading(true);
-      const response = await fetch(`${getRuntimeConfig().apiEndpoint}/api/v1/vehicles/${locationHash}`);
-      const vehicleData = await response.json();
-      setData({
-        name: vehicleData.name,
-        vin: vehicleData.attributes?.vin,
-        make: vehicleData.attributes?.make,
-        model: response.attributes?.model,
-        year: response.attributes?.year,
-        licensePlate: response.attributes?.licensePlate,
-        tags: response?.tags || [],
-      });
-      setLoading(false);
+      try {
+        const response = await fetch(`${getRuntimeConfig().apiEndpoint}api/v1/vehicles/${vehicleId}`);
+        const data = await response.json();
+        const vehicleData = data.vehicle;
+        
+        setData({
+          vin: vehicleData.vin,
+          make: vehicleData.make,
+          model: vehicleData.model,
+          year: vehicleData.year,
+          licensePlate: vehicleData.licensePlate,
+          tags: vehicleData.tags || [],
+        });
+      } catch (error) {
+        console.error('Error loading vehicle data:', error);
+      } finally {
+        setLoading(false);
+      }
     }
 
     setVehicle();
-  }, [locationHash]);
+  }, [vehicleId]);
 
   const editVehicle = async () => {
     try {
-      const response = await fetch(`${getRuntimeConfig().apiEndpoint}/api/v1/vehicles/${locationHash}`, {
+      const response = await fetch(`${getRuntimeConfig().apiEndpoint}api/v1/vehicles/${vehicleId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ name: locationHash, entry: data })
+        body: JSON.stringify({ name: vehicleId, entry: data })
       });
 
       if (response.ok) {
@@ -226,11 +233,6 @@ export function FormFull({ loadHelpPanelContent, header }: any) {
         header={header}
         content={
           <SpaceBetween size="l">
-            <EditVehicleInputPanel
-              loadHelpPanelContent={loadHelpPanelContent}
-              inputData={data}
-              setInputData={setData}
-            />
             <CreateVehicleAttributesInputPanel
               loadHelpPanelContent={loadHelpPanelContent}
               inputData={data}

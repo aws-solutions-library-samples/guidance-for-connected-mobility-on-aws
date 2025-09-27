@@ -87,7 +87,7 @@ const VehicleMapView: React.FC = () => {
       const runtimeConfig = getRuntimeConfig();
       const apiEndpoint = runtimeConfig.apiEndpoint;
       
-      const vehiclesResponse = await fetch(`${apiEndpoint}/api/v1/vehicles/locations`);
+      const vehiclesResponse = await fetch(`${apiEndpoint}api/v1/vehicles/locations`);
       if (!vehiclesResponse.ok) {
         throw new Error(`HTTP error! status: ${vehiclesResponse.status}`);
       }

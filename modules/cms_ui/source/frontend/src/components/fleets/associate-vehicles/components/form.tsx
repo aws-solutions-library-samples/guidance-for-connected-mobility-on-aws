@@ -71,7 +71,7 @@ export function VehiclesTable({
 
   const fetchVehicles = async () => {
     try {
-      const response = await fetch(`${getRuntimeConfig().apiEndpoint}/api/v1/vehicles`);
+      const response = await fetch(`${getRuntimeConfig().apiEndpoint}api/v1/vehicles`);
       const output = await response.json();
       setFleetVehicles(output.vehicles || []);
     } catch (error) {
@@ -276,7 +276,7 @@ export function FormFull({ loadHelpPanelContent, header }: any) {
 
   const associateVehiclesToFleet = async () => {
     try {
-      const response = await fetch(`${getRuntimeConfig().apiEndpoint}/api/v1/fleets/associate-vehicles`, {
+      const response = await fetch(`${getRuntimeConfig().apiEndpoint}api/v1/fleets/associate-vehicles`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

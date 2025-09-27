@@ -120,28 +120,108 @@ For IoT-Ready Organizations: Deploy full stack (Phases 1-6) to leverage existing
 
 For Enterprise Rollouts: Use gradual migration approach - establish fleet management foundation, then add real-time capabilities as vehicle connectivity scales.
 
+## Quick Start
+
+## Step-by-Step Setup
+
+### 1. Clone the Repository
+```bash
+git clone <repository-url>
+cd connected-mobility-workspace
+```
+
+### 2. Setup Deployment Environment
+```bash
+cd deployment
+make install
+```
+This creates the Python virtual environment and installs all CDK dependencies
+
+### 3. Bootstrap CDK (First Time Only)
+```bash
+make bootstrap
+```
+This prepares your AWS account for CDK deployments
+
+### 4. Configure AWS Profile (Optional)
+```bash
+# If using a specific AWS profile
+export AWS_PROFILE=your-profile-name
+# Or specify in commands: make deploy AWS_PROFILE=your-profile-name
+```
+
+### 5. Deploy the Solution
+```bash
+# Interactive deployment (recommended for first time)
+make deploy
+
+# Or deploy all phases automatically
+make deploy-all
+
+# Or deploy specific phases
+make phase1  # Fleet Manager Interface
+make phase2  # Historical data injection
+# ... continue with additional phases as needed
+```
+
+## Quick Start Commands
+```bash
+git clone <repo-url>
+cd connected-mobility-workspace/deployment
+make install
+make bootstrap
+make deploy
+```
 
 ## Deployment Options
 
 ### Option 1: Standalone Fleet Management
-bash
-make phase1
-make phase2  # Optional: Add sample data
+
+```bash
+# Navigate to deployment directory
+cd deployment
+
+#preferred
+make deploy #select profile, dev and 1 to deploy all front-end code
+
+```
 
 Best for: Fleet operators wanting digital fleet management without IoT investment
 
+Your output should look similar:
+
+[img](/documentation/cms_ui_deployment.png)
+
 ### Option 2: Demo/POC Environment
-bash
-make phase1
-make phase2  # Includes interactive historical data injection
+
+```bash
+# Navigate to deployment directory
+cd deployment
+
+#preferred
+make deploy #select profile, dev and 1 to deploy all front-end code
+
+#when that is complete, run make deploy again and select 2
+make deploy
+```
 
 Best for: Demonstrations, training, and proof-of-concept scenarios
 
 ### Option 3: Real-Time Connected Fleet
-bash
-make deploy-all
-# Or step-by-step:
-make phase1 phase2 phase3 phase4 phase5 phase6
+
+```bash
+# Navigate to deployment directory
+cd deployment
+
+#preferred
+make deploy #select profile, dev and 1 to deploy all front-end code
+
+#when that is complete, run make deploy again and select 3
+make deploy
+
+#when that is complete, run make deploy again and select 4 (now we need to configure MSK)
+make deploy
+```
 
 Best for: Full connected mobility implementation with live telemetry
 

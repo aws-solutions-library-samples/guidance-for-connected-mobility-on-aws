@@ -75,6 +75,7 @@ import GeofenceEventsView from "./components/analytics/GeofenceEventsView";
 import TripAnalyticsView from "./components/analytics/TripAnalyticsView";
 // New Navigation Components
 import DriversView from "./components/drivers/DriversView";
+import DriverDetailView from "./components/drivers/DriverDetailView";
 import ChargingView from "./components/charging/ChargingView";
 import WarrantyView from "./components/warranty/WarrantyView";
 import SystemMonitoringView from "./components/system-monitoring/SystemMonitoringView";
@@ -584,6 +585,20 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
                               { text: 'Save Vehicle', variant: 'primary' as const }
                             ]
                           };
+                        case UI_ROUTES.VEHICLE_EDIT:
+                          const editVehicleId = new URLSearchParams(window.location.search).get('vehicleId');
+                          return {
+                            title: `Edit Vehicle - ${editVehicleId}`,
+                            description: 'Edit vehicle details and save changes.',
+                            breadcrumbs: [
+                              { text: 'Home', href: '/' },
+                              { text: 'Manage Vehicles', href: UI_ROUTES.VEHICLE_MANAGEMENT },
+                              { text: editVehicleId || 'Edit Vehicle' }
+                            ],
+                            buttons: [
+                              { text: 'Cancel', onClick: () => navigate(UI_ROUTES.VEHICLE_MANAGEMENT) }
+                            ]
+                          };
                         case UI_ROUTES.FLEET_MANAGEMENT:
                           return {
                             title: 'Fleet Management',
@@ -691,6 +706,23 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
                             ]
                           };
                         default:
+                          // Handle driver detail routes
+                          if (pathname.startsWith('/drivers/')) {
+                            const driverId = pathname.split('/')[2];
+                            return {
+                              title: 'Driver Details',
+                              description: `View detailed information, trip history, and safety events for driver ${driverId}.`,
+                              breadcrumbs: [
+                                { text: 'Home', href: '/' },
+                                { text: 'Driver Management', href: '/drivers' },
+                                { text: 'Driver Details', href: pathname }
+                              ],
+                              buttons: [
+                                { text: 'Back to Drivers', iconName: 'arrow-left', onClick: () => navigate('/drivers') }
+                              ]
+                            };
+                          }
+                          
                           // Handle dynamic routes
                           if (pathname.match(/\/vehicles\/management\/[^\/]+\/trips\/[^\/]+/)) {
                             const pathParts = pathname.split('/');
@@ -724,9 +756,46 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
                                 { text: vehicleId || 'Vehicle Details' }
                               ],
                               buttons: [
-                                { text: 'Edit Vehicle', iconName: 'edit' },
-                                { text: 'View Trips', iconName: 'view-horizontal' },
-                                { text: 'Delete Vehicle', variant: 'primary' as const }
+                                { 
+                                  text: 'Edit Vehicle', 
+                                  iconName: 'edit',
+                                  onClick: () => navigate(`${UI_ROUTES.VEHICLE_EDIT}?vehicleId=${vehicleId}`)
+                                },
+                                { 
+                                  text: 'View Trips', 
+                                  iconName: 'view-horizontal',
+                                  onClick: () => {
+                                    // Navigate to trips tab or trips view
+                                    const currentUrl = window.location.pathname;
+                                    if (currentUrl.includes('/vehicles/management/')) {
+                                      // Already on vehicle detail page, could scroll to trips section
+                                      const tripsSection = document.querySelector('[data-testid="trips-tab"]');
+                                      if (tripsSection) {
+                                        tripsSection.scrollIntoView({ behavior: 'smooth' });
+                                      }
+                                    }
+                                  }
+                                },
+                                { 
+                                  text: 'Delete Vehicle', 
+                                  variant: 'primary' as const,
+                                  onClick: () => {
+                                    if (confirm(`Are you sure you want to delete vehicle ${vehicleId}? This action cannot be undone.`)) {
+                                      fetch(`${getRuntimeConfig().apiEndpoint}api/v1/vehicles/${vehicleId}`, {
+                                        method: 'DELETE'
+                                      }).then(response => {
+                                        if (response.ok) {
+                                          navigate(UI_ROUTES.VEHICLE_MANAGEMENT);
+                                        } else {
+                                          alert('Failed to delete vehicle');
+                                        }
+                                      }).catch(error => {
+                                        console.error('Error deleting vehicle:', error);
+                                        alert('Failed to delete vehicle');
+                                      });
+                                    }
+                                  }
+                                }
                               ]
                             };
                           }
@@ -860,6 +929,7 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
                     
                     {/* New Navigation Routes */}
                     <Route path="/drivers" element={<DriversView />} />
+                    <Route path="/drivers/:driverId" element={<DriverDetailView />} />
                     <Route path="/charging" element={<ChargingView />} />
                     <Route path="/warranty" element={<WarrantyView />} />
                     <Route path="/system-monitoring" element={<SystemMonitoringView />} />

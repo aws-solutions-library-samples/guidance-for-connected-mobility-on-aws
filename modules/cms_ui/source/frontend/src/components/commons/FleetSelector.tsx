@@ -35,7 +35,7 @@ export const FleetSelector: React.FC<FleetSelectorProps> = ({
     const fetchFleets = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`${getRuntimeConfig().apiEndpoint}/api/v1/fleets`);
+        const response = await fetch(`${getRuntimeConfig().apiEndpoint}api/v1/fleets?_t=${Date.now()}`);
         const output = await response.json();
         
         const fleets = output.fleets || [];

@@ -70,7 +70,7 @@ export default function TripDetailView() {
       const decodedTripId = decodeURIComponent(tripId);
       
       // Fetch single trip data
-      const response = await fetch(`${apiEndpoint}/api/v1/vehicles/${vehicleId}/trips/${decodedTripId}`);
+      const response = await fetch(`${apiEndpoint}api/v1/vehicles/${vehicleId}/trips/${decodedTripId}`);
       if (!response.ok) {
         throw new Error(`Failed to fetch trip: ${response.statusText}`);
       }

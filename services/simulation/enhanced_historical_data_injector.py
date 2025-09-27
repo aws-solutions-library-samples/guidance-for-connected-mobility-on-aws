@@ -72,6 +72,9 @@ class EnhancedHistoricalDataInjector:
         self.table_names = self._detect_table_names()
         print(f"✅ Detected tables: {list(self.table_names.keys())}")
         
+        # Load real drivers
+        self.real_drivers = self._load_real_drivers()
+        
         # Initialize Amazon Location Services resources
         self.map_name = f"cms-fleet-map-{self.account_id[:8]}"
         self.route_calculator_name = f"cms-route-calculator-{self.account_id[:8]}"
@@ -152,6 +155,34 @@ class EnhancedHistoricalDataInjector:
             except Exception as e:
                 print(f"❌ Error detecting table names: {e}")
                 return {}
+    
+    def _load_real_drivers(self) -> List[Dict]:
+        """Load real drivers from DynamoDB drivers table"""
+        try:
+            # Use the known drivers table name for current deployment
+            drivers_table_name = "cms-dev-storage-drivers"
+            
+            # Try default profile first for DynamoDB access
+            try:
+                dynamodb = boto3.resource('dynamodb', region_name=self.region)
+                drivers_table = dynamodb.Table(drivers_table_name)
+            except:
+                # Fallback to configured profile
+                drivers_table = self.dynamodb.Table(drivers_table_name)
+            
+            response = drivers_table.scan(
+                FilterExpression='#status = :status',
+                ExpressionAttributeNames={'#status': 'status'},
+                ExpressionAttributeValues={':status': 'active'}
+            )
+            
+            drivers = response.get('Items', [])
+            print(f"✅ Loaded {len(drivers)} active drivers from {drivers_table_name}")
+            return drivers
+            
+        except Exception as e:
+            print(f"❌ Error loading drivers: {e}")
+            return []
     
     def _setup_location_services(self):
         """Setup Amazon Location Services resources"""
@@ -667,12 +698,22 @@ class EnhancedHistoricalDataInjector:
                                     Decimal(str(round(point[1], 6)))   # latitude
                                 ])
                     
+                    # Select driver - use real drivers if available, otherwise fallback
+                    if self.real_drivers:
+                        # Use hash to consistently assign same driver to same vehicle
+                        vehicle_hash = hash(vehicle['vehicleId']) % len(self.real_drivers)
+                        selected_driver = self.real_drivers[vehicle_hash]
+                        driver_id = selected_driver['driverId']
+                    else:
+                        # Fallback to generated driver if no real drivers found
+                        driver_id = f"DRIVER-{random.randint(1, 50):03d}"
+                    
                     trip = {
                         'tripId': f"{vehicle['vehicleId']}-{int(trip_start.timestamp())}-{str(uuid.uuid4())[:8]}",
                         'vehicleId': vehicle['vehicleId'],
                         'vin': vehicle['vin'],
                         'fleetId': vehicle['fleetId'],
-                        'driverId': f"DRIVER-{random.randint(1, 50):03d}",
+                        'driverId': driver_id,
                         'startTime': trip_start.isoformat(),
                         'endTime': trip_end.isoformat(),
                         'duration': Decimal(str(round(actual_duration / 60, 2))),  # minutes

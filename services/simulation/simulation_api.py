@@ -22,6 +22,54 @@ CORS(app)  # Enable CORS for frontend requests
 # AWS Profile configuration
 AWS_PROFILE = None
 
+@app.route('/api/simulation/drivers', methods=['GET'])
+def get_available_drivers():
+    """Get list of available drivers for simulation"""
+    try:
+        import boto3
+        
+        # Try to get drivers from database
+        try:
+            # Try default profile first
+            dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+            drivers_table = dynamodb.Table('cms-dev-storage-drivers')
+            
+            response = drivers_table.scan(
+                FilterExpression='#status = :status',
+                ExpressionAttributeNames={'#status': 'status'},
+                ExpressionAttributeValues={':status': 'active'}
+            )
+            
+            drivers = response.get('Items', [])
+            
+            # Format drivers for UI
+            formatted_drivers = []
+            for driver in drivers:
+                formatted_drivers.append({
+                    'driverId': driver['driverId'],
+                    'name': f"{driver.get('firstName', '')} {driver.get('lastName', '')}".strip(),
+                    'email': driver.get('email', ''),
+                    'status': driver.get('status', 'active')
+                })
+            
+            return jsonify({
+                'success': True,
+                'drivers': formatted_drivers,
+                'count': len(formatted_drivers)
+            })
+            
+        except Exception as e:
+            print(f"Error loading drivers: {e}")
+            return jsonify({
+                'success': False,
+                'error': 'Could not load drivers from database',
+                'drivers': [],
+                'count': 0
+            })
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 def select_aws_profile():
     """Select AWS profile on startup"""
     global AWS_PROFILE
@@ -176,6 +224,12 @@ class SimulationManager:
                 import json
                 vehicle_config = json.dumps(config['vehicles'])
                 cmd.extend(['--vehicle-config', vehicle_config])
+            
+            # Add driver configuration
+            if config.get('driver_selection'):
+                cmd.extend(['--driver-selection', config['driver_selection']])
+            if config.get('driver_id'):
+                cmd.extend(['--driver-id', config['driver_id']])
         else:
             # Use realtime telemetry simulator for generated vehicles too
             vehicle_count = config.get('vehicles', 10)
@@ -521,6 +575,8 @@ def start_simulation():
         config.setdefault('cleanup', True)
         config.setdefault('iot_endpoint', None)
         config.setdefault('aws_region', 'us-east-1')
+        config.setdefault('driver_id', None)  # Optional specific driver
+        config.setdefault('driver_selection', 'random')  # 'random', 'consistent', or 'specific'
         
         # Convert values to proper types (handle form data)
         def safe_convert(value, convert_func, default):
@@ -774,6 +830,7 @@ if __name__ == '__main__':
     print("  GET  /api/simulation/status/<id>")
     print("  GET  /api/simulation/list")
     print("  GET  /api/simulation/presets")
+    print("  GET  /api/simulation/drivers")
     print("  GET  /api/simulation/discover-iot-endpoint")
     print("  GET  /health")
     print("🔄 Press Ctrl+C to stop")

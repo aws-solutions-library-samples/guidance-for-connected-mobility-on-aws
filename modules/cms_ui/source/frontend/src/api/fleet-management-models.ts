@@ -62,14 +62,6 @@ export interface FleetSummary {
   name: ResourceName;
 }
 
-// Vehicle item model
-export interface VehicleItem {
-  name: ResourceName;
-  status: VehicleStatus;
-  attributes: VehicleAttributes;
-  tags?: Tags;
-}
-
 // Vehicle status enum
 export enum VehicleStatus {
   ACTIVE = "ACTIVE",
@@ -83,6 +75,15 @@ export interface VehicleAttributes {
   model: NonEmptyString;
   year: number;
   licensePlate: NonEmptyString;
+}
+
+// Vehicle item model
+export interface VehicleItem {
+  name: ResourceName;
+  vehicleId?: string;
+  status: VehicleStatus;
+  attributes: VehicleAttributes;
+  tags?: Tags;
 }
 
 // Campaign item model

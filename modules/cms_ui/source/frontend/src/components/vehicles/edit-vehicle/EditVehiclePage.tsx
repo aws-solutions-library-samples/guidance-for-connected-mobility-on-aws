@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import React, { useState, SetStateAction } from "react";
-import { AppLayout } from "@cloudscape-design/components";
+import { Container } from "@cloudscape-design/components";
 import { FormFull, FormHeader } from "./components/form";
 import { HelpPanel } from "@cloudscape-design/components";
 import { ExternalLinkGroup } from "../../commons";
@@ -33,18 +33,11 @@ export function EditVehiclePage() {
   };
 
   return (
-    <AppLayout
-      contentType="form"
-      content={
-        <FormFull
-          loadHelpPanelContent={loadHelpPanelContent}
-          header={<FormHeader loadHelpPanelContent={loadHelpPanelContent} />}
-        />
-      }
-      navigationHide={true}
-      tools={<EditVehicleInfoPanel />}
-      toolsOpen={toolsOpen}
-      onToolsChange={({ detail }) => setToolsOpen(detail.open)}
-    />
+    <Container>
+      <FormFull
+        loadHelpPanelContent={loadHelpPanelContent}
+        header={<FormHeader loadHelpPanelContent={loadHelpPanelContent} />}
+      />
+    </Container>
   );
 }

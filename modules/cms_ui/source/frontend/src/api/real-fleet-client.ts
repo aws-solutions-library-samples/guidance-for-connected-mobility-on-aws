@@ -22,7 +22,12 @@ import {
   VehicleStatus,
   ListSafetyEventsCommand,
   ListMaintenanceEventsCommand,
-  ListTripsCommand
+  ListTripsCommand,
+  CreateDriverCommand,
+  ListDriversCommand,
+  GetDriverCommand,
+  UpdateDriverCommand,
+  DeleteDriverCommand
 } from "./fleet-management-client";
 
 // Real API base URL
@@ -94,6 +99,11 @@ export class RealFleetManagementClient implements FleetManagementClient {
   async send(command: ListSafetyEventsCommand): Promise<any>;
   async send(command: ListMaintenanceEventsCommand): Promise<any>;
   async send(command: ListTripsCommand): Promise<any>;
+  async send(command: CreateDriverCommand): Promise<any>;
+  async send(command: ListDriversCommand): Promise<any>;
+  async send(command: GetDriverCommand): Promise<any>;
+  async send(command: UpdateDriverCommand): Promise<any>;
+  async send(command: DeleteDriverCommand): Promise<any>;
   async send(command: any): Promise<any> {
     try {
       switch (command.constructor.name) {
@@ -144,6 +154,21 @@ export class RealFleetManagementClient implements FleetManagementClient {
         
         case 'ListTripsCommand':
           return this.listTrips(command.input);
+        
+        case 'CreateDriverCommand':
+          return this.createDriver(command.input);
+        
+        case 'ListDriversCommand':
+          return this.listDrivers(command.input);
+        
+        case 'GetDriverCommand':
+          return this.getDriver(command.input);
+        
+        case 'UpdateDriverCommand':
+          return this.updateDriver(command.input);
+        
+        case 'DeleteDriverCommand':
+          return this.deleteDriver(command.input);
         
         default:
           throw new Error(`Unknown command: ${command.constructor.name}`);
@@ -292,45 +317,39 @@ export class RealFleetManagementClient implements FleetManagementClient {
   }
 
   private async updateFleet(input: any): Promise<any> {
-    // Use input.id (from EditFleetCommand) instead of input.fleetId
     const fleetId = input.id || input.fleetId;
-    
-    // Handle both EditFleetCommand format (with entry) and UpdateFleetCommand format
     const fleetData = input.entry || input;
     
-    const response = await this.makeRequest(`/fleets/${fleetId}`, {
+    const response = await this.makeRequest(`/api/v1/fleets/${fleetId}`, {
       method: 'PUT',
       body: JSON.stringify({
-        name: fleetData.name,
-        description: fleetData.description,
-        status: fleetData.status,
-        tags: fleetData.tags,
-        configuration: fleetData.configuration
+        entry: {
+          name: fleetData.name,
+          description: fleetData.description,
+          status: fleetData.status
+        }
       }),
     });
 
     return {
       fleet: {
-        id: response.fleet.fleet_id,
+        id: response.fleet.fleetId,
         name: response.fleet.name,
         description: response.fleet.description,
-        numTotalVehicles: response.fleet.num_total_vehicles,
-        numConnectedVehicles: response.fleet.num_connected_vehicles,
-        numTotalCampaigns: parseInt(response.fleet.num_total_campaigns) || 0,
-        numActiveCampaigns: parseInt(response.fleet.num_active_campaigns) || 0,
-        createdTime: response.fleet.created_time,
-        lastModifiedTime: response.fleet.last_modified_time,
-        status: response.fleet.status,
-        tags: response.fleet.tags,
-        configuration: response.fleet.configuration
+        numTotalVehicles: response.fleet.vehicleCount || 0,
+        numConnectedVehicles: response.fleet.connectedVehicles || 0,
+        numTotalCampaigns: 0,
+        numActiveCampaigns: 0,
+        createdTime: response.fleet.createdAt,
+        lastModifiedTime: response.fleet.updatedAt,
+        status: response.fleet.status
       }
     };
   }
 
   private async deleteFleet(input: any): Promise<any> {
-    // Use input.id (from DeleteFleetCommand) instead of input.fleetId
     const fleetId = input.id || input.fleetId;
-    await this.makeRequest(`/fleets/${fleetId}`, {
+    await this.makeRequest(`/api/v1/fleets/${fleetId}`, {
       method: 'DELETE',
     });
 
@@ -491,9 +510,8 @@ export class RealFleetManagementClient implements FleetManagementClient {
   }
 
   private async deleteVehicle(input: any): Promise<any> {
-    // Handle both name and vin parameters
-    const vin = input.name || input.vin;
-    await this.makeRequest(`/api/v1/vehicles/${vin}`, {
+    const vehicleId = input.name || input.vin || input.vehicleId;
+    await this.makeRequest(`/api/v1/vehicles/${vehicleId}`, {
       method: 'DELETE',
     });
 
@@ -711,5 +729,97 @@ export class RealFleetManagementClient implements FleetManagementClient {
         campaigns: []
       };
     }
+  }
+
+  // Driver CRUD operations
+  private async createDriver(input: any): Promise<any> {
+    const response = await this.makeRequest('/api/v1/drivers', {
+      method: 'POST',
+      body: JSON.stringify({
+        entry: {
+          firstName: input.firstName,
+          lastName: input.lastName,
+          email: input.email,
+          phone: input.phone,
+          licenseNumber: input.licenseNumber,
+          licenseExpiry: input.licenseExpiry,
+          fleetId: input.fleetId
+        }
+      }),
+    });
+
+    return {
+      driver: response.driver,
+      message: 'Driver created successfully'
+    };
+  }
+
+  private async listDrivers(input: any = {}): Promise<any> {
+    const queryParams = new URLSearchParams();
+    
+    if (input.limit) queryParams.append('limit', input.limit.toString());
+    if (input.page) queryParams.append('page', input.page.toString());
+    if (input.fleetId) queryParams.append('fleetId', input.fleetId);
+
+    const queryString = queryParams.toString();
+    const endpoint = `/api/v1/drivers${queryString ? `?${queryString}` : ''}`;
+    
+    const response = await this.makeRequest(endpoint);
+
+    return {
+      drivers: response.drivers || [],
+      items: response.drivers || [],
+      total: response.total || 0,
+      count: response.drivers?.length || 0,
+      page: response.page || 1,
+      limit: response.limit || 25,
+      totalPages: response.totalPages || 1,
+      hasMore: response.hasNextPage || false,
+      hasPrevious: response.hasPrevPage || false
+    };
+  }
+
+  private async getDriver(input: any): Promise<any> {
+    const driverId = input.id || input.driverId;
+    const response = await this.makeRequest(`/api/v1/drivers/${driverId}`);
+
+    return {
+      driver: response.driver
+    };
+  }
+
+  private async updateDriver(input: any): Promise<any> {
+    const driverId = input.id || input.driverId;
+    const driverData = input.entry || input;
+    
+    const response = await this.makeRequest(`/api/v1/drivers/${driverId}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        entry: {
+          firstName: driverData.firstName,
+          lastName: driverData.lastName,
+          email: driverData.email,
+          phone: driverData.phone,
+          licenseNumber: driverData.licenseNumber,
+          licenseExpiry: driverData.licenseExpiry,
+          fleetId: driverData.fleetId,
+          status: driverData.status
+        }
+      }),
+    });
+
+    return {
+      driver: response.driver,
+      message: 'Driver updated successfully'
+    };
+  }
+
+  private async deleteDriver(input: any): Promise<any> {
+    const driverId = input.id || input.driverId;
+    await this.makeRequest(`/api/v1/drivers/${driverId}`, {
+      method: 'DELETE',
+    });
+
+    return { message: 'Driver deleted successfully' };
   }
 }

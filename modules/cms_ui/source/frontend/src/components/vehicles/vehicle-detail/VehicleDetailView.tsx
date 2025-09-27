@@ -286,7 +286,7 @@ const VehicleDetailView: React.FC = () => {
     try {
       setLoading(true);
       const apiEndpoint = getRuntimeConfig().apiEndpoint;
-      const response = await fetch(`${apiEndpoint}/api/v1/vehicles/${vehicleId}/safety-events?page=${page}&limit=${safetyPageSize}`, {
+      const response = await fetch(`${apiEndpoint}api/v1/vehicles/${vehicleId}/safety-events?page=${page}&limit=${safetyPageSize}`, {
         headers: {
           'Content-Type': 'application/json',
           ...getAuthHeaders()
@@ -341,7 +341,7 @@ const VehicleDetailView: React.FC = () => {
       
       console.log(`🚗 Fetching vehicle data for vehicleId: ${vehicleId}`);
       
-      const response = await fetch(`${apiEndpoint}/api/v1/vehicles/${vehicleId}`, {
+      const response = await fetch(`${apiEndpoint}api/v1/vehicles/${vehicleId}`, {
         headers: {
           'Content-Type': 'application/json',
           ...getAuthHeaders()
@@ -497,23 +497,14 @@ const VehicleDetailView: React.FC = () => {
         {/* Header */}
         <Header
           variant="h1"
-          actions={
-            <Button
-              variant="normal"
-              onClick={() => navigate(UI_ROUTES.VEHICLE_MANAGEMENT)}
-            >
-              Back to Fleet
-            </Button>
-          }
         >
           Vehicle Details: {vehicleData?.vin || vehicleId}
         </Header>
-
-        {/* Tabs */}
-        <Tabs
-          activeTabId={activeTab}
-          onChange={({ detail }) => setActiveTab(detail.activeTabId)}
-          tabs={[
+          {/* Tabs */}
+          <Tabs
+            activeTabId={activeTab}
+            onChange={({ detail }) => setActiveTab(detail.activeTabId)}
+            tabs={[
                 {
                   id: "overview",
                   label: "Overview",
@@ -962,7 +953,6 @@ const VehicleDetailView: React.FC = () => {
                           </div>
                         </div>
                         <Table
-                        variant="container"
                       loading={loading}
                       loadingText="Loading trips..."
                       enableKeyboardNavigation={true}
@@ -1023,13 +1013,10 @@ const VehicleDetailView: React.FC = () => {
                           id: "actions",
                           header: "Actions",
                           cell: (trip: Trip) => (
-                            <Button variant="normal" onClick={() => handleViewTrip(trip)}>
-                              View
-                            </Button>
+                            <Button variant="icon" iconName="external" ariaLabel="View trip details" onClick={() => handleViewTrip(trip)} />
                           )
                         }
                       ]}
-                      items={getPaginatedTrips()}
                       variant="full-page"
                       stickyHeader={true}
                       empty={
@@ -1082,7 +1069,6 @@ const VehicleDetailView: React.FC = () => {
                           </div>
                         </div>
                         <Table
-                      variant="container"
                       loading={loading}
                       loadingText="Loading safety events..."
                       enableKeyboardNavigation={true}
@@ -1130,7 +1116,6 @@ const VehicleDetailView: React.FC = () => {
                           }
                         }
                       ]}
-                      items={safetyEvents}
                       variant="full-page"
                       stickyHeader={true}
                       empty={
@@ -1183,7 +1168,6 @@ const VehicleDetailView: React.FC = () => {
                           </div>
                         </div>
                         <Table
-                      variant="container"
                       loading={loading}
                       loadingText="Loading maintenance alerts..."
                       enableKeyboardNavigation={true}
@@ -1227,7 +1211,6 @@ const VehicleDetailView: React.FC = () => {
                           )
                         }
                       ]}
-                      items={maintenanceAlerts}
                       variant="full-page"
                       stickyHeader={true}
                       empty={

@@ -50,7 +50,7 @@ export function Content() {
     console.log("📄 Requesting page:", page, "with pageSize:", pageSize, "fleetId:", fleetId);
     
     try {
-      let url = `${getRuntimeConfig().apiEndpoint}/api/v1/vehicles?limit=${pageSize}&page=${page}&sortBy=createdAt&sortOrder=desc`;
+      let url = `${getRuntimeConfig().apiEndpoint}api/v1/vehicles?limit=${pageSize}&page=${page}&sortBy=createdAt&sortOrder=desc`;
       if (fleetId && fleetId !== 'all') {
         url += `&fleetId=${fleetId}`;
       }
@@ -122,7 +122,7 @@ export function Content() {
         
         // For non-VINs, try to fetch from API
         try {
-          const response = await fetch(`${getRuntimeConfig().apiEndpoint}/api/v1/vehicles/${locationVehicleId}`);
+          const response = await fetch(`${getRuntimeConfig().apiEndpoint}api/v1/vehicles/${locationVehicleId}`);
           const vehicle = await response.json();
           if (vehicle) {
             setLocationVehicle(vehicle);
@@ -251,7 +251,7 @@ export function Content() {
         },
       ]);
       try {
-        const response = await fetch(`${getRuntimeConfig().apiEndpoint}/api/v1/vehicles/${vehicle.name}`, {
+        const response = await fetch(`${getRuntimeConfig().apiEndpoint}api/v1/vehicles/${vehicle.vehicleId || vehicle.name}`, {
           method: 'DELETE'
         });
         if (response.ok) {

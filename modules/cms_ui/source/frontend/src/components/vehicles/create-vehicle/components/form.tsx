@@ -100,7 +100,7 @@ const defaultData: SimpleCreateVehicleEntry = {
   year: new Date().getFullYear(),
   licensePlate: "",
   tags: [],
-  createCertificate: false,
+  createCertificate: true,  // Default to true so certificates are always created
 };
 
 export function FormFull({ loadHelpPanelContent, header }: any) {
@@ -151,7 +151,7 @@ export function FormFull({ loadHelpPanelContent, header }: any) {
 
       console.log('🚗 Sending vehicle entry:', vehicleEntry);
 
-      const response = await fetch(`${getRuntimeConfig().apiEndpoint}/api/v1/vehicles`, {
+      const response = await fetch(`${getRuntimeConfig().apiEndpoint}api/v1/vehicles`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

@@ -145,7 +145,7 @@ export function FleetDetailsPage({
       
       // Use direct API call instead of GetFleetCommand
       const apiEndpoint = getRuntimeConfig().apiEndpoint.replace(/\/$/, ''); // Remove trailing slash
-      const response = await fetch(`${apiEndpoint}/api/v1/fleets/${fleetId}`);
+      const response = await fetch(`${apiEndpoint}api/v1/fleets/${fleetId}`);
       const apiResponse = await response.json();
       const fleetData = apiResponse.fleet; // Extract fleet from response
       
@@ -609,7 +609,7 @@ export function FleetCampaignsTable({
 
   const onStartCampaign = async () => {
     const apiEndpoint = getRuntimeConfig().apiEndpoint.replace(/\/$/, '');
-    const response = await fetch(`${apiEndpoint}/api/v1/campaigns/${selectedItems[0].name}/start`, {
+    const response = await fetch(`${apiEndpoint}api/v1/campaigns/${selectedItems[0].name}/start`, {
       method: 'POST'
     });
     setSelectedItems([]);
@@ -617,7 +617,7 @@ export function FleetCampaignsTable({
 
   const onStopCampaign = async () => {
     const apiEndpoint = getRuntimeConfig().apiEndpoint.replace(/\/$/, '');
-    const response = await fetch(`${apiEndpoint}/api/v1/campaigns/${selectedItems[0].name}/stop`, {
+    const response = await fetch(`${apiEndpoint}api/v1/campaigns/${selectedItems[0].name}/stop`, {
       method: 'POST'
     });
     setSelectedItems([]);
@@ -625,7 +625,7 @@ export function FleetCampaignsTable({
 
   const onDeleteCampaign = async () => {
     const apiEndpoint = getRuntimeConfig().apiEndpoint.replace(/\/$/, '');
-    const response = await fetch(`${apiEndpoint}/api/v1/campaigns/${selectedItems[0].name}`, {
+    const response = await fetch(`${apiEndpoint}api/v1/campaigns/${selectedItems[0].name}`, {
       method: 'DELETE'
     });
     setSelectedItems([]);
@@ -781,7 +781,7 @@ export function FleetVehiclesTable({
       
       // Use the working vehicles API endpoint with fleetId filter
       const apiEndpoint = getRuntimeConfig().apiEndpoint.replace(/\/$/, ''); // Remove trailing slash
-      const response = await fetch(`${apiEndpoint}/api/v1/vehicles?fleetId=${fleetId}&limit=100&page=1`, {
+      const response = await fetch(`${apiEndpoint}api/v1/vehicles?fleetId=${fleetId}&limit=100&page=1`, {
         headers: {
           'Content-Type': 'application/json',
           ...getAuthHeaders()
@@ -794,7 +794,7 @@ export function FleetVehiclesTable({
       
       const data = await response.json();
       console.log('🚗 Fleet vehicles API response:', data);
-      console.log('🔍 API endpoint called:', `${apiEndpoint}/api/v1/vehicles?fleetId=${fleetId}`);
+      console.log('🔍 API endpoint called:', `${apiEndpoint}api/v1/vehicles?fleetId=${fleetId}`);
       
       const fleetVehicles = data.vehicles || [];
       const totalCount = data.pagination?.total || data.total || data.totalCount || fleetVehicles.length;
@@ -882,7 +882,7 @@ export function FleetVehiclesTable({
     
     selectedItems.map(async (vehicle) => {
       const apiEndpoint = getRuntimeConfig().apiEndpoint.replace(/\/$/, '');
-      const response = await fetch(`${apiEndpoint}/api/v1/fleets/${fleetId}/vehicles/${vehicle.name}`, {
+      const response = await fetch(`${apiEndpoint}api/v1/fleets/${fleetId}/vehicles/${vehicle.name}`, {
         method: 'DELETE'
       });
     });

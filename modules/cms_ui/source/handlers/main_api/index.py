@@ -33,6 +33,14 @@ def handler(event, context):
             fleets_table = dynamodb.Table(os.environ.get('FLEETS_TABLE_NAME'))
             fleets_table.put_item(Item=fleet_item)
             
+            # Invalidate cache
+            try:
+                cache_table = dynamodb.Table(os.environ.get('DASHBOARD_METRICS_CACHE_TABLE'))
+                cache_table.delete_item(Key={'metricKey': 'fleets_list'})
+                print("🗑️ Invalidated fleets cache after creation")
+            except Exception as cache_error:
+                print(f"Cache invalidation error: {cache_error}")
+            
             return {
                 'statusCode': 201,
                 'headers': cors_headers,
@@ -226,7 +234,8 @@ def handler(event, context):
         'SAFETY_EVENTS_TABLE_NAME',
         'VEHICLES_TABLE_NAME', 
         'FLEETS_TABLE_NAME',
-        'DASHBOARD_METRICS_CACHE_TABLE'
+        'DASHBOARD_METRICS_CACHE_TABLE',
+        'DRIVERS_TABLE_NAME'
     ]
     
     for env_var in required_env_vars:
@@ -251,6 +260,745 @@ def handler(event, context):
         method = event.get('httpMethod', 'GET')
         path = event.get('path', '')
         query_params = event.get('queryStringParameters') or {}
+        
+        # Handle fleet PUT endpoint (update fleet)
+        if path.startswith('/api/v1/fleets/') and method == 'PUT':
+            fleet_id = path.split('/')[-1]
+            try:
+                body = json.loads(event.get('body', '{}'))
+                entry = body.get('entry', body)
+                
+                fleets_table = dynamodb.Table(os.environ.get('FLEETS_TABLE_NAME'))
+                
+                # Check if fleet exists
+                response = fleets_table.get_item(Key={'fleetId': fleet_id})
+                if 'Item' not in response:
+                    return {
+                        'statusCode': 404,
+                        'headers': cors_headers,
+                        'body': json.dumps({'error': f'Fleet {fleet_id} not found'})
+                    }
+                
+                # Update fleet
+                update_expression = 'SET updatedAt = :updated_at'
+                expression_values = {':updated_at': datetime.utcnow().isoformat()}
+                
+                if 'name' in entry:
+                    update_expression += ', #name = :name'
+                    expression_values[':name'] = entry['name']
+                if 'description' in entry:
+                    update_expression += ', description = :description'
+                    expression_values[':description'] = entry['description']
+                if 'status' in entry:
+                    update_expression += ', #status = :status'
+                    expression_values[':status'] = entry['status']
+                
+                expression_names = {'#name': 'name', '#status': 'status'}
+                
+                response = fleets_table.update_item(
+                    Key={'fleetId': fleet_id},
+                    UpdateExpression=update_expression,
+                    ExpressionAttributeValues=expression_values,
+                    ExpressionAttributeNames=expression_names,
+                    ReturnValues='ALL_NEW'
+                )
+                
+                def decimal_default(obj):
+                    from decimal import Decimal
+                    if isinstance(obj, Decimal):
+                        return int(obj) if obj % 1 == 0 else float(obj)
+                    raise TypeError
+                
+                # Invalidate cache
+                try:
+                    cache_table = dynamodb.Table(os.environ.get('DASHBOARD_METRICS_CACHE_TABLE'))
+                    cache_table.delete_item(Key={'metricKey': 'fleets_list'})
+                    print("🗑️ Invalidated fleets cache after update")
+                except Exception as cache_error:
+                    print(f"Cache invalidation error: {cache_error}")
+                
+                return {
+                    'statusCode': 200,
+                    'headers': cors_headers,
+                    'body': json.dumps({'fleet': response['Attributes']}, default=decimal_default)
+                }
+            except Exception as e:
+                return {
+                    'statusCode': 500,
+                    'headers': cors_headers,
+                    'body': json.dumps({'error': str(e)})
+                }
+        
+        # Handle vehicle PUT endpoint (update vehicle)
+        if path.startswith('/api/v1/vehicles/') and method == 'PUT' and not path.endswith('/trips') and not path.endswith('/safety-alerts') and not path.endswith('/maintenance-alerts'):
+            vehicle_id = path.split('/')[-1]
+            try:
+                body = json.loads(event.get('body', '{}'))
+                entry = body.get('entry', body)
+                
+                vehicles_table = dynamodb.Table(os.environ.get('VEHICLES_TABLE_NAME'))
+                
+                # Check if vehicle exists
+                response = vehicles_table.get_item(Key={'vehicleId': vehicle_id})
+                if 'Item' not in response:
+                    return {
+                        'statusCode': 404,
+                        'headers': cors_headers,
+                        'body': json.dumps({'error': f'Vehicle {vehicle_id} not found'})
+                    }
+                
+                # Update vehicle
+                update_expression = 'SET updatedAt = :updated_at'
+                expression_values = {':updated_at': datetime.utcnow().isoformat()}
+                expression_names = {}
+                
+                if 'vin' in entry:
+                    update_expression += ', vin = :vin'
+                    expression_values[':vin'] = entry['vin']
+                if 'make' in entry:
+                    update_expression += ', make = :make'
+                    expression_values[':make'] = entry['make']
+                if 'model' in entry:
+                    update_expression += ', #model = :model'
+                    expression_values[':model'] = entry['model']
+                    expression_names['#model'] = 'model'
+                if 'year' in entry:
+                    update_expression += ', #year = :year'
+                    expression_values[':year'] = entry['year']
+                    expression_names['#year'] = 'year'
+                if 'licensePlate' in entry:
+                    update_expression += ', licensePlate = :license_plate'
+                    expression_values[':license_plate'] = entry['licensePlate']
+                if 'color' in entry:
+                    update_expression += ', color = :color'
+                    expression_values[':color'] = entry['color']
+                if 'vehicleType' in entry:
+                    update_expression += ', vehicleType = :vehicle_type'
+                    expression_values[':vehicle_type'] = entry['vehicleType']
+                if 'fuelType' in entry:
+                    update_expression += ', fuelType = :fuel_type'
+                    expression_values[':fuel_type'] = entry['fuelType']
+                if 'fleetId' in entry:
+                    update_expression += ', fleetId = :fleet_id'
+                    expression_values[':fleet_id'] = entry['fleetId']
+                if 'status' in entry:
+                    update_expression += ', #status = :status'
+                    expression_values[':status'] = entry['status']
+                    expression_names['#status'] = 'status'
+                
+                update_kwargs = {
+                    'Key': {'vehicleId': vehicle_id},
+                    'UpdateExpression': update_expression,
+                    'ExpressionAttributeValues': expression_values,
+                    'ReturnValues': 'ALL_NEW'
+                }
+                
+                if expression_names:
+                    update_kwargs['ExpressionAttributeNames'] = expression_names
+                
+                response = vehicles_table.update_item(**update_kwargs)
+                
+                def decimal_default(obj):
+                    from decimal import Decimal
+                    if isinstance(obj, Decimal):
+                        return int(obj) if obj % 1 == 0 else float(obj)
+                    raise TypeError
+                
+                return {
+                    'statusCode': 200,
+                    'headers': cors_headers,
+                    'body': json.dumps({'vehicle': response['Attributes']}, default=decimal_default)
+                }
+            except Exception as e:
+                return {
+                    'statusCode': 500,
+                    'headers': cors_headers,
+                    'body': json.dumps({'error': str(e)})
+                }
+        
+        # Handle fleet DELETE endpoint
+        if path.startswith('/api/v1/fleets/') and method == 'DELETE':
+            fleet_id = path.split('/')[-1]
+            try:
+                fleets_table = dynamodb.Table(os.environ.get('FLEETS_TABLE_NAME'))
+                vehicles_table = dynamodb.Table(os.environ.get('VEHICLES_TABLE_NAME'))
+                
+                # Check if fleet exists
+                response = fleets_table.get_item(Key={'fleetId': fleet_id})
+                if 'Item' not in response:
+                    return {
+                        'statusCode': 404,
+                        'headers': cors_headers,
+                        'body': json.dumps({'error': f'Fleet {fleet_id} not found'})
+                    }
+                
+                # Disassociate all vehicles from this fleet (don't delete vehicles)
+                scan_kwargs = {
+                    'FilterExpression': 'fleetId = :fleet_id',
+                    'ExpressionAttributeValues': {':fleet_id': fleet_id}
+                }
+                
+                while True:
+                    vehicles_response = vehicles_table.scan(**scan_kwargs)
+                    
+                    for vehicle in vehicles_response['Items']:
+                        vehicles_table.update_item(
+                            Key={'vehicleId': vehicle['vehicleId']},
+                            UpdateExpression='REMOVE fleetId',
+                            ReturnValues='NONE'
+                        )
+                    
+                    if 'LastEvaluatedKey' not in vehicles_response:
+                        break
+                    scan_kwargs['ExclusiveStartKey'] = vehicles_response['LastEvaluatedKey']
+                
+                # Delete the fleet
+                fleets_table.delete_item(Key={'fleetId': fleet_id})
+                
+                # Invalidate cache
+                try:
+                    cache_table = dynamodb.Table(os.environ.get('DASHBOARD_METRICS_CACHE_TABLE'))
+                    cache_table.delete_item(Key={'metricKey': 'fleets_list'})
+                    print("🗑️ Invalidated fleets cache after deletion")
+                except Exception as cache_error:
+                    print(f"Cache invalidation error: {cache_error}")
+                
+                return {
+                    'statusCode': 200,
+                    'headers': cors_headers,
+                    'body': json.dumps({'message': f'Fleet {fleet_id} deleted successfully'})
+                }
+            except Exception as e:
+                return {
+                    'statusCode': 500,
+                    'headers': cors_headers,
+                    'body': json.dumps({'error': str(e)})
+                }
+        
+        # Handle vehicle DELETE endpoint
+        if path.startswith('/api/v1/vehicles/') and method == 'DELETE':
+            vehicle_id = path.split('/')[-1]
+            try:
+                vehicles_table = dynamodb.Table(os.environ.get('VEHICLES_TABLE_NAME'))
+                trips_table = dynamodb.Table(os.environ.get('TRIPS_TABLE_NAME'))
+                safety_events_table = dynamodb.Table(os.environ.get('SAFETY_EVENTS_TABLE_NAME'))
+                maintenance_alerts_table = dynamodb.Table(os.environ.get('MAINTENANCE_ALERTS_TABLE_NAME'))
+                
+                # Check if vehicle exists
+                response = vehicles_table.get_item(Key={'vehicleId': vehicle_id})
+                if 'Item' not in response:
+                    return {
+                        'statusCode': 404,
+                        'headers': cors_headers,
+                        'body': json.dumps({'error': f'Vehicle {vehicle_id} not found'})
+                    }
+                
+                # Delete all trips for this vehicle
+                try:
+                    query_kwargs = {
+                        'IndexName': 'vehicleId-index',
+                        'KeyConditionExpression': 'vehicleId = :vehicle_id',
+                        'ExpressionAttributeValues': {':vehicle_id': vehicle_id}
+                    }
+                    
+                    while True:
+                        trips_response = trips_table.query(**query_kwargs)
+                        
+                        for trip in trips_response['Items']:
+                            trips_table.delete_item(Key={'tripId': trip['tripId']})
+                        
+                        if 'LastEvaluatedKey' not in trips_response:
+                            break
+                        query_kwargs['ExclusiveStartKey'] = trips_response['LastEvaluatedKey']
+                        
+                except Exception:
+                    # Fallback to scan if GSI not available
+                    scan_kwargs = {
+                        'FilterExpression': 'vehicleId = :vehicle_id',
+                        'ExpressionAttributeValues': {':vehicle_id': vehicle_id}
+                    }
+                    
+                    while True:
+                        trips_response = trips_table.scan(**scan_kwargs)
+                        
+                        for trip in trips_response['Items']:
+                            trips_table.delete_item(Key={'tripId': trip['tripId']})
+                        
+                        if 'LastEvaluatedKey' not in trips_response:
+                            break
+                        scan_kwargs['ExclusiveStartKey'] = trips_response['LastEvaluatedKey']
+                
+                # Delete all safety events for this vehicle
+                try:
+                    query_kwargs = {
+                        'IndexName': 'vehicleId-index',
+                        'KeyConditionExpression': 'vehicleId = :vehicle_id',
+                        'ExpressionAttributeValues': {':vehicle_id': vehicle_id}
+                    }
+                    
+                    while True:
+                        safety_response = safety_events_table.query(**query_kwargs)
+                        
+                        for event in safety_response['Items']:
+                            if 'eventId' in event:
+                                safety_events_table.delete_item(Key={'eventId': event['eventId']})
+                            elif 'timestamp' in event:
+                                safety_events_table.delete_item(Key={'eventId': event.get('eventId', ''), 'timestamp': event['timestamp']})
+                        
+                        if 'LastEvaluatedKey' not in safety_response:
+                            break
+                        query_kwargs['ExclusiveStartKey'] = safety_response['LastEvaluatedKey']
+                        
+                except Exception:
+                    # Fallback to scan if GSI not available
+                    scan_kwargs = {
+                        'FilterExpression': 'vehicleId = :vehicle_id',
+                        'ExpressionAttributeValues': {':vehicle_id': vehicle_id}
+                    }
+                    
+                    while True:
+                        safety_response = safety_events_table.scan(**scan_kwargs)
+                        
+                        for event in safety_response['Items']:
+                            if 'eventId' in event:
+                                safety_events_table.delete_item(Key={'eventId': event['eventId']})
+                            elif 'timestamp' in event:
+                                safety_events_table.delete_item(Key={'eventId': event.get('eventId', ''), 'timestamp': event['timestamp']})
+                        
+                        if 'LastEvaluatedKey' not in safety_response:
+                            break
+                        scan_kwargs['ExclusiveStartKey'] = safety_response['LastEvaluatedKey']
+                
+                # Delete all maintenance alerts for this vehicle
+                try:
+                    query_kwargs = {
+                        'IndexName': 'vehicleId-index',
+                        'KeyConditionExpression': 'vehicleId = :vehicle_id',
+                        'ExpressionAttributeValues': {':vehicle_id': vehicle_id}
+                    }
+                    
+                    while True:
+                        maintenance_response = maintenance_alerts_table.query(**query_kwargs)
+                        
+                        for alert in maintenance_response['Items']:
+                            if 'alertId' in alert:
+                                maintenance_alerts_table.delete_item(Key={'alertId': alert['alertId']})
+                            elif 'timestamp' in alert:
+                                maintenance_alerts_table.delete_item(Key={'alertId': alert.get('alertId', ''), 'timestamp': alert['timestamp']})
+                        
+                        if 'LastEvaluatedKey' not in maintenance_response:
+                            break
+                        query_kwargs['ExclusiveStartKey'] = maintenance_response['LastEvaluatedKey']
+                        
+                except Exception:
+                    # Fallback to scan if GSI not available
+                    scan_kwargs = {
+                        'FilterExpression': 'vehicleId = :vehicle_id',
+                        'ExpressionAttributeValues': {':vehicle_id': vehicle_id}
+                    }
+                    
+                    while True:
+                        maintenance_response = maintenance_alerts_table.scan(**scan_kwargs)
+                        
+                        for alert in maintenance_response['Items']:
+                            if 'alertId' in alert:
+                                maintenance_alerts_table.delete_item(Key={'alertId': alert['alertId']})
+                            elif 'timestamp' in alert:
+                                maintenance_alerts_table.delete_item(Key={'alertId': alert.get('alertId', ''), 'timestamp': alert['timestamp']})
+                        
+                        if 'LastEvaluatedKey' not in maintenance_response:
+                            break
+                        scan_kwargs['ExclusiveStartKey'] = maintenance_response['LastEvaluatedKey']
+                
+                # Delete vehicle certificates if they exist
+                try:
+                    certificates_table = dynamodb.Table(os.environ.get('VEHICLE_CERTIFICATES_TABLE_NAME'))
+                    vehicle = response['Item']
+                    vin = vehicle.get('vin')
+                    if vin:
+                        certificates_table.delete_item(Key={'vin': vin})
+                except Exception as cert_error:
+                    print(f"Error deleting certificate for vehicle {vehicle_id}: {cert_error}")
+                
+                # Delete the vehicle
+                vehicles_table.delete_item(Key={'vehicleId': vehicle_id})
+                
+                return {
+                    'statusCode': 200,
+                    'headers': cors_headers,
+                    'body': json.dumps({'message': f'Vehicle {vehicle_id} and all related data deleted successfully'})
+                }
+            except Exception as e:
+                return {
+                    'statusCode': 500,
+                    'headers': cors_headers,
+                    'body': json.dumps({'error': str(e)})
+                }
+        
+        # Handle drivers CRUD operations
+        if path == '/api/v1/drivers' and method == 'POST':
+            try:
+                body = json.loads(event.get('body', '{}'))
+                entry = body.get('entry', body)
+                
+                driver_item = {
+                    'driverId': f"DRV-{int(time.time())}",
+                    'firstName': entry.get('firstName', ''),
+                    'lastName': entry.get('lastName', ''),
+                    'email': entry.get('email', ''),
+                    'phone': entry.get('phone', ''),
+                    'licenseNumber': entry.get('licenseNumber', ''),
+                    'licenseExpiry': entry.get('licenseExpiry', ''),
+                    'status': 'active',
+                    'fleetId': entry.get('fleetId', ''),
+                    'createdAt': datetime.utcnow().isoformat(),
+                    'updatedAt': datetime.utcnow().isoformat()
+                }
+                
+                drivers_table = dynamodb.Table(os.environ.get('DRIVERS_TABLE_NAME'))
+                drivers_table.put_item(Item=driver_item)
+                
+                return {
+                    'statusCode': 201,
+                    'headers': cors_headers,
+                    'body': json.dumps({'driver': driver_item})
+                }
+            except Exception as e:
+                return {
+                    'statusCode': 500,
+                    'headers': cors_headers,
+                    'body': json.dumps({'error': str(e)})
+                }
+        
+        if path == '/api/v1/drivers' and method == 'GET':
+            try:
+                drivers_table = dynamodb.Table(os.environ.get('DRIVERS_TABLE_NAME'))
+                
+                limit = min(int(query_params.get('limit', 25)), 1000)
+                page = int(query_params.get('page', 1))
+                fleet_id = query_params.get('fleetId')
+                
+                filter_expression = None
+                expression_values = {}
+                
+                if fleet_id and fleet_id != 'all':
+                    filter_expression = 'fleetId = :fleet_id'
+                    expression_values[':fleet_id'] = fleet_id
+                
+                scan_kwargs = {}
+                if filter_expression:
+                    scan_kwargs['FilterExpression'] = filter_expression
+                    scan_kwargs['ExpressionAttributeValues'] = expression_values
+                
+                # Get total count
+                count_kwargs = dict(scan_kwargs)
+                count_kwargs['Select'] = 'COUNT'
+                count_response = drivers_table.scan(**count_kwargs)
+                total_count = count_response['Count']
+                
+                # Get paginated data
+                scan_kwargs['Limit'] = limit * 50
+                current_page = 1
+                while current_page < page:
+                    response = drivers_table.scan(**scan_kwargs)
+                    if 'LastEvaluatedKey' not in response:
+                        break
+                    scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+                    current_page += 1
+                
+                drivers = []
+                while len(drivers) < limit:
+                    response = drivers_table.scan(**scan_kwargs)
+                    drivers.extend(response['Items'])
+                    if 'LastEvaluatedKey' not in response:
+                        break
+                    scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+                
+                drivers = drivers[:limit]
+                
+                def decimal_default(obj):
+                    from decimal import Decimal
+                    if isinstance(obj, Decimal):
+                        return int(obj) if obj % 1 == 0 else float(obj)
+                    raise TypeError
+                
+                return {
+                    'statusCode': 200,
+                    'headers': cors_headers,
+                    'body': json.dumps({
+                        'drivers': drivers,
+                        'total': total_count,
+                        'page': page,
+                        'limit': limit,
+                        'totalPages': (total_count + limit - 1) // limit,
+                        'hasNextPage': len(drivers) == limit,
+                        'hasPrevPage': page > 1
+                    }, default=decimal_default)
+                }
+            except Exception as e:
+                return {
+                    'statusCode': 500,
+                    'headers': cors_headers,
+                    'body': json.dumps({'error': str(e)})
+                }
+        
+        if path.startswith('/api/v1/drivers/') and method == 'GET':
+            driver_id = path.split('/')[-1]
+            try:
+                drivers_table = dynamodb.Table(os.environ.get('DRIVERS_TABLE_NAME'))
+                response = drivers_table.get_item(Key={'driverId': driver_id})
+                
+                if 'Item' not in response:
+                    return {
+                        'statusCode': 404,
+                        'headers': cors_headers,
+                        'body': json.dumps({'error': f'Driver {driver_id} not found'})
+                    }
+                
+                driver = response['Item']
+                
+                def decimal_default(obj):
+                    from decimal import Decimal
+                    if isinstance(obj, Decimal):
+                        return int(obj) if obj % 1 == 0 else float(obj)
+                    raise TypeError
+                
+                return {
+                    'statusCode': 200,
+                    'headers': cors_headers,
+                    'body': json.dumps({'driver': driver}, default=decimal_default)
+                }
+            except Exception as e:
+                return {
+                    'statusCode': 500,
+                    'headers': cors_headers,
+                    'body': json.dumps({'error': str(e)})
+                }
+        
+        if path.startswith('/api/v1/drivers/') and method == 'PUT':
+            driver_id = path.split('/')[-1]
+            try:
+                body = json.loads(event.get('body', '{}'))
+                entry = body.get('entry', body)
+                
+                drivers_table = dynamodb.Table(os.environ.get('DRIVERS_TABLE_NAME'))
+                
+                # Check if driver exists
+                response = drivers_table.get_item(Key={'driverId': driver_id})
+                if 'Item' not in response:
+                    return {
+                        'statusCode': 404,
+                        'headers': cors_headers,
+                        'body': json.dumps({'error': f'Driver {driver_id} not found'})
+                    }
+                
+                # Update driver
+                update_expression = 'SET updatedAt = :updated_at'
+                expression_values = {':updated_at': datetime.utcnow().isoformat()}
+                
+                if 'firstName' in entry:
+                    update_expression += ', firstName = :first_name'
+                    expression_values[':first_name'] = entry['firstName']
+                if 'lastName' in entry:
+                    update_expression += ', lastName = :last_name'
+                    expression_values[':last_name'] = entry['lastName']
+                if 'email' in entry:
+                    update_expression += ', email = :email'
+                    expression_values[':email'] = entry['email']
+                if 'phone' in entry:
+                    update_expression += ', phone = :phone'
+                    expression_values[':phone'] = entry['phone']
+                if 'licenseNumber' in entry:
+                    update_expression += ', licenseNumber = :license_number'
+                    expression_values[':license_number'] = entry['licenseNumber']
+                if 'licenseExpiry' in entry:
+                    update_expression += ', licenseExpiry = :license_expiry'
+                    expression_values[':license_expiry'] = entry['licenseExpiry']
+                if 'status' in entry:
+                    update_expression += ', #status = :status'
+                    expression_values[':status'] = entry['status']
+                if 'fleetId' in entry:
+                    update_expression += ', fleetId = :fleet_id'
+                    expression_values[':fleet_id'] = entry['fleetId']
+                
+                expression_names = {}
+                if 'status' in entry:
+                    expression_names['#status'] = 'status'
+                
+                update_kwargs = {
+                    'Key': {'driverId': driver_id},
+                    'UpdateExpression': update_expression,
+                    'ExpressionAttributeValues': expression_values,
+                    'ReturnValues': 'ALL_NEW'
+                }
+                
+                if expression_names:
+                    update_kwargs['ExpressionAttributeNames'] = expression_names
+                
+                response = drivers_table.update_item(**update_kwargs)
+                
+                def decimal_default(obj):
+                    from decimal import Decimal
+                    if isinstance(obj, Decimal):
+                        return int(obj) if obj % 1 == 0 else float(obj)
+                    raise TypeError
+                
+                return {
+                    'statusCode': 200,
+                    'headers': cors_headers,
+                    'body': json.dumps({'driver': response['Attributes']}, default=decimal_default)
+                }
+            except Exception as e:
+                return {
+                    'statusCode': 500,
+                    'headers': cors_headers,
+                    'body': json.dumps({'error': str(e)})
+                }
+        
+        if path.startswith('/api/v1/drivers/') and method == 'DELETE':
+            driver_id = path.split('/')[-1]
+            try:
+                drivers_table = dynamodb.Table(os.environ.get('DRIVERS_TABLE_NAME'))
+                
+                # Check if driver exists
+                response = drivers_table.get_item(Key={'driverId': driver_id})
+                if 'Item' not in response:
+                    return {
+                        'statusCode': 404,
+                        'headers': cors_headers,
+                        'body': json.dumps({'error': f'Driver {driver_id} not found'})
+                    }
+                
+                # Delete the driver
+                drivers_table.delete_item(Key={'driverId': driver_id})
+                
+                return {
+                    'statusCode': 200,
+                    'headers': cors_headers,
+                    'body': json.dumps({'message': f'Driver {driver_id} deleted successfully'})
+                }
+            except Exception as e:
+                return {
+                    'statusCode': 500,
+                    'headers': cors_headers,
+                    'body': json.dumps({'error': str(e)})
+                }
+        
+        # Handle trips by driver endpoint
+        if path == '/api/v1/trips' and method == 'GET' and 'driverId' in query_params:
+            driver_id = query_params.get('driverId')
+            limit = min(int(query_params.get('limit', 100)), 1000)
+            
+            try:
+                trips_table = dynamodb.Table(os.environ.get('TRIPS_TABLE_NAME'))
+                
+                # Query trips by driverId using scan with filter (could be optimized with GSI)
+                response = trips_table.scan(
+                    FilterExpression='driverId = :driverId',
+                    ExpressionAttributeValues={':driverId': driver_id},
+                    Limit=limit
+                )
+                
+                trips = []
+                for item in response.get('Items', []):
+                    # Get VIN from vehicles table
+                    vehicle_id = item.get('vehicleId')
+                    vin = vehicle_id  # Default to vehicleId if VIN not found
+                    
+                    try:
+                        vehicles_table = dynamodb.Table(os.environ.get('VEHICLES_TABLE_NAME'))
+                        vehicle_response = vehicles_table.get_item(Key={'vehicleId': vehicle_id})
+                        if 'Item' in vehicle_response:
+                            vin = vehicle_response['Item'].get('vin', vehicle_id)
+                    except:
+                        pass  # Use vehicleId as fallback
+                    
+                    # Convert DynamoDB format to API format
+                    trip = {
+                        'tripId': item.get('tripId'),
+                        'vehicleId': vehicle_id,
+                        'vin': vin,
+                        'startTime': int(item.get('startTime', 0)),
+                        'endTime': int(item.get('endTime', 0)),
+                        'duration': float(item.get('durationMs', 0)) / 60000,  # Convert ms to minutes
+                        'distance': float(item.get('totalDistance', 0)),
+                        'startLocation': {
+                            'latitude': float(item.get('route', [{}])[0].get('lat', 0)) if item.get('route') else 0,
+                            'longitude': float(item.get('route', [{}])[0].get('lng', 0)) if item.get('route') else 0
+                        },
+                        'endLocation': {
+                            'latitude': float(item.get('lat', 0)),
+                            'longitude': float(item.get('lng', 0))
+                        },
+                        'maxSpeed': float(item.get('maxSpeed', 0)),
+                        'avgSpeed': float(item.get('averageSpeed', 0)),
+                        'fuelConsumption': float(item.get('currentFuelLevel', 0)),
+                        'driverScore': float(item.get('driverScore', 0))
+                    }
+                    trips.append(trip)
+                
+                return {
+                    'statusCode': 200,
+                    'headers': cors_headers,
+                    'body': json.dumps({
+                        'trips': trips,
+                        'totalCount': len(trips)
+                    })
+                }
+            except Exception as e:
+                return {
+                    'statusCode': 500,
+                    'headers': cors_headers,
+                    'body': json.dumps({'error': str(e)})
+                }
+        
+        # Handle safety events by driver endpoint
+        if path == '/api/v1/safety-events' and method == 'GET' and 'driverId' in query_params:
+            driver_id = query_params.get('driverId')
+            limit = min(int(query_params.get('limit', 100)), 1000)
+            
+            try:
+                safety_table = dynamodb.Table(os.environ.get('SAFETY_EVENTS_TABLE_NAME'))
+                
+                # Query safety events by driverId using scan with filter
+                response = safety_table.scan(
+                    FilterExpression='driverId = :driverId',
+                    ExpressionAttributeValues={':driverId': driver_id},
+                    Limit=limit
+                )
+                
+                events = []
+                for item in response.get('Items', []):
+                    # Convert DynamoDB format to API format
+                    event = {
+                        'eventId': item.get('eventId'),
+                        'tripId': item.get('tripId'),
+                        'vehicleId': item.get('vehicleId'),
+                        'eventType': item.get('eventType'),
+                        'severity': item.get('severity'),
+                        'timestamp': int(item.get('timestamp', 0)),
+                        'location': {
+                            'latitude': float(item.get('lat', 0)),
+                            'longitude': float(item.get('lng', 0))
+                        },
+                        'description': item.get('message', '')
+                    }
+                    events.append(event)
+                
+                return {
+                    'statusCode': 200,
+                    'headers': cors_headers,
+                    'body': json.dumps({
+                        'events': events,
+                        'totalCount': len(events)
+                    })
+                }
+            except Exception as e:
+                return {
+                    'statusCode': 500,
+                    'headers': cors_headers,
+                    'body': json.dumps({'error': str(e)})
+                }
         
         # Handle dashboard metrics endpoint
         if path == '/api/v1/dashboard/metrics' and method == 'GET':
@@ -336,7 +1084,7 @@ def handler(event, context):
                 # Try to get cached count
                 total_count = None
                 try:
-                    cache_response = cache_table.get_item(Key={'cacheKey': cache_key})
+                    cache_response = cache_table.get_item(Key={'metricKey': cache_key})
                     if 'Item' in cache_response:
                         total_count = int(cache_response['Item']['totalCount'])
                 except Exception:
@@ -347,7 +1095,7 @@ def handler(event, context):
                     for version in ['v4', 'v3', 'v2']:
                         try:
                             fallback_key = cache_key.replace('_v5', f'_{version}')
-                            cache_response = cache_table.get_item(Key={'cacheKey': fallback_key})
+                            cache_response = cache_table.get_item(Key={'metricKey': fallback_key})
                             if 'Item' in cache_response:
                                 total_count = int(cache_response['Item']['totalCount'])
                                 break
@@ -710,7 +1458,7 @@ def handler(event, context):
                 cache_key = 'fleets_list'
                 
                 try:
-                    cache_response = cache_table.get_item(Key={'cacheKey': cache_key})
+                    cache_response = cache_table.get_item(Key={'metricKey': cache_key})
                     if 'Item' in cache_response:
                         cached_data = cache_response['Item']
                         # Check if cache is less than 5 minutes old
@@ -802,7 +1550,7 @@ def handler(event, context):
                 # Cache the result
                 try:
                     cache_table.put_item(Item={
-                        'cacheKey': cache_key,
+                        'metricKey': cache_key,
                         'data': response_body,
                         'timestamp': int(time.time())
                     })
@@ -1018,7 +1766,7 @@ def handler(event, context):
                 # Try to get cached data first
                 try:
                     cache_response = cache_table.get_item(
-                        Key={'cacheKey': 'fleet_comparison_v2'}
+                        Key={'metricKey': 'fleet_comparison_v2'}
                     )
                     
                     if 'Item' in cache_response:
@@ -1506,7 +2254,7 @@ def handler(event, context):
                 
                 total_count = None
                 try:
-                    cache_response = cache_table.get_item(Key={'cacheKey': cache_key})
+                    cache_response = cache_table.get_item(Key={'metricKey': cache_key})
                     if 'Item' in cache_response:
                         total_count = int(cache_response['Item']['totalCount'])
                 except Exception:
@@ -1543,7 +2291,7 @@ def handler(event, context):
                     try:
                         cache_table.put_item(
                             Item={
-                                'cacheKey': cache_key,
+                                'metricKey': cache_key,
                                 'totalCount': total_count,
                                 'timestamp': int(time.time()),
                                 'ttl': int(time.time()) + 300  # 5 minutes instead of 1 hour
@@ -1963,6 +2711,26 @@ def handler(event, context):
                         return int(obj) if obj % 1 == 0 else float(obj)
                     raise TypeError
                 
+                # Check for vehicle certificate
+                try:
+                    certificates_table = dynamodb.Table(os.environ.get('VEHICLE_CERTIFICATES_TABLE_NAME'))
+                    cert_response = certificates_table.get_item(Key={'vehicleId': vehicle_id})
+                    
+                    if 'Item' in cert_response:
+                        cert_item = cert_response['Item']
+                        vehicle['has_certificate'] = True
+                        vehicle['auto_registered'] = cert_item.get('status') == 'ACTIVE'
+                        vehicle['certificateId'] = cert_item.get('certificateId')
+                        vehicle['certificateStatus'] = cert_item.get('status')
+                    else:
+                        vehicle['has_certificate'] = False
+                        vehicle['auto_registered'] = False
+                        
+                except Exception as cert_error:
+                    print(f"Error checking certificate for {vehicle_id}: {cert_error}")
+                    vehicle['has_certificate'] = False
+                    vehicle['auto_registered'] = False
+                
                 # Return consolidated response
                 response_data = {
                     'vehicle': vehicle,
@@ -1993,7 +2761,7 @@ def handler(event, context):
                 
                 try:
                     cache_response = cache_table.get_item(
-                        Key={'cacheKey': 'vehicle_locations'}
+                        Key={'metricKey': 'vehicle_locations'}
                     )
                     
                     if 'Item' in cache_response:

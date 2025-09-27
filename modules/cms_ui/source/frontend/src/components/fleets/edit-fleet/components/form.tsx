@@ -157,7 +157,7 @@ export function FormFull({ loadHelpPanelContent, header }: any) {
       
       try {
         setLoading(true);
-        const response = await fetch(`${getRuntimeConfig().apiEndpoint}/api/v1/fleets/${locationHash}`);
+        const response = await fetch(`${getRuntimeConfig().apiEndpoint}api/v1/fleets/${locationHash}`);
         const fleetData = await response.json();
         setData({
           id: locationHash,
@@ -187,7 +187,7 @@ export function FormFull({ loadHelpPanelContent, header }: any) {
     }
     
     try {
-      const response = await fetch(`${getRuntimeConfig().apiEndpoint}/api/v1/fleets/${locationHash}`, {
+      const response = await fetch(`${getRuntimeConfig().apiEndpoint}api/v1/fleets/${locationHash}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'

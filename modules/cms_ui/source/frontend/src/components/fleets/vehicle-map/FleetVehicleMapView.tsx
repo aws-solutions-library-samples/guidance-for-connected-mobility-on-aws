@@ -171,7 +171,7 @@ export default function FleetVehicleMapView() {
       console.log('🚗 Fetching vehicle locations from:', apiEndpoint);
       
       // Use optimized locations endpoint
-      const vehiclesResponse = await fetch(`${apiEndpoint}/api/v1/vehicles/locations`);
+      const vehiclesResponse = await fetch(`${apiEndpoint}api/v1/vehicles/locations`);
       if (!vehiclesResponse.ok) {
         throw new Error(`HTTP error! status: ${vehiclesResponse.status}`);
       }

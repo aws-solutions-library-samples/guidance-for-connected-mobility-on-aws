@@ -60,6 +60,8 @@ interface SimulationConfig {
   certificate_only?: boolean;
   aws_region?: string;
   force_maintenance_alert?: boolean;
+  driver_selection?: 'random' | 'consistent' | 'specific';
+  driver_id?: string;
 }
 
 interface SimulationStatus {
@@ -107,7 +109,9 @@ export default function FleetSimulationPanel() {
     cleanup: true,
     vehicle_source: 'real_vehicles',
     aws_region: 'us-east-1',
-    force_maintenance_alert: false
+    force_maintenance_alert: false,
+    driver_selection: 'random',
+    driver_id: undefined
   });
 
   const [activeSimulations, setActiveSimulations] = useState<SimulationStatus[]>([]);
@@ -116,6 +120,7 @@ export default function FleetSimulationPanel() {
   }>({ real_vehicles: 0 });
   const [availableVehiclesList, setAvailableVehiclesList] = useState<Vehicle[]>([]);
   const [selectedVehicles, setSelectedVehicles] = useState<Vehicle[]>([]);
+  const [availableDrivers, setAvailableDrivers] = useState<Array<{driverId: string, name: string, email: string}>>([]);
   const [presets, setPresets] = useState<SimulationPreset[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -155,6 +160,7 @@ export default function FleetSimulationPanel() {
         fetchPresets();
         fetchSimulations();
         fetchAvailableVehicles();
+        fetchAvailableDrivers();
       } else {
         setServiceAvailable(false);
         setShowSetupModal(true);
@@ -270,6 +276,28 @@ export default function FleetSimulationPanel() {
       console.error('Failed to fetch available vehicles:', error);
       setError(`Failed to fetch vehicles from API: ${error.message}`);
       return { vehicles: [], totalCount: 0 };
+    }
+  }, [serviceAvailable]);
+
+  const fetchAvailableDrivers = React.useCallback(async () => {
+    if (!serviceAvailable) return;
+    
+    try {
+      const response = await fetch(`${SIMULATION_API_BASE}/drivers`);
+      if (!response.ok) {
+        throw new Error(`Drivers API returned ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      if (data.success && data.drivers) {
+        setAvailableDrivers(data.drivers);
+      } else {
+        console.warn('No drivers available or API error:', data.error);
+        setAvailableDrivers([]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch available drivers:', error);
+      setAvailableDrivers([]);
     }
   }, [serviceAvailable]);
 
@@ -702,6 +730,68 @@ export default function FleetSimulationPanel() {
                   Force maintenance alert per trip
                 </Toggle>
               </FormField>
+            </ColumnLayout>
+
+            {/* Driver Selection */}
+            <ColumnLayout columns={2}>
+              <FormField label="Driver Selection" description="How to assign drivers to vehicles">
+                <Select
+                  selectedOption={{ 
+                    label: config.driver_selection === 'random' ? 'Random Driver' : 
+                           config.driver_selection === 'consistent' ? 'Consistent per Vehicle' : 
+                           'Specific Driver', 
+                    value: config.driver_selection || 'random' 
+                  }}
+                  onChange={({ detail }) => {
+                    const newSelection = detail.selectedOption.value as 'random' | 'consistent' | 'specific';
+                    setConfig({ 
+                      ...config, 
+                      driver_selection: newSelection,
+                      driver_id: newSelection === 'specific' ? config.driver_id : undefined
+                    });
+                  }}
+                  options={[
+                    { 
+                      label: 'Random Driver', 
+                      value: 'random',
+                      description: 'Randomly select a driver for each vehicle'
+                    },
+                    { 
+                      label: 'Consistent per Vehicle', 
+                      value: 'consistent',
+                      description: 'Same vehicle always gets the same driver (hash-based)'
+                    },
+                    { 
+                      label: 'Specific Driver', 
+                      value: 'specific',
+                      description: 'Use a specific driver for all vehicles'
+                    }
+                  ]}
+                />
+              </FormField>
+
+              {config.driver_selection === 'specific' && (
+                <FormField label="Select Driver" description="Choose which driver to use for simulation">
+                  <Select
+                    selectedOption={
+                      config.driver_id 
+                        ? { 
+                            label: availableDrivers.find(d => d.driverId === config.driver_id)?.name || config.driver_id, 
+                            value: config.driver_id 
+                          }
+                        : null
+                    }
+                    onChange={({ detail }) => setConfig({ ...config, driver_id: detail.selectedOption.value! })}
+                    options={availableDrivers.map(driver => ({
+                      label: `${driver.name} (${driver.driverId})`,
+                      value: driver.driverId,
+                      description: driver.email
+                    }))}
+                    placeholder={availableDrivers.length === 0 ? "No drivers available" : "Select a driver"}
+                    disabled={availableDrivers.length === 0}
+                  />
+                </FormField>
+              )}
             </ColumnLayout>
 
 

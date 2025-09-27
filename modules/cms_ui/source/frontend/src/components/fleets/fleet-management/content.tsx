@@ -13,6 +13,7 @@ import { DeleteModal } from "./components/DeleteModal";
 import { StatusIndicator, Container, Header, Box, BreadcrumbGroup } from "@cloudscape-design/components";
 import { ApiContext } from "@/api/provider";
 import { useNavigate, useParams } from "react-router-dom";
+import { DeleteFleetCommand } from "@/api/fleet-management-client";
 
 export function Content() {
   const [fleets, setFleets] = useState<Array<any>>([]);
@@ -29,12 +30,46 @@ export function Content() {
   const navigate = useNavigate();
   const { fleetId } = useParams(); // Get fleetId from URL params
 
+  const { addNotification } = useNotifications();
+
+  const handleDeleteFleets = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Delete each selected fleet
+      for (const fleet of selectedItems) {
+        await api.send(new DeleteFleetCommand({ id: fleet.id || fleet.fleetId }));
+      }
+      
+      addNotification({
+        type: 'success',
+        content: `Successfully deleted ${selectedItems.length} fleet${selectedItems.length > 1 ? 's' : ''}`,
+        dismissible: true,
+        onDismiss: () => {}
+      });
+      
+      // Refresh fleet list
+      await fetchFleets();
+      setSelectedItems([]);
+      setShowDeleteModal(false);
+    } catch (error: any) {
+      addNotification({
+        type: 'error',
+        content: `Failed to delete fleet${selectedItems.length > 1 ? 's' : ''}: ${error.message}`,
+        dismissible: true,
+        onDismiss: () => {}
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const fetchFleets = async () => {
     try {
       console.log('📋 Fetching fleet list directly from API...');
       
       // Call API directly to avoid transformation
-      const response = await fetch(`${getRuntimeConfig().apiEndpoint}/api/v1/fleets`);
+      const response = await fetch(`${getRuntimeConfig().apiEndpoint}api/v1/fleets?_t=${Date.now()}`);
       const data = await response.json();
       
       console.log('📋 Direct API response:', data);
@@ -77,7 +112,7 @@ export function Content() {
     }
     
     try {
-      const response = await fetch(`${getRuntimeConfig().apiEndpoint}/api/v1/fleets/${fleetId}`);
+      const response = await fetch(`${getRuntimeConfig().apiEndpoint}api/v1/fleets/${fleetId}`);
       const data = await response.json();
       return data.fleet || data;
     } catch (error) {
@@ -163,7 +198,7 @@ export function Content() {
         },
       ]);
       try {
-        const response = await fetch(`${getRuntimeConfig().apiEndpoint}/api/v1/fleets/${fleet.id}`, {
+        const response = await fetch(`${getRuntimeConfig().apiEndpoint}api/v1/fleets/${fleet.id}`, {
           method: 'DELETE'
         });
         

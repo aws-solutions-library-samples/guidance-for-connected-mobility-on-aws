@@ -66,6 +66,14 @@ class RealtimeTelemetrySimulator:
             ]
         )
         self.logger = logging.getLogger(__name__)
+        
+        # Cache for real drivers
+        self.real_drivers = []
+        self.drivers_loaded = False
+        
+        # Driver selection configuration
+        self.driver_selection_mode = 'consistent'  # 'random', 'consistent', 'specific'
+        self.specific_driver_id = None
         self.logger.info(f"🚀 Simulation logging started - {log_filename}")
         
         # Detect table names for certificate lookup only
@@ -127,6 +135,51 @@ class RealtimeTelemetrySimulator:
         except Exception as e:
             print(f"❌ Error getting IoT endpoint: {e}")
             return None
+    
+    def _load_real_drivers(self) -> List[Dict]:
+        """Load real drivers from DynamoDB drivers table"""
+        if self.drivers_loaded:
+            return self.real_drivers
+            
+        try:
+            # Use the known drivers table name for current deployment
+            drivers_table_name = "cms-dev-storage-drivers"
+            
+            # Try default profile first for DynamoDB access
+            try:
+                dynamodb = boto3.resource('dynamodb', region_name=self.region)
+                drivers_table = dynamodb.Table(drivers_table_name)
+            except:
+                # Fallback to configured profile
+                drivers_table = self.dynamodb.Table(drivers_table_name)
+            
+            response = drivers_table.scan(
+                FilterExpression='#status = :status',
+                ExpressionAttributeNames={'#status': 'status'},
+                ExpressionAttributeValues={':status': 'active'}
+            )
+            
+            self.real_drivers = response.get('Items', [])
+            self.drivers_loaded = True
+            
+            print(f"✅ Loaded {len(self.real_drivers)} active drivers from {drivers_table_name}")
+            return self.real_drivers
+            
+        except Exception as e:
+            print(f"❌ Error loading drivers: {e}")
+            return []
+    
+    def configure_driver_selection(self, mode='random', specific_driver_id=None):
+        """Configure how drivers are selected for vehicles
+        
+        Args:
+            mode: 'random', 'consistent', or 'specific'
+            specific_driver_id: Driver ID to use when mode is 'specific'
+        """
+        self.driver_selection_mode = mode
+        self.specific_driver_id = specific_driver_id
+        print(f"🎯 Driver selection configured: {mode}" + 
+              (f" (driver: {specific_driver_id})" if specific_driver_id else ""))
     
     def get_active_vehicles(self) -> List[Dict]:
         """Get list of active vehicles from DynamoDB"""
@@ -230,10 +283,33 @@ class RealtimeTelemetrySimulator:
             previous_state.trip_started = True
             # Create consistent tripId using vehicle ID and current timestamp
             previous_state.current_trip_id = f"{vehicle['vehicleId']}-{timestamp_ms}-{str(uuid.uuid4())[:8]}"
-            # Assign consistent driver per vehicle (not random per trip)
+            # Assign driver per vehicle based on configuration
             if not previous_state.current_driver_id:
-                vehicle_hash = hash(vehicle['vehicleId']) % 20 + 1
-                previous_state.current_driver_id = f"DRIVER-{vehicle_hash:03d}"
+                # Load real drivers from database
+                real_drivers = self._load_real_drivers()
+                
+                if real_drivers:
+                    if self.driver_selection_mode == 'specific' and self.specific_driver_id:
+                        # Use specific driver if it exists
+                        specific_driver = next((d for d in real_drivers if d['driverId'] == self.specific_driver_id), None)
+                        if specific_driver:
+                            previous_state.current_driver_id = specific_driver['driverId']
+                        else:
+                            print(f"⚠️ Specific driver {self.specific_driver_id} not found, using random")
+                            previous_state.current_driver_id = random.choice(real_drivers)['driverId']
+                    elif self.driver_selection_mode == 'random':
+                        # Random driver selection
+                        selected_driver = random.choice(real_drivers)
+                        previous_state.current_driver_id = selected_driver['driverId']
+                    else:
+                        # Consistent hash-based assignment (default)
+                        vehicle_hash = hash(vehicle['vehicleId']) % len(real_drivers)
+                        selected_driver = real_drivers[vehicle_hash]
+                        previous_state.current_driver_id = selected_driver['driverId']
+                else:
+                    # Fallback to generated driver if no real drivers found
+                    vehicle_hash = hash(vehicle['vehicleId']) % 20 + 1
+                    previous_state.current_driver_id = f"DRIVER-{vehicle_hash:03d}"
             engine_event = "ENGINE_START"
             
             # Log trip start with route info
@@ -1586,6 +1662,8 @@ def main():
     parser.add_argument('--city-lat', type=float, help='Custom city latitude (overrides --city)')
     parser.add_argument('--city-lng', type=float, help='Custom city longitude (overrides --city)')
     parser.add_argument('--force-maintenance-alert', action='store_true', help='Force generation of maintenance alert for each trip')
+    parser.add_argument('--driver-selection', default='consistent', choices=['random', 'consistent', 'specific'], help='Driver selection mode')
+    parser.add_argument('--driver-id', help='Specific driver ID to use (when --driver-selection=specific)')
     
     args = parser.parse_args()
     
@@ -1618,6 +1696,12 @@ def main():
     simulator.city_lat = city_lat
     simulator.city_lng = city_lng
     simulator.current_city = args.city.upper()  # Store city name for logging
+    
+    # Configure driver selection
+    simulator.configure_driver_selection(
+        mode=args.driver_selection,
+        specific_driver_id=args.driver_id
+    )
     
     # Override table configuration BEFORE auto-detection if provided
     if args.table_suffix:

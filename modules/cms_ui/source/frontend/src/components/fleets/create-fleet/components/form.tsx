@@ -124,7 +124,7 @@ export function FormFull({ loadHelpPanelContent, header }: any) {
 
   const createFleet = async () => {
     try {
-      const response = await fetch(`${getRuntimeConfig().apiEndpoint}/api/v1/fleets`, {
+      const response = await fetch(`${getRuntimeConfig().apiEndpoint}api/v1/fleets`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

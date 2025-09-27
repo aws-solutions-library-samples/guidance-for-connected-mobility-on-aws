@@ -99,7 +99,7 @@ export function SafetyAlertsContent() {
         params.append('eventType', filtersToUse.eventType);
       }
       
-      const url = `${apiEndpoint}/api/v1/safety-alerts?${params.toString()}`;
+      const url = `${apiEndpoint}api/v1/safety-alerts?${params.toString()}`;
       console.log(`🚨 Calling safety events endpoint: ${url}`);
       
       const response = await fetch(url);

@@ -289,15 +289,7 @@ export default function VehiclesTable({
                 disabled={selectedItems.length !== 1}
                 onClick={() => {
                   const selectedItem = selectedItems[0];
-                  const vehicleIdentifier = selectedItem.vin || selectedItem.vehicleId || selectedItem.name;
-                  const isVinPattern = /^[A-HJ-NPR-Z0-9]{16,17}$/i.test(vehicleIdentifier) || 
-                                      /^1FLEET\d{10}$/i.test(vehicleIdentifier);
-                  
-                  if (isVinPattern) {
-                    navigate(`/vehicles/management/${selectedItem.vehicleId}`);
-                  } else {
-                    navigate(`/vehicles/management/${selectedItem.vehicleId}`);
-                  }
+                  navigate(`/vehicles/edit?vehicleId=${selectedItem.vehicleId}`);
                 }}
               >
                 Edit

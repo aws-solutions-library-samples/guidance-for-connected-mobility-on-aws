@@ -46,7 +46,7 @@ const SettingsView: React.FC = () => {
     const fetchUserPreferences = async () => {
       try {
         console.log("Fetching user preferences...");
-        const response = await fetch(`${getRuntimeConfig().apiEndpoint}/api/v1/user-preferences`);
+        const response = await fetch(`${getRuntimeConfig().apiEndpoint}api/v1/user-preferences`);
         const data = await response.json();
         
         console.log("User preferences response:", data);
@@ -76,7 +76,7 @@ const SettingsView: React.FC = () => {
       uc.managedService.setIsEnabled(checked);
       
       // Call the API to update the user preferences
-      await fetch(`${getRuntimeConfig().apiEndpoint}/api/v1/user-preferences`, {
+      await fetch(`${getRuntimeConfig().apiEndpoint}api/v1/user-preferences`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
