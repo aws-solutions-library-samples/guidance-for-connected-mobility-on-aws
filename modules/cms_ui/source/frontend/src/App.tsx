@@ -495,11 +495,11 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
                           };
                         case UI_ROUTES.VEHICLE_MANAGEMENT:
                           return {
-                            title: 'Manage Vehicles',
+                            title: 'Vehicle Management',
                             description: 'Manage your vehicle fleet, monitor vehicle status, and configure device settings for optimal performance.',
                             breadcrumbs: [
                               { text: 'Home', href: '/' },
-                              { text: 'Manage Vehicles', href: UI_ROUTES.VEHICLE_MANAGEMENT }
+                              { text: 'Vehicle Management', href: UI_ROUTES.VEHICLE_MANAGEMENT }
                             ],
                             buttons: [
                               { text: 'Refresh', iconName: 'refresh' },
@@ -577,7 +577,7 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
                             description: 'Add a new vehicle to your fleet with device configuration and IoT certificate generation.',
                             breadcrumbs: [
                               { text: 'Home', href: '/' },
-                              { text: 'Manage Vehicles', href: UI_ROUTES.VEHICLE_MANAGEMENT },
+                              { text: 'Vehicle Management', href: UI_ROUTES.VEHICLE_MANAGEMENT },
                               { text: 'Create Vehicle' }
                             ],
                             buttons: [
@@ -592,7 +592,7 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
                             description: 'Edit vehicle details and save changes.',
                             breadcrumbs: [
                               { text: 'Home', href: '/' },
-                              { text: 'Manage Vehicles', href: UI_ROUTES.VEHICLE_MANAGEMENT },
+                              { text: 'Vehicle Management', href: UI_ROUTES.VEHICLE_MANAGEMENT },
                               { text: editVehicleId || 'Edit Vehicle' }
                             ],
                             buttons: [
@@ -733,7 +733,7 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
                               description: 'View detailed trip information including route, telemetry data, and performance metrics.',
                               breadcrumbs: [
                                 { text: 'Home', href: '/' },
-                                { text: 'Manage Vehicles', href: UI_ROUTES.VEHICLE_MANAGEMENT },
+                                { text: 'Vehicle Management', href: UI_ROUTES.VEHICLE_MANAGEMENT },
                                 { text: vehicleId, href: `/vehicles/management/${vehicleId}` },
                                 { text: `Trip ${tripId}` }
                               ],
@@ -752,7 +752,7 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
                               description: 'View detailed information about this vehicle including status, trips, and telemetry data.',
                               breadcrumbs: [
                                 { text: 'Home', href: '/' },
-                                { text: 'Manage Vehicles', href: UI_ROUTES.VEHICLE_MANAGEMENT },
+                                { text: 'Vehicle Management', href: UI_ROUTES.VEHICLE_MANAGEMENT },
                                 { text: vehicleId || 'Vehicle Details' }
                               ],
                               buttons: [
@@ -802,13 +802,19 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
                           
                           if (pathname.startsWith('/fleets/management/') && pathname !== '/fleets/management') {
                             const fleetId = pathname.split('/').pop();
+                            
+                            // Try to get fleet name from localStorage cache or use fleetId as fallback
+                            const fleetNameKey = `fleet_name_${fleetId}`;
+                            const cachedFleetName = localStorage.getItem(fleetNameKey);
+                            const displayName = cachedFleetName || fleetId || 'Fleet Details';
+                            
                             return {
-                              title: `Fleet Details - ${fleetId}`,
+                              title: `Fleet Details - ${displayName}`,
                               description: 'View detailed information about this fleet including vehicles, campaigns, and performance metrics.',
                               breadcrumbs: [
                                 { text: 'Home', href: '/' },
                                 { text: 'Fleet Management', href: UI_ROUTES.FLEET_MANAGEMENT },
-                                { text: fleetId || 'Fleet Details' }
+                                { text: displayName }
                               ],
                               buttons: [
                                 { text: 'Edit Fleet', iconName: 'edit' },

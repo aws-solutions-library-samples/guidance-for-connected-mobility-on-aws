@@ -81,6 +81,17 @@
   text-decoration-color: #42b4ff !important;
 }
 
+/* Force breadcrumbs to stay expanded and not collapse to dropdown */
+.cms-header [class*="awsui_breadcrumb-group"] {
+  min-width: 100% !important;
+  flex-wrap: nowrap !important;
+}
+
+.cms-header [class*="awsui_breadcrumb-group"] [class*="awsui_breadcrumb-list"] {
+  flex-wrap: nowrap !important;
+  overflow: visible !important;
+}
+
 .cms-header [class*="awsui_anchor"] [class*="awsui_text"] {
   color: #42b4ff !important;
 }

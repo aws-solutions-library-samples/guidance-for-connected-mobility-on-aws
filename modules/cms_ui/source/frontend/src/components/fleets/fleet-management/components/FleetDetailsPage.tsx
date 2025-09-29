@@ -186,6 +186,11 @@ export function FleetDetailsPage({
         loading: false 
       });
       
+      // Cache fleet name in localStorage for breadcrumbs
+      if (mappedFleetData.name) {
+        localStorage.setItem(`fleet_name_${fleetId}`, mappedFleetData.name);
+      }
+      
       setFleet(mappedFleetData);
       console.log('✅ Fleet state updated and cached via GetFleetCommand for fleet', fleetId);
     } catch (error) {
