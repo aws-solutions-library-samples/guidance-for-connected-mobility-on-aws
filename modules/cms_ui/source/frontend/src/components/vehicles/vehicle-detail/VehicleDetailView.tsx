@@ -27,6 +27,7 @@ import { UserContext } from '../../commons/UserContext';
 import { UI_ROUTES } from "../../../utils/constants";
 import { RouteMapModal } from './RouteMapModal';
 import { TripMap } from '../trip-detail/TripMap';
+import TirePressureWidget from './TirePressureWidget';
 import './vehicle-detail-tabs-borderless.css';
 
 interface VehicleMetadata {
@@ -198,6 +199,9 @@ const VehicleDetailView: React.FC = () => {
   // Last trip details for overview map
   const [lastTripDetails, setLastTripDetails] = useState<any>(null);
   const [loadingLastTrip, setLoadingLastTrip] = useState(false);
+  
+  // Latest telemetry data for tire pressure and other metrics
+  const [latestTelemetry, setLatestTelemetry] = useState<any>(null);
 
   // Request deduplication
   const [ongoingRequests, setOngoingRequests] = useState<Set<string>>(new Set());
@@ -401,6 +405,15 @@ const VehicleDetailView: React.FC = () => {
         } else {
           console.log('🗺️ No last trip data in vehicle response');
           setLoadingLastTrip(false);
+        }
+        
+        // Set latest telemetry data
+        if (data.latestTelemetry) {
+          console.log('🔧 Setting latest telemetry data:', data.latestTelemetry);
+          setLatestTelemetry(data.latestTelemetry);
+        } else {
+          console.log('🔧 No telemetry data in vehicle response');
+          setLatestTelemetry(null);
         }
         
       } else {
@@ -807,8 +820,35 @@ const VehicleDetailView: React.FC = () => {
                         </ColumnLayout>
                       </Container>
 
-                      {/* Vehicle Location and Recent Activity Side by Side */}
-                      <ColumnLayout columns={2} variant="text-grid">
+                      {/* Vehicle Location, Tire Pressure, and Recent Activity */}
+                      <ColumnLayout columns={3} variant="text-grid">
+                        {/* Tire Pressure Monitor */}
+                        <div>
+                          {latestTelemetry && (latestTelemetry.tire_fl || latestTelemetry.tire_fr || latestTelemetry.tire_rl || latestTelemetry.tire_rr) ? (
+                            <TirePressureWidget
+                              tirePressure={{
+                                tire_fl: latestTelemetry.tire_fl,
+                                tire_fr: latestTelemetry.tire_fr,
+                                tire_rl: latestTelemetry.tire_rl,
+                                tire_rr: latestTelemetry.tire_rr,
+                                tire_temp_max: latestTelemetry.tire_temp_max
+                              }}
+                              lastUpdated={latestTelemetry.timestamp ? new Date(latestTelemetry.timestamp * 1000).toISOString() : undefined}
+                            />
+                          ) : (
+                            <Container
+                              header={<Header variant="h3">Tire Pressure Monitor</Header>}
+                            >
+                              <Box textAlign="center" padding="xl" color="text-body-secondary">
+                                <Box variant="strong" color="inherit">No tire pressure data</Box>
+                                <Box variant="p" color="inherit">
+                                  Tire pressure readings will appear here when telemetry data is available.
+                                </Box>
+                              </Box>
+                            </Container>
+                          )}
+                        </div>
+
                         {/* Last Trip Map */}
                         <Container
                           header={<Header variant="h3">Last Trip</Header>}

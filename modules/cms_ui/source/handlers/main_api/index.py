@@ -3,8 +3,12 @@ import boto3
 import os
 import time
 from datetime import datetime, timedelta
+from cache_client import create_cached_dynamodb_client
 
-dynamodb = boto3.resource('dynamodb')
+# Create cached DynamoDB client
+redis_endpoint = os.environ.get('REDIS_ENDPOINT')
+dynamodb_client = create_cached_dynamodb_client(redis_endpoint)
+dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 def handler(event, context):
     # Handle fleets POST endpoint first
@@ -2167,11 +2171,29 @@ def handler(event, context):
                 # Get safety events for this trip
                 try:
                     safety_events_table = dynamodb.Table(os.environ.get('SAFETY_EVENTS_TABLE_NAME'))
-                    safety_response = safety_events_table.query(
-                        IndexName='tripId-index',
-                        KeyConditionExpression='tripId = :trip_id',
-                        ExpressionAttributeValues={':trip_id': trip_id}
-                    )
+                    
+                    # Extract vehicleId from tripId (format: VEH-xxx-timestamp-hash)
+                    vehicle_id_from_trip = trip_id.split('-')[:2]
+                    if len(vehicle_id_from_trip) >= 2:
+                        vehicle_id_for_query = f"{vehicle_id_from_trip[0]}-{vehicle_id_from_trip[1]}"
+                        
+                        # Use vehicleId-index and filter by tripId
+                        safety_response = safety_events_table.query(
+                            IndexName='vehicleId-index',
+                            KeyConditionExpression='vehicleId = :vehicle_id',
+                            FilterExpression='tripId = :trip_id',
+                            ExpressionAttributeValues={
+                                ':vehicle_id': vehicle_id_for_query,
+                                ':trip_id': trip_id
+                            }
+                        )
+                    else:
+                        # Fallback to scan if tripId format is unexpected
+                        safety_response = safety_events_table.scan(
+                            FilterExpression='tripId = :trip_id',
+                            ExpressionAttributeValues={':trip_id': trip_id}
+                        )
+                    
                     safety_events = safety_response.get('Items', [])
                     
                     # Normalize coordinate fields and fix missing longitude
@@ -2733,13 +2755,56 @@ def handler(event, context):
                     vehicle['has_certificate'] = False
                     vehicle['auto_registered'] = False
                 
+                # Get latest telemetry data for tire pressure and other metrics
+                latest_telemetry = None
+                try:
+                    # Use cached client for telemetry queries
+                    telemetry_response = dynamodb_client.query(
+                        TableName=os.environ.get('TELEMETRY_TABLE_NAME'),
+                        KeyConditionExpression='vehicleId = :vehicle_id',
+                        ExpressionAttributeValues={':vehicle_id': {'S': vehicle_id}},
+                        ScanIndexForward=False,  # Latest first
+                        Limit=1
+                    )
+                    
+                    if telemetry_response.get('Items'):
+                        # Convert DynamoDB format to Python dict
+                        item = telemetry_response['Items'][0]
+                        latest_telemetry = {}
+                        for key, value in item.items():
+                            if 'S' in value:
+                                latest_telemetry[key] = value['S']
+                            elif 'N' in value:
+                                latest_telemetry[key] = float(value['N'])
+                        
+                        print(f"🚀 Retrieved telemetry (cached: {redis_endpoint is not None}) for {vehicle_id}")
+                    else:
+                        print(f"🔧 No telemetry data found for {vehicle_id}")
+                        
+                except Exception as telemetry_error:
+                    print(f"Error fetching telemetry for {vehicle_id}: {telemetry_error}")
+                    # Fallback to resource client
+                    try:
+                        telemetry_table = dynamodb.Table(os.environ.get('TELEMETRY_TABLE_NAME'))
+                        telemetry_response = telemetry_table.query(
+                            KeyConditionExpression='vehicleId = :vehicle_id',
+                            ExpressionAttributeValues={':vehicle_id': vehicle_id},
+                            ScanIndexForward=False,
+                            Limit=1
+                        )
+                        if telemetry_response['Items']:
+                            latest_telemetry = telemetry_response['Items'][0]
+                    except Exception as fallback_error:
+                        print(f"Fallback telemetry query failed: {fallback_error}")
+                
                 # Return consolidated response
                 response_data = {
                     'vehicle': vehicle,
                     'trips': trips_data,
                     'safetyAlerts': safety_data,
                     'maintenanceAlerts': maintenance_data,
-                    'lastTrip': last_trip_details  # Include full last trip details with route and events
+                    'lastTrip': last_trip_details,  # Include full last trip details with route and events
+                    'latestTelemetry': latest_telemetry  # Include latest telemetry data for tire pressure, etc.
                 }
 
                 return {

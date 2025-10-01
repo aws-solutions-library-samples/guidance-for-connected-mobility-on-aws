@@ -8,6 +8,7 @@ with separate stacks for each major component.
 
 import os
 from aws_cdk import App, Environment, Aspects
+from stacks.infrastructure_stack import InfrastructureStack
 from stacks.iot_stack import IoTStack
 from stacks.msk_stack import MSKStack
 from stacks.flink_stack import FlinkStack
@@ -41,6 +42,14 @@ env = Environment(account=AWS_ACCOUNT, region=AWS_REGION)
 stack_prefix = f"cms-{DEPLOYMENT_STAGE}"
 
 # Deploy stacks with minimal dependencies - integrations handled by scripts
+# 0. Infrastructure Stack (VPC, Subnets, ElastiCache) - foundation for all services
+infrastructure_stack = InfrastructureStack(
+    app,
+    f"{stack_prefix}-infrastructure", 
+    env=env,
+    description="Guidance for Connected Mobility (SO5947) - Infrastructure Foundation"
+)
+
 # 1. Storage Stack (DynamoDB tables) - needed by Flink and UI
 storage_stack = StorageStack(
     app, 

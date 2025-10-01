@@ -77,9 +77,9 @@ const initializeApp = async () => {
   root.render(
     <React.StrictMode>
       <SimpleAuthProvider 
-        userPoolId={runtimeConfig.awsCredentials?.userPoolId || "us-east-1_8soCrvjIG"}
-        clientId={runtimeConfig.awsCredentials?.userPoolWebClientId || "7m4lk21hb41keefm07me4boo3o"}
-        region={runtimeConfig.awsCredentials?.region || "us-east-1"}
+        userPoolId={runtimeConfig.awsCredentials?.userPoolId}
+        clientId={runtimeConfig.awsCredentials?.userPoolWebClientId}
+        region={runtimeConfig.awsCredentials?.region}
         isDemoMode={isDemoMode}
       >
         <BrowserRouter>

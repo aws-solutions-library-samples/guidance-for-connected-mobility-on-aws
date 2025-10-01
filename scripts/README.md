@@ -53,13 +53,6 @@ python update-flink-tables.py --application cms-telemetry-processor
 python update-flink-tables.py --config flink-config.json
 ```
 
-#### `update-flink-permissions.py`
-Update IAM permissions for Flink applications.
-```bash
-python update-flink-permissions.py --application cms-telemetry-processor
-python update-flink-permissions.py --role FlinkExecutionRole
-```
-
 ## Usage Examples
 
 ### Bulk Data Operations
@@ -96,11 +89,6 @@ python rename-table.py \
 python update-flink-tables.py \
   --application cms-telemetry-processor \
   --table-mapping table-mapping.json
-
-# Grant permissions for new tables
-python update-flink-permissions.py \
-  --application cms-telemetry-processor \
-  --tables cms-prod-telemetry,cms-prod-trips
 ```
 
 ## Configuration

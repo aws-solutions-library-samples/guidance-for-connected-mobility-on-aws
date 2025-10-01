@@ -111,7 +111,7 @@ export function MaintenanceAlertsContent() {
 
   // Create maintenance alerts client
   const maintenanceAlertsClient = new RealMaintenanceAlertsClient({
-    endpoint: apiContext?.endpoint || 'https://vwrk6kctee.execute-api.us-east-1.amazonaws.com/prod'
+    endpoint: apiContext?.config?.baseUrl || 'http://localhost:5001'
   });
 
   // Fetch maintenance events using the client pattern with pagination

@@ -16,11 +16,16 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import com.cms.telemetry.sink.RedisTelemetrySink;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.types.Row;
 
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
 
 public class TelemetryProcessor {
     private static final Logger LOG = LoggerFactory.getLogger(TelemetryProcessor.class);
@@ -59,7 +64,8 @@ public class TelemetryProcessor {
         // Get topic and table from environment properties
         String kafkaTopic = consumerConfig.getProperty("KAFKA_TOPIC", "cms-telemetry-processed");
         String tableName = consumerConfig.getProperty("TABLE_NAME", "cms-dev-storage-telemetry");
-        LOG.info("📡 Using Kafka topic: {} and DynamoDB table: {}", kafkaTopic, tableName);
+        String s3DatalakeBucket = consumerConfig.getProperty("S3_DATALAKE_BUCKET", "cms-dev-datalake");
+        LOG.info("📡 Using Kafka topic: {}, DynamoDB table: {}, S3 datalake bucket: {}", kafkaTopic, tableName, s3DatalakeBucket);
 
         // Create Kafka properties - exactly like working version
         Properties kafkaProps = new Properties();
@@ -111,15 +117,94 @@ public class TelemetryProcessor {
             })
             .name("Process Telemetry");
 
+        // Get Redis endpoint from configuration
+        String redisEndpoint = consumerConfig.getProperty("REDIS_ENDPOINT", "cms-ve-1a6t7swit5crg.hznvt8.0001.use1.cache.amazonaws.com");
+        LOG.info("🔴 Using Redis endpoint: {}", redisEndpoint);
+
         // Add DynamoDB sink
         processedStream.addSink(new DynamoDBTelemetrySink(tableName, "cms-631ca2-591631-trips-new"))
             .name("DynamoDB Telemetry Sink");
+
+        // Add Redis sink for vehicle state caching
+        telemetryStream.addSink(new RedisTelemetrySink(redisEndpoint))
+            .name("Redis Vehicle State Cache");
+
+        // Add Iceberg sink for analytics
+        addIcebergSink(env, processedStream, s3DatalakeBucket);
 
         // Also print for monitoring
         processedStream.print("Processed Telemetry");
 
         LOG.info("🎯 Starting enhanced Flink job execution...");
         env.execute("Enhanced TelemetryProcessor");
+    }
+
+    private static void addIcebergSink(StreamExecutionEnvironment env, DataStream<TelemetryRecord> stream, String s3DatalakeBucket) {
+        try {
+            StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+            
+            // Create Iceberg catalog with dynamic bucket name
+            tableEnv.executeSql(
+                "CREATE CATALOG iceberg_catalog WITH (" +
+                "'type'='iceberg'," +
+                "'warehouse'='s3://" + s3DatalakeBucket + "/warehouse'," +
+                "'catalog-impl'='org.apache.iceberg.aws.glue.GlueCatalog'," +
+                "'io-impl'='org.apache.iceberg.aws.s3.S3FileIO'" +
+                ")"
+            );
+            
+            // Create telemetry table
+            tableEnv.executeSql(
+                "CREATE TABLE IF NOT EXISTS iceberg_catalog.cms_analytics.telemetry (" +
+                "vehicleId STRING," +
+                "recordId STRING," +
+                "timestamp BIGINT," +
+                "rawData STRING," +
+                "processedAt STRING," +
+                "year INT," +
+                "month INT," +
+                "day INT" +
+                ") PARTITIONED BY (year, month, day) " +
+                "WITH ('format-version'='2')"
+            );
+            
+            // Convert stream to table with partitioning
+            DataStream<Row> rowStream = stream.map(record -> {
+                java.time.LocalDateTime dateTime = java.time.LocalDateTime.ofInstant(
+                    java.time.Instant.ofEpochMilli(record.timestamp), 
+                    java.time.ZoneOffset.UTC
+                );
+                
+                return Row.of(
+                    extractVehicleIdFromRaw(record.rawData),
+                    record.recordId,
+                    record.timestamp,
+                    record.rawData,
+                    record.processedAt,
+                    dateTime.getYear(),
+                    dateTime.getMonthValue(),
+                    dateTime.getDayOfMonth()
+                );
+            });
+            
+            Table table = tableEnv.fromDataStream(rowStream);
+            table.executeInsert("iceberg_catalog.cms_analytics.telemetry");
+            
+            LOG.info("✅ Iceberg sink configured for S3 data lake");
+            
+        } catch (Exception e) {
+            LOG.warn("⚠️ Iceberg sink setup failed - analytics disabled: {}", e.getMessage());
+        }
+    }
+    
+    private static String extractVehicleIdFromRaw(String rawData) {
+        try {
+            int start = rawData.indexOf("\"vehicleId\":\"") + 13;
+            int end = rawData.indexOf("\"", start);
+            return rawData.substring(start, end);
+        } catch (Exception e) {
+            return "UNKNOWN";
+        }
     }
 
     // Simple telemetry record class
@@ -147,6 +232,7 @@ public class TelemetryProcessor {
             this.dynamoDbClient = DynamoDbClient.builder()
                 .region(Region.US_EAST_1)
                 .build();
+            
             LOG.info("✅ DynamoDB client initialized for table: {}", tableName);
         }
 
@@ -204,6 +290,19 @@ public class TelemetryProcessor {
                 addOptionalField(item, record.rawData, "seatbeltStatus", false);
                 addOptionalField(item, record.rawData, "phoneConnected", false);
                 addOptionalField(item, record.rawData, "driverId", false);
+                
+                // Add tire pressure fields
+                addOptionalField(item, record.rawData, "tire_fl", true);
+                addOptionalField(item, record.rawData, "tire_fr", true);
+                addOptionalField(item, record.rawData, "tire_rl", true);
+                addOptionalField(item, record.rawData, "tire_rr", true);
+                addOptionalField(item, record.rawData, "tire_temp_max", true);
+                
+                // Add vehicle state fields
+                addOptionalField(item, record.rawData, "doorsLocked", false);
+                addOptionalField(item, record.rawData, "trunkLocked", false);
+                addOptionalField(item, record.rawData, "windowsUp", false);
+                addOptionalField(item, record.rawData, "alarmArmed", false);
 
                 PutItemRequest request = PutItemRequest.builder()
                     .tableName(tableName)

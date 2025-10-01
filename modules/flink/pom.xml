@@ -119,6 +119,21 @@
             <version>2.15.2</version>
         </dependency>
         
+        <!-- Redis/Jedis for ElastiCache -->
+        <dependency>
+            <groupId>redis.clients</groupId>
+            <artifactId>jedis</artifactId>
+            <version>4.4.3</version>
+        </dependency>
+        
+        <!-- Flink Table API -->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-table-api-java-bridge</artifactId>
+            <version>${flink.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        
     </dependencies>
 
     <build>

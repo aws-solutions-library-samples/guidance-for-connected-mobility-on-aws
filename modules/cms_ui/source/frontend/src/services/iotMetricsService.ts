@@ -25,7 +25,7 @@ export interface ChartSeries {
 export type StatisticsResponse = MetricStatistic[];
 
 class IoTMetricsService {
-  private baseUrl = import.meta.env.VITE_IOT_API_BASE_URL || 'https://1awr4x85fb.execute-api.us-east-1.amazonaws.com/prod';
+  private baseUrl = import.meta.env.VITE_IOT_API_BASE_URL || 'http://localhost:5001';
 
   async getDeviceOverview(): Promise<StatisticsResponse> {
     try {

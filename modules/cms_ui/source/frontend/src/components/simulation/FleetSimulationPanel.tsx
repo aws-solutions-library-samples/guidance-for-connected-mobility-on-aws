@@ -73,6 +73,13 @@ interface SimulationStatus {
   logs?: Array<{ timestamp: string; message: string }>; // API uses 'logs' field
   output?: Array<{ timestamp: string; message: string }>; // Fallback for backward compatibility
   error?: string;
+  // Trip progress tracking
+  trips?: {
+    total: number;
+    completed: number;
+    current_progress?: number;
+    progress: number;
+  };
   // Additional fields from API
   trips_per_vehicle?: number;
   trips_completed?: number;
@@ -203,7 +210,16 @@ export default function FleetSimulationPanel() {
     try {
       const response = await fetch(`${SIMULATION_API_BASE}/list`);
       const data = await response.json();
-      setActiveSimulations(data.simulations || []);
+      console.log('Fetched simulations:', data.simulations?.length || 0, 'simulations');
+      if (data.simulations?.length > 0) {
+        console.log('Trip progress:', data.simulations[0].trips);
+      }
+      // Force React to detect changes by adding timestamp
+      const simulationsWithTimestamp = (data.simulations || []).map(sim => ({
+        ...sim,
+        _lastUpdated: Date.now()
+      }));
+      setActiveSimulations(simulationsWithTimestamp);
     } catch (error) {
       console.error('Failed to fetch simulations:', error);
       setServiceAvailable(false);
@@ -894,9 +910,13 @@ export default function FleetSimulationPanel() {
                       <div>
                         <Box variant="awsui-key-label">Trip Progress</Box>
                         <div>
-                          {item.trips_completed || 0} / {
-                            item.total_trips || 
-                            ((item.config?.trips || 3) * (item.config?.vehicles || 10))
+                          {item.trips?.completed || item.trips_completed || 0} / {
+                            item.trips?.total || item.total_trips || 
+                            ((item.config?.trips || 3) * (
+                              Array.isArray(item.config?.vehicles) 
+                                ? item.config.vehicles.length 
+                                : (item.config?.vehicles || 10)
+                            ))
                           } trips
                         </div>
                       </div>
@@ -912,15 +932,15 @@ export default function FleetSimulationPanel() {
 
                     {item.status === 'running' && (
                       <ProgressBar
-                        value={
-                          item.total_trips && item.trips_completed 
-                            ? Math.round((item.trips_completed / item.total_trips) * 100)
-                            : 0
-                        }
-                        additionalInfo={`${item.trips_completed || 0} / ${
-                          item.total_trips || 
-                          ((item.config?.trips || 3) * (item.config?.vehicles || 10))
-                        } trips completed`}
+                        value={item.trips?.progress || 0}
+                        additionalInfo={`${item.trips?.completed || item.trips_completed || 0} / ${
+                          item.trips?.total || item.total_trips || 
+                          ((item.config?.trips || 3) * (
+                            Array.isArray(item.config?.vehicles) 
+                              ? item.config.vehicles.length 
+                              : (item.config?.vehicles || 10)
+                          ))
+                        } trips completed${item.trips?.current_progress ? ` (current: ${item.trips.current_progress.toFixed(1)}%)` : ''}`}
                         description="Trip completion progress"
                       />
                     )}

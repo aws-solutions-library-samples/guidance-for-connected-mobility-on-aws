@@ -38,7 +38,8 @@ export const ApiContext = createContext<ApiContextValue>({
   ),
   maintenanceAlertsClient: createMaintenanceAlertsClient(
     { 
-      endpoint: "https://vwrk6kctee.execute-api.us-east-1.amazonaws.com/prod"
+      baseUrl: "http://localhost:5001", 
+      isDemoMode: "false" 
     },
     "",
   ),

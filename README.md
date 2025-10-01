@@ -478,3 +478,82 @@ make destroy-all  # Destroy all stacks (CAREFUL!)
 - **Rollback**: Phase-based deployment enables targeted fixes
 
 For detailed component documentation, see individual module READMEs.
+
+## Next Steps 
+To build your own connected mobility platform using this guidance, start by deploying the infrastructure foundation with make infrastructure followed by the core services using make phase1 through make phase6. Customize the telemetry data models in the Flink processors to match your vehicle specifications, update the UI components to reflect your brand and requirements, and configure the simulation services with your fleet parameters. The modular CDK architecture allows you to selectively deploy components based on your needs - whether you're building a complete fleet management solution or integrating specific capabilities like real-time telemetry processing or predictive maintenance. All components are designed to scale with your business growth and can be extended with additional AWS services as your platform evolves.
+
+
+## Cleanup
+
+To completely remove the deployed Connected Mobility Guidance, follow these steps in order:
+
+### 1. Stop Running Services
+bash
+# Stop simulation services
+cd services/simulation
+./manage_simulation.sh stop
+
+# Stop any running Flink applications
+make stop-flink-apps
+
+
+### 2. Manual Resource Cleanup
+Before destroying stacks, manually delete resources that prevent stack deletion:
+
+S3 Buckets:
+bash
+# Empty S3 buckets (replace with your actual bucket names)
+aws s3 rm s3://cms-dev-ui-bucket --recursive
+aws s3 rm s3://cms-dev-flink-jar-bucket --recursive
+
+
+CloudWatch Log Groups:
+bash
+# Delete log groups to avoid retention issues
+aws logs delete-log-group --log-group-name /aws/lambda/cms-dev-iot-lifecycle-processor
+aws logs delete-log-group --log-group-name /aws/lambda/cms-dev-fleet-api-function
+
+
+### 3. Destroy CDK Stacks
+Run cleanup in reverse deployment order:
+bash
+# Set your AWS profile
+export AWS_PROFILE=your-profile-name
+
+# Destroy stacks in reverse order
+cdk destroy cms-dev-flink --force
+cdk destroy cms-dev-telemetry-integration --force
+cdk destroy cms-dev-msk --force
+cdk destroy cms-dev-ui --force
+cdk destroy cms-dev-iot --force
+cdk destroy cms-dev-storage --force
+cdk destroy cms-dev-infrastructure --force
+
+
+### 4. Verify Complete Removal
+bash
+# Check for remaining stacks
+aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE
+
+# Check for remaining resources
+aws s3 ls | grep cms-dev
+aws logs describe-log-groups --log-group-name-prefix /aws/lambda/cms-dev
+
+
+### 5. Clean Local Environment
+bash
+# Remove CDK bootstrap (optional - only if not used by other projects)
+# aws cloudformation delete-stack --stack-name CDKToolkit
+
+# Clean local files
+rm -rf cdk.out/
+rm -rf node_modules/
+rm -rf .venv/
+
+
+Note: Some resources like DynamoDB tables with point-in-time recovery or RDS snapshots may have additional deletion protection. Check the AWS Console for any remaining
+resources and delete them manually if needed.
+
+## Notices
+
+Customers are responsible for making their own independent assessment of the information in this Guidance. This Guidance: (a) is for informational purposes only, (b) represents AWS current product offerings and practices, which are subject to change without notice, and (c) does not create any commitments or assurances from AWS and its affiliates, suppliers or licensors. AWS products or services are provided “as is” without warranties, representations, or conditions of any kind, whether express or implied. AWS responsibilities and liabilities to its customers are controlled by AWS agreements, and this Guidance is not part of, nor does it modify, any agreement between AWS and its customers.

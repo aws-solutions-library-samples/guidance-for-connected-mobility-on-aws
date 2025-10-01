@@ -16,8 +16,11 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
+import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 
 import java.util.List;
+import java.util.ArrayList;
 import java.util.ArrayList;
 
 import java.io.IOException;
@@ -370,34 +373,181 @@ public class TripProcessor {
         private double calculateDriverScore(TelemetryData data, Map<String, AttributeValue> existingTrip) {
             double score = parseDouble(existingTrip.getOrDefault("driverScore", AttributeValue.builder().n("100").build()).n(), 100.0);
             
-            // Deduct points for various behaviors
-            if (data.speed != null && data.speed > 80) { // Speeding
-                score -= 2.0;
-            }
-            if (data.acceleration != null && Math.abs(data.acceleration) > 3.0) { // Hard acceleration/braking
-                score -= 1.5;
-            }
-            if (data.engineTemp != null && data.engineTemp > 220) { // Engine overheating
-                score -= 1.0;
-            }
-            
-            // Check for safety alerts in the raw JSON
-            if (data.rawJson != null) {
-                String safetyAlertsJson = extractJsonValue(data.rawJson, "safetyAlerts");
-                if (safetyAlertsJson != null && !safetyAlertsJson.equals("null") && !safetyAlertsJson.trim().isEmpty()) {
-                    // Count safety alerts and deduct points
-                    int alertCount = countJsonArrayElements(safetyAlertsJson);
-                    if (alertCount > 0) {
-                        // Deduct 3 points per safety alert
-                        score -= (alertCount * 3.0);
-                        LOG.info("DRIVER SCORE DEDUCTION - tripId: {}, safetyAlerts: {}, pointsDeducted: {}", 
-                            data.tripId, alertCount, alertCount * 3.0);
+            // === SAFETY EVENT BASED SCORING ===
+            // Query safety events for this trip from DynamoDB to calculate accurate score
+            try {
+                String tripId = data.tripId;
+                if (tripId != null && !tripId.isEmpty()) {
+                    // Get safety events for this trip
+                    List<Map<String, AttributeValue>> safetyEvents = getSafetyEventsForTrip(tripId);
+                    
+                    // Calculate deductions based on safety event severity
+                    for (Map<String, AttributeValue> event : safetyEvents) {
+                        String severity = event.getOrDefault("severity", AttributeValue.builder().s("MEDIUM").build()).s();
+                        String eventType = event.getOrDefault("eventType", AttributeValue.builder().s("UNKNOWN").build()).s();
+                        
+                        double deduction = calculateSafetyEventDeduction(severity, eventType);
+                        score -= deduction;
+                        
+                        LOG.info("DRIVER SCORE DEDUCTION - tripId: {}, event: {}, severity: {}, deduction: {}", 
+                            tripId, eventType, severity, deduction);
                     }
                 }
+            } catch (Exception e) {
+                LOG.warn("Failed to get safety events for trip scoring: {}", e.getMessage());
+            }
+            
+            // === TELEMETRY BASED SCORING (Real-time deductions) ===
+            
+            // Speed violations
+            if (data.speed != null && data.speed > 80) {
+                score -= 1.0; // Reduced from 2.0 since safety events handle this better
+            }
+            
+            // Harsh driving behavior (from telemetry fields)
+            if (data.rawJson != null) {
+                double harshBrk = parseDoubleFromJson(data.rawJson, "harsh_brk");
+                double harshAcc = parseDoubleFromJson(data.rawJson, "harsh_acc");
+                double harshTurn = parseDoubleFromJson(data.rawJson, "harsh_turn");
+                
+                if (harshBrk > 0.4) score -= 2.0;  // Hard braking
+                if (harshAcc > 0.35) score -= 2.0; // Rapid acceleration
+                if (harshTurn > 45) score -= 3.0;  // Sharp turns (rollover risk)
+            }
+            
+            // Engine/vehicle health (driver responsibility)
+            if (data.engineTemp != null && data.engineTemp > 240) {
+                score -= 5.0; // Critical engine overheating
             }
             
             // Ensure score stays within bounds
             return Math.max(0.0, Math.min(100.0, score));
+        }
+        
+        private double calculateSafetyEventDeduction(String severity, String eventType) {
+            // Severity-based deductions
+            switch (severity) {
+                case "CRITICAL":
+                    // Critical events: Major safety risks
+                    switch (eventType) {
+                        case "COLLISION_AVOIDANCE":
+                        case "ROLLOVER_RISK":
+                            return 15.0; // Severe deduction for life-threatening events
+                        case "ENGINE_OVERHEAT":
+                        case "COOLANT_OVERHEAT":
+                            return 10.0; // Major vehicle damage risk
+                        default:
+                            return 12.0; // Default critical deduction
+                    }
+                    
+                case "HIGH":
+                    // High severity: Serious safety concerns
+                    switch (eventType) {
+                        case "TIRE_PRESSURE_CRITICAL":
+                        case "AIRBAG_MALFUNCTION":
+                        case "SEATBELT_VIOLATION":
+                        case "CARGO_BREACH":
+                            return 8.0; // Significant safety risk
+                        case "OIL_PRESSURE_LOW":
+                            return 6.0; // Vehicle damage risk
+                        default:
+                            return 7.0; // Default high deduction
+                    }
+                    
+                case "MEDIUM":
+                    // Medium severity: Moderate safety issues
+                    switch (eventType) {
+                        case "HARD_BRAKING":
+                        case "RAPID_ACCELERATION":
+                        case "SPEED_VIOLATION":
+                        case "PHONE_USAGE":
+                            return 4.0; // Moderate driving behavior issues
+                        case "ABS_ACTIVATION":
+                        case "ESC_ACTIVATION":
+                            return 3.0; // Safety system interventions
+                        case "ELECTRICAL_FAILURE":
+                            return 5.0; // Vehicle reliability issue
+                        default:
+                            return 4.0; // Default medium deduction
+                    }
+                    
+                default:
+                    return 2.0; // Default deduction for unknown severity
+            }
+        }
+        
+        private List<Map<String, AttributeValue>> getSafetyEventsForTrip(String tripId) {
+            try {
+                // Ensure DynamoDB client is initialized
+                if (dynamoDbClient == null) {
+                    dynamoDbClient = DynamoDbClient.builder().build();
+                }
+                
+                // Extract vehicleId from tripId (format: VEH-xxx-timestamp-hash)
+                String vehicleId = extractVehicleIdFromTripId(tripId);
+                if (vehicleId == null) {
+                    LOG.warn("Cannot extract vehicleId from tripId: {}", tripId);
+                    return new ArrayList<>();
+                }
+                
+                LOG.info("QUERYING SAFETY EVENTS - tripId: {}, vehicleId: {}", tripId, vehicleId);
+                
+                // Query safety events by vehicleId and filter by tripId in application
+                QueryRequest request = QueryRequest.builder()
+                    .tableName("cms-dev-storage-safety-events")
+                    .indexName("vehicleId-index") // Use existing GSI
+                    .keyConditionExpression("vehicleId = :vehicleId")
+                    .expressionAttributeValues(Map.of(
+                        ":vehicleId", AttributeValue.builder().s(vehicleId).build()
+                    ))
+                    .build();
+                
+                QueryResponse response = dynamoDbClient.query(request);
+                
+                // Filter results by tripId in application code
+                List<Map<String, AttributeValue>> filteredEvents = new ArrayList<>();
+                for (Map<String, AttributeValue> item : response.items()) {
+                    AttributeValue itemTripId = item.get("tripId");
+                    if (itemTripId != null && tripId.equals(itemTripId.s())) {
+                        filteredEvents.add(item);
+                    }
+                }
+                
+                LOG.info("SAFETY EVENTS FOUND - tripId: {}, total events: {}, matching events: {}", 
+                    tripId, response.items().size(), filteredEvents.size());
+                
+                return filteredEvents;
+                
+            } catch (Exception e) {
+                LOG.error("Failed to query safety events for trip {}: {}", tripId, e.getMessage());
+                return new ArrayList<>();
+            }
+        }
+        
+        private String extractVehicleIdFromTripId(String tripId) {
+            if (tripId == null || tripId.isEmpty()) {
+                return null;
+            }
+            
+            // TripId format: VEH-1759246434-1759255271163-70a87afd
+            // Extract: VEH-1759246434
+            String[] parts = tripId.split("-");
+            if (parts.length >= 2) {
+                return parts[0] + "-" + parts[1]; // VEH-1759246434
+            }
+            
+            return null;
+        }
+        
+        private double parseDoubleFromJson(String json, String field) {
+            try {
+                String pattern = "\"" + field + "\"\\s*:\\s*([0-9.-]+)";
+                java.util.regex.Pattern p = java.util.regex.Pattern.compile(pattern);
+                java.util.regex.Matcher m = p.matcher(json);
+                return m.find() ? Double.parseDouble(m.group(1)) : 0.0;
+            } catch (Exception e) {
+                return 0.0;
+            }
         }
         
         private int countJsonArrayElements(String jsonArray) {

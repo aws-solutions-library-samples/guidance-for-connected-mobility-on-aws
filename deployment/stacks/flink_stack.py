@@ -89,7 +89,9 @@ class FlinkStack(Stack):
         self.jar_bucket = s3.Bucket(
             self, "FlinkJarBucket",
             versioned=True,
-            removal_policy=RemovalPolicy.DESTROY
+            removal_policy=RemovalPolicy.DESTROY,
+            encryption=s3.BucketEncryption.S3_MANAGED,
+            enforce_ssl=True
         )
         
         # Upload real Flink JAR file
@@ -179,7 +181,7 @@ class FlinkStack(Stack):
             )
         )
         
-        # Add S3 delete permissions for checkpoint cleanup
+        # Add S3 delete permissions for checkpoint cleanup - restricted to JAR bucket only
         self.flink_role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
@@ -187,7 +189,7 @@ class FlinkStack(Stack):
                     "s3:DeleteObject",
                     "s3:DeleteObjectVersion"
                 ],
-                resources=["arn:aws:s3:::*/*"]
+                resources=[f"{self.jar_bucket.bucket_arn}/*"]
             )
         )
 
@@ -564,7 +566,8 @@ def lambda_handler(event, context):
                 {
                     "group.id": "cms-enhanced-telemetry-processor-consumer",
                     "TABLE_NAME": storage_tables['telemetry'].table_name,
-                    "TELEMETRY_TABLE_NAME": storage_tables['telemetry'].table_name
+                    "TELEMETRY_TABLE_NAME": storage_tables['telemetry'].table_name,
+                    "S3_DATALAKE_BUCKET": storage_tables.get('datalake_bucket_name', f"{construct_id.replace('-flink', '-storage')}-datalake")
                 }
             )
         )

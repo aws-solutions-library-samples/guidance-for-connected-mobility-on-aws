@@ -2,6 +2,7 @@
 UI Stack - Frontend, API Gateway, and Cognito authentication
 """
 
+import os
 from aws_cdk import (
     Stack,
     aws_cognito as cognito,
@@ -27,7 +28,9 @@ import json
 class UIStack(Stack):
     
     def __init__(self, scope: Construct, construct_id: str, 
-                 storage_tables: Dict[str, dynamodb.Table], **kwargs) -> None:
+                 storage_tables: Dict[str, dynamodb.Table] = None,
+                 redis_endpoint: str = None,
+                 **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
         
         # Use actual table names from storage stack (with suffixes)
@@ -218,7 +221,8 @@ class UIStack(Stack):
                 'VEHICLE_CERTIFICATES_TABLE_NAME': table_names['vehicle_certificates'],
                 'DRIVERS_TABLE_NAME': table_names['drivers'],
                 'USER_POOL_ID': self.user_pool.user_pool_id,
-                'CLIENT_ID': self.user_pool_client.user_pool_client_id
+                'CLIENT_ID': self.user_pool_client.user_pool_client_id,
+                'REDIS_ENDPOINT': redis_endpoint if redis_endpoint else ''  # Use parameter or empty
             },
             timeout=Duration.seconds(60),
             memory_size=512

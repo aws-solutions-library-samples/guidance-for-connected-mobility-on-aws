@@ -86,8 +86,35 @@ public class EventDrivenTelemetryProcessor {
                 "Kafka Telemetry Source"
             );
 
+            // Filter out messages with invalid timestamps (older than 24 hours)
+            DataStream<String> validTelemetryStream = telemetryStream
+                .filter(rawData -> {
+                    try {
+                        String decoded = decodeAndDecompress(rawData);
+                        String timestampStr = extractJsonValue(decoded, "timestamp");
+                        if (timestampStr != null) {
+                            long messageTimestamp = Long.parseLong(timestampStr);
+                            long currentTime = System.currentTimeMillis();
+                            long maxAge = 24 * 60 * 60 * 1000L; // 24 hours
+                            
+                            boolean isValid = (currentTime - messageTimestamp) <= maxAge;
+                            if (!isValid) {
+                                LOG.warn("Discarding old message: timestamp={}, age={}ms, vehicleId={}", 
+                                    messageTimestamp, currentTime - messageTimestamp, 
+                                    extractJsonValue(decoded, "vehicleId"));
+                            }
+                            return isValid;
+                        }
+                        return true; // Keep messages without timestamp
+                    } catch (Exception e) {
+                        LOG.warn("Error parsing timestamp, keeping message: {}", e.getMessage());
+                        return true; // Keep messages with parsing errors
+                    }
+                })
+                .name("Timestamp Filter");
+
             // Add logging to see if any telemetry is received
-            telemetryStream
+            validTelemetryStream
                 .map(rawData -> {
                     LOG.error("=== RECEIVED TELEMETRY ===");
                     LOG.error("Raw data length: " + rawData.length());
@@ -98,7 +125,7 @@ public class EventDrivenTelemetryProcessor {
                 .sinkTo(processedSink)
                 .name("Processed Telemetry Sink");
 
-            telemetryStream
+            validTelemetryStream
                 .map(rawData -> decodeAndDecompress(rawData))
                 .filter(json -> {
                     TelemetryData data = parseJson(json);
@@ -107,45 +134,36 @@ public class EventDrivenTelemetryProcessor {
                 .sinkTo(tripsSink)
                 .name("Trip Events Sink");
 
-            telemetryStream
+            // Send ALL telemetry to SafetyProcessor for comprehensive safety analysis
+            // SafetyProcessor will analyze raw telemetry fields to detect safety events:
+            // - Driver behavior: harsh_brk, harsh_acc, harsh_turn, speed_viol
+            // - Vehicle health: eng_temp, tire_fl/fr/rl/rr, battery_voltage, oil_press
+            // - Driver safety: seatbelt, phone_use
+            // - Safety systems: aeb_act, abs_act, esc_act, airbag_warn
+            validTelemetryStream
                 .map(rawData -> {
                     String decoded = decodeAndDecompress(rawData);
-                    LOG.error("=== DECODED TELEMETRY FOR SAFETY CHECK ===");
-                    LOG.error("Raw data length: " + rawData.length());
-                    LOG.error("Decoded length: " + decoded.length());
-                    LOG.error("Contains safetyAlerts: " + decoded.contains("\"safetyAlerts\""));
-                    if (decoded.contains("\"safetyAlerts\"")) {
-                        LOG.error("Safety alerts found in payload!");
-                        boolean isEmpty = decoded.replaceAll("\\s", "").contains("\"safetyAlerts\":[]");
-                        LOG.error("Safety alerts empty: " + isEmpty);
-                    }
+                    LOG.error("=== SENDING ALL TELEMETRY TO SAFETY PROCESSOR ===");
+                    LOG.error("Telemetry contains vehicle fields for safety analysis");
                     return decoded;
                 })
-                .filter(json -> {
-                    boolean hasSafetyAlerts = json.contains("\"safetyAlerts\"");
-                    boolean notEmpty = !json.replaceAll("\\s", "").contains("\"safetyAlerts\":[]");
-                    boolean passesFilter = hasSafetyAlerts && notEmpty;
-                    
-                    LOG.error("=== SAFETY FILTER CHECK ===");
-                    LOG.error("Has safetyAlerts: " + hasSafetyAlerts);
-                    LOG.error("Not empty: " + notEmpty);
-                    LOG.error("Passes filter: " + passesFilter);
-                    
-                    if (passesFilter) {
-                        LOG.error("*** SENDING TO SAFETY SINK ***");
-                    }
-                    
-                    return passesFilter;
-                })
                 .sinkTo(safetySink)
-                .name("Safety Events Sink");
+                .name("All Telemetry to Safety Processor");
 
-            telemetryStream
-                .map(rawData -> decodeAndDecompress(rawData))
-                .filter(json -> json.contains("\"maintenanceAlerts\"") && json.contains("[") && 
-                    !json.replaceAll("\\s", "").contains("\"maintenanceAlerts\":[]"))
+            // Send ALL telemetry to MaintenanceProcessor for comprehensive maintenance analysis
+            // MaintenanceProcessor will analyze raw telemetry fields to detect maintenance needs:
+            // - Wear indicators: oil_life, brake_wear, filter_life, tire_tread_*
+            // - Engine health: eng_temp, oil_press, coolant_temp, engine_hours_total
+            // - System diagnostics: dtc_codes_active, battery_voltage
+            validTelemetryStream
+                .map(rawData -> {
+                    String decoded = decodeAndDecompress(rawData);
+                    LOG.error("=== SENDING ALL TELEMETRY TO MAINTENANCE PROCESSOR ===");
+                    LOG.error("Telemetry contains maintenance fields for analysis");
+                    return decoded;
+                })
                 .sinkTo(maintenanceSink)
-                .name("Maintenance Events Sink");
+                .name("All Telemetry to Maintenance Processor");
 
             env.execute("Event-Driven CMS Telemetry Processor");
 

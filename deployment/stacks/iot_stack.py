@@ -8,6 +8,7 @@ from aws_cdk import (
     aws_iam as iam,
     aws_sqs as sqs,
     aws_lambda as lambda_,
+    aws_lambda_python_alpha as python,
     aws_dynamodb as dynamodb,
     CfnOutput,
     Duration,
@@ -163,23 +164,13 @@ class IoTStack(Stack):
             }
         )
         
-        # Create Powertools V2 layer as part of the stack
-        self.powertools_layer = lambda_.LayerVersion(
-            self, "PowertoolsV2Layer",
-            layer_version_name=f"{construct_id}-powertools-v2",
-            code=lambda_.Code.from_asset("../modules/cms_ui/source/layers/powertools-v2"),
-            compatible_runtimes=[lambda_.Runtime.PYTHON_3_9],
-            description="AWS Lambda Powertools V2 for Python 3.9"
-        )
-        
-        # Lambda function to process IoT lifecycle events (using comprehensive version)
-        self.iot_lifecycle_processor = lambda_.Function(
+        # Lambda function to process IoT lifecycle events (using PythonFunction with bundled dependencies)
+        self.iot_lifecycle_processor = python.PythonFunction(
             self, "IoTLifecycleProcessor",
-            runtime=lambda_.Runtime.PYTHON_3_9,
+            entry="../modules/cms_ui/source/handlers/iot_lifecycle_events",
+            runtime=lambda_.Runtime.PYTHON_3_11,
             handler="lambda_function.lambda_handler",
-            code=lambda_.Code.from_asset("../modules/cms_ui/source/handlers/iot_lifecycle_events"),
             timeout=Duration.seconds(300),
-            layers=[self.powertools_layer],
             environment={
                 'CONNECTIONS_TABLE': f"{construct_id}-iot-connections",
                 'SUBSCRIPTIONS_TABLE': f"{construct_id}-iot-subscriptions", 
@@ -187,12 +178,12 @@ class IoTStack(Stack):
             }
         )
         
-        # Lambda function for IoT API operations (using existing source)
-        self.iot_api_function = lambda_.Function(
+        # Lambda function for IoT API operations (using PythonFunction with bundled dependencies)
+        self.iot_api_function = python.PythonFunction(
             self, "IoTAPIFunction",
-            runtime=lambda_.Runtime.PYTHON_3_9,
+            entry="../modules/cms_ui/source/handlers/iot_api",
+            runtime=lambda_.Runtime.PYTHON_3_11,
             handler="index.lambda_handler",
-            code=lambda_.Code.from_asset("../modules/cms_ui/source/handlers/iot_api"),
             timeout=Duration.seconds(300),
             environment={
                 'CONNECTIONS_TABLE': f"{construct_id}-iot-connections",

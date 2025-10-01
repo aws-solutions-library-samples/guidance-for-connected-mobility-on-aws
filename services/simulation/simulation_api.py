@@ -219,6 +219,24 @@ class SimulationManager:
             elif config.get('city_lat') and config.get('city_lng'):
                 cmd.extend(['--city-lat', str(config['city_lat']), '--city-lng', str(config['city_lng'])])
             
+            # === ADD FORCED ALERT PARAMETERS ===
+            if config.get('force_tire_blowout'):
+                cmd.extend(['--force-tire-blowout'])
+            if config.get('force_engine_overheat'):
+                cmd.extend(['--force-engine-overheat'])
+            if config.get('force_battery_critical'):
+                cmd.extend(['--force-battery-critical'])
+            if config.get('force_brake_failure'):
+                cmd.extend(['--force-brake-failure'])
+            if config.get('force_oil_pressure_low'):
+                cmd.extend(['--force-oil-pressure-low'])
+            if config.get('force_hv_battery_degradation'):
+                cmd.extend(['--force-hv-battery-degradation'])
+            if config.get('force_safety_event'):
+                cmd.extend(['--force-safety-event', config['force_safety_event']])
+            if not config.get('progressive_degradation', True):
+                cmd.extend(['--no-progressive-degradation'])
+            
             # Pass vehicle configuration if available
             if isinstance(config.get('vehicles'), list):
                 import json
@@ -245,6 +263,10 @@ class SimulationManager:
         
         if not config.get('cleanup', True):
             cmd.append('--no-cleanup')
+        
+        # Add safety rate parameter
+        if 'safety_rate' in config:
+            cmd.extend(['--safety-rate', str(config['safety_rate'])])
         
         # Add force maintenance alert if enabled
         if config.get('force_maintenance_alert', False):
@@ -277,7 +299,13 @@ class SimulationManager:
                 'start_time': datetime.now(timezone.utc).isoformat(),
                 'end_time': None,
                 'output': [],
-                'error': None
+                'error': None,
+                'trips': {
+                    'total': config.get('trips', 3),
+                    'completed': 0,
+                    'current_progress': 0.0,
+                    'progress': 0.0
+                }
             }
             
             self.simulations[simulation_id] = simulation_data
@@ -308,10 +336,16 @@ class SimulationManager:
             while process.poll() is None:
                 output = process.stdout.readline()
                 if output:
+                    message = output.strip()
                     simulation['output'].append({
                         'timestamp': datetime.now(timezone.utc).isoformat(),
-                        'message': output.strip()
+                        'message': message
                     })
+                    
+                    # Check for trip completion or progress
+                    if ("Trip" in message and "completed" in message) or ("Trip progress:" in message):
+                        self._update_trip_progress(simulation_id, message)
+                        
                 time.sleep(0.1)
             
             # Get final output
@@ -335,6 +369,38 @@ class SimulationManager:
             simulation['status'] = 'failed'
             simulation['error'] = str(e)
             simulation['end_time'] = datetime.now(timezone.utc).isoformat()
+    
+    def _update_trip_progress(self, simulation_id: str, message: str):
+        """Update trip progress based on log message"""
+        simulation = self.simulations.get(simulation_id)
+        if not simulation:
+            return
+            
+        import re
+        
+        # Parse trip completion from message like "✅ Trip 1/3 completed for VEH-1759242552"
+        completion_match = re.search(r'Trip (\d+)/(\d+) completed', message)
+        if completion_match:
+            completed = int(completion_match.group(1))
+            total = int(completion_match.group(2))
+            
+            simulation['trips']['completed'] = completed
+            simulation['trips']['total'] = total
+            simulation['trips']['current_progress'] = 0.0  # Reset current trip progress
+            
+        # Parse current trip progress like "Trip progress: 23.8%"
+        progress_match = re.search(r'Trip progress: ([\d.]+)%', message)
+        if progress_match:
+            current_progress = float(progress_match.group(1))
+            simulation['trips']['current_progress'] = current_progress
+            
+        # Calculate overall progress: completed trips + current trip progress
+        completed = simulation['trips']['completed']
+        total = simulation['trips']['total']
+        current_progress = simulation['trips'].get('current_progress', 0.0)
+        
+        overall_progress = ((completed + (current_progress / 100.0)) / total) * 100.0
+        simulation['trips']['progress'] = min(100.0, overall_progress)
     
     def stop_simulation(self, simulation_id: str) -> bool:
         """Stop a running simulation"""
@@ -472,7 +538,6 @@ def stream_logs(simulation_id):
     return app.response_class(generate(), mimetype='text/plain')
 
 @app.route('/api/simulation/logs/<simulation_id>/stream')
-@cross_origin()
 def stream_logs_sse(simulation_id):
     """Stream simulation logs using Server-Sent Events"""
     def generate():
@@ -507,9 +572,7 @@ def stream_logs_sse(simulation_id):
         mimetype='text/event-stream',
         headers={
             'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Cache-Control'
+            'Connection': 'keep-alive'
         }
     )
 def discover_iot_endpoint():
@@ -577,6 +640,16 @@ def start_simulation():
         config.setdefault('aws_region', 'us-east-1')
         config.setdefault('driver_id', None)  # Optional specific driver
         config.setdefault('driver_selection', 'random')  # 'random', 'consistent', or 'specific'
+        
+        # === FORCED ALERT PARAMETERS ===
+        config.setdefault('force_tire_blowout', False)  # Force tire pressure critical
+        config.setdefault('force_engine_overheat', False)  # Force engine overheating
+        config.setdefault('force_battery_critical', False)  # Force battery failure
+        config.setdefault('force_brake_failure', False)  # Force brake system issues
+        config.setdefault('force_oil_pressure_low', False)  # Force oil pressure low
+        config.setdefault('force_hv_battery_degradation', False)  # Force EV battery degradation
+        config.setdefault('force_safety_event', None)  # 'hard_braking', 'collision_avoidance', 'seatbelt_violation', 'phone_usage'
+        config.setdefault('progressive_degradation', True)  # Enable intelligent condition progression
         
         # Convert values to proper types (handle form data)
         def safe_convert(value, convert_func, default):

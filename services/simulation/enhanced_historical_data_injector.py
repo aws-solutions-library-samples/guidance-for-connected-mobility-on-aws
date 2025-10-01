@@ -1220,7 +1220,14 @@ class EnhancedHistoricalDataInjector:
                 'fuelLevel': random.uniform(20, 100),
                 'seatbeltStatus': random.choice([True, True, True, False]),
                 'phoneConnected': random.choice([False, False, False, True]),
-                'ignitionOn': i > 0 and i < num_points - 1
+                'ignitionOn': i > 0 and i < num_points - 1,
+                
+                # Tire pressures (PSI) - realistic values with slight variations
+                'tire_fl': round(random.uniform(28, 35), 1),
+                'tire_fr': round(random.uniform(28, 35), 1),
+                'tire_rl': round(random.uniform(28, 35), 1),
+                'tire_rr': round(random.uniform(28, 35), 1),
+                'tire_temp_max': random.randint(90, 130)
             }
             
             if i == 0:

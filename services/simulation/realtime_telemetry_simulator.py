@@ -39,15 +39,55 @@ class VehicleState:
         self.current_driver_id = None
         self.maintenance_alert_sent = False  # Track if maintenance alert sent for current trip
         self.route = []  # Initialize empty route
+        
+        # === INTELLIGENT CONDITION PROGRESSION ===
+        # These values degrade/change over time during trips
+        self.tire_pressure_fl = 32.0  # Starts normal, can decrease
+        self.tire_pressure_fr = 32.0
+        self.tire_pressure_rl = 32.0  
+        self.tire_pressure_rr = 32.0
+        self.oil_life = 100.0  # Decreases over time/distance
+        self.brake_wear = 100.0  # Decreases with braking
+        self.engine_temp_base = 180.0  # Can increase under load
+        self.battery_voltage_base = 13.8  # Can degrade
+        self.soc_base = 85.0  # EV state of charge (decreases)
+        self.hv_voltage_base = 380.0  # EV HV battery (can degrade)
+        
+        # === FORCED ALERT CONDITIONS ===
+        # Set by API to force specific alerts during simulation
+        self.force_tire_blowout = False
+        self.force_engine_overheat = False
+        self.force_battery_critical = False
+        self.force_brake_failure = False
+        self.force_oil_pressure_low = False
+        self.force_hv_battery_degradation = False
+        self.force_safety_event = None  # 'hard_braking', 'collision_avoidance', etc.
+        self.safety_rate = 1.0  # Multiplier for safety event probabilities (0.0 to 1.0)
+        
+        # === PROGRESSION TRACKING ===
+        self.trip_distance = 0.0  # Track distance for wear calculations
+        self.hard_braking_count = 0  # Track aggressive driving
+        self.high_speed_time = 0  # Track time at high speeds
 
 class RealtimeTelemetrySimulator:
-    def __init__(self, profile_name: str = "target-account", region: str = "us-east-1", certificates_table_name: str = None):
+    def __init__(self, profile_name: str = "default", region: str = "us-east-1", certificates_table_name: str = None, **alert_params):
         """Initialize the real-time telemetry simulator"""
         self.profile_name = profile_name
         self.region = region
         self.certificates_table_name = certificates_table_name
         self.running = False
         self.simulation_threads = []
+        
+        # === FORCED ALERT PARAMETERS ===
+        self.force_tire_blowout = alert_params.get('force_tire_blowout', False)
+        self.force_engine_overheat = alert_params.get('force_engine_overheat', False)
+        self.force_battery_critical = alert_params.get('force_battery_critical', False)
+        self.force_brake_failure = alert_params.get('force_brake_failure', False)
+        self.force_oil_pressure_low = alert_params.get('force_oil_pressure_low', False)
+        self.force_hv_battery_degradation = alert_params.get('force_hv_battery_degradation', False)
+        self.force_safety_event = alert_params.get('force_safety_event', None)
+        self.safety_rate = alert_params.get('safety_rate', 1.0)
+        self.progressive_degradation = alert_params.get('progressive_degradation', True)
         
         # Initialize AWS session
         session = boto3.Session(profile_name=profile_name)
@@ -355,6 +395,31 @@ class RealtimeTelemetrySimulator:
                 else:
                     deceleration = round(speed_change / time_diff, 1)
         
+        # === FORCED SAFETY EVENTS (moved up to define variables early) ===
+        harsh_brk = 0
+        harsh_acc = 0
+        aeb_act = 0
+        seatbelt = 1  # Initialize seatbelt before use
+        phone_use = 0
+        
+        if previous_state.force_safety_event == 'seatbelt_violation':
+            seatbelt = 0
+        elif previous_state.safety_rate >= 1.0:
+            # Force unsafe conditions when safety_rate is 1.0 or higher
+            # Rotate through different unsafe conditions to ensure variety
+            cycle_position = (previous_state.route_index % 4)
+            if cycle_position == 0:
+                seatbelt = 0  # Force seatbelt violation
+            elif cycle_position == 1:
+                phone_use = 1  # Force phone usage
+            elif cycle_position == 2:
+                harsh_brk = random.uniform(0.5, 0.8)  # Force hard braking
+            else:
+                seatbelt = 0  # Default to seatbelt violation
+        elif previous_state.safety_rate > 0:
+            # Generate unsafe seatbelt when safety_rate is high (increased probability)
+            seatbelt = 0 if random.random() < (0.5 * previous_state.safety_rate) else 1
+        
         # Standardized telemetry format with PROPER millisecond timestamp
         telemetry = {
             'messageType': 'TELEMETRY',
@@ -372,12 +437,184 @@ class RealtimeTelemetrySimulator:
             'lat': current_pos['lat'],
             'lng': current_pos['lng'],
             'heading': round(random.uniform(0, 360), 1),
-            'seatbeltStatus': random.choice([True, True, True, False]),
+            'seatbeltStatus': seatbelt == 1,  # Convert int to boolean, consistent with seatbelt field
             'phoneConnected': random.choice([False, False, False, True]),
             'ignitionOn': previous_state.engine_on,
             'tripId': previous_state.current_trip_id,  # Consistent tripId throughout trip
-            'driverId': previous_state.current_driver_id
+            'driverId': previous_state.current_driver_id,
         }
+            
+        # === INTELLIGENT CONDITION PROGRESSION ===
+        # Update conditions based on trip progression and driving behavior
+        self.update_vehicle_conditions(previous_state, current_speed, acceleration, deceleration)
+        
+        # === TIRE PRESSURES (Progressive degradation) ===
+        tire_fl = previous_state.tire_pressure_fl
+        tire_fr = previous_state.tire_pressure_fr  
+        tire_rl = previous_state.tire_pressure_rl
+        tire_rr = previous_state.tire_pressure_rr
+        
+        # Apply forced conditions or natural variation
+        if previous_state.force_tire_blowout:
+            tire_fl = max(5.0, tire_fl - random.uniform(2, 5))  # Rapid pressure loss
+        else:
+            tire_fl += random.uniform(-0.1, 0.1)  # Natural variation
+            
+        # === ENGINE TEMPERATURE (Load-based progression) ===
+        engine_temp = previous_state.engine_temp_base
+        if previous_state.force_engine_overheat:
+            engine_temp = min(250, engine_temp + random.uniform(5, 15))  # Rapid overheating
+        elif current_speed > 60:
+            engine_temp += random.uniform(0, 5)  # Higher temp at high speed
+        else:
+            engine_temp += random.uniform(-2, 2)  # Normal variation
+            
+        # === BATTERY CONDITIONS ===
+        battery_voltage = previous_state.battery_voltage_base
+        if previous_state.force_battery_critical:
+            battery_voltage = max(10.0, battery_voltage - random.uniform(0.5, 1.0))
+        else:
+            battery_voltage += random.uniform(-0.1, 0.1)
+            
+        # === EV CONDITIONS (for EV vehicles) ===
+        vehicle_id = vehicle['vehicleId']
+        is_ev = hash(vehicle_id) % 10 < 3
+        soc = previous_state.soc_base if is_ev else None
+        hv_voltage = previous_state.hv_voltage_base if is_ev else None
+        
+        if is_ev:
+            # SOC decreases with distance
+            if soc is not None:
+                soc = max(5, soc - (previous_state.trip_distance * 0.1))  # Range consumption
+                if previous_state.force_battery_critical:
+                    soc = max(2, soc - random.uniform(5, 15))  # Rapid drain
+                    
+            # HV battery degradation
+            if hv_voltage is not None and previous_state.force_hv_battery_degradation:
+                hv_voltage = max(300, hv_voltage - random.uniform(10, 30))
+        
+        # === MAINTENANCE INDICATORS (Progressive wear) ===
+        oil_life = max(0, previous_state.oil_life - (previous_state.trip_distance * 0.01))
+        brake_wear = max(0, previous_state.brake_wear - (previous_state.hard_braking_count * 0.5))
+        
+        # Safety events already calculated above, now complete the remaining calculations
+        if previous_state.force_safety_event == 'hard_braking':
+            harsh_brk = random.uniform(0.5, 0.8)
+            previous_state.hard_braking_count += 1
+        elif previous_state.force_safety_event == 'collision_avoidance':
+            aeb_act = 1
+            harsh_brk = random.uniform(0.6, 1.0)
+        elif previous_state.force_safety_event == 'phone_usage':
+            phone_use = 1
+        elif previous_state.safety_rate >= 1.0:
+            # Forced conditions already set above, don't override
+            pass
+        else:
+            # Normal random safety events (using safety_rate multiplier with higher probabilities)
+            safety_multiplier = previous_state.safety_rate
+            if harsh_brk == 0:  # Only set if not already forced
+                harsh_brk = random.choice([0, 0, 0, 0.5, 0.6]) if random.random() < (0.2 * safety_multiplier) else 0
+            harsh_acc = random.choice([0, 0, 0, 0.4, 0.5]) if random.random() < (0.1 * safety_multiplier) else 0
+            aeb_act = 1 if random.random() < (0.01 * safety_multiplier) else 0
+            if phone_use == 0:  # Only set if not already forced
+                phone_use = 1 if random.random() < (0.3 * safety_multiplier) else 0
+            
+        # Add calculated values to telemetry
+        telemetry.update({
+            
+            # === UPDATED TELEMETRY WITH INTELLIGENT CONDITIONS ===
+            'tire_fl': round(tire_fl, 1),
+            'tire_fr': round(tire_fr, 1), 
+            'tire_rl': round(tire_rl, 1),
+            'tire_rr': round(tire_rr, 1),
+            'tire_temp_max': random.randint(90, 130),
+            
+            # === SAFETY-CRITICAL FIELDS (Intelligent + Forced) ===
+            'harsh_brk': harsh_brk,
+            'harsh_acc': harsh_acc,
+            'harsh_turn': random.choice([0, 0, 0, 50, 60]) if random.random() < 0.02 else 0,
+            'speed_viol': 1 if current_speed > 65 else 0,
+            'aeb_act': aeb_act,
+            'abs_act': 1 if random.random() < 0.005 else 0,
+            'esc_act': 1 if random.random() < 0.003 else 0,
+            'airbag_warn': 1 if random.random() < 0.0001 else 0,
+            'seatbelt': seatbelt,
+            'phone_use': phone_use,
+            'windows_up': random.choice([1, 1, 0]),       # Usually up  
+            'trunk_locked': random.choice([1, 1, 1, 0]),  # Usually locked
+            'alarm_armed': random.choice([1, 1, 0]),      # Often armed
+            'keyless_entry': random.choice([1, 0]),       # Key proximity
+            
+            # === VEHICLE CONTROL SYSTEMS ===
+            'parking_brake': 1 if current_speed == 0 else random.choice([0, 0, 0, 1]),
+            'cruise_control': 1 if current_speed > 35 else 0,
+            'traction_control': 1,  # Usually enabled
+            'stability_control': 1, # Usually enabled
+            
+            # === CLIMATE & COMFORT ===
+            'hvac_on': random.choice([1, 1, 0]),  # Usually on
+            'target_temp': random.randint(68, 76), # Target temperature F
+            'cabin_temp': random.randint(65, 80),  # Actual cabin temp F
+            'seat_heat_driver': random.choice([0, 0, 1, 2]),  # Heat level 0-3
+            
+            # === LIGHTING SYSTEMS ===
+            'headlights': random.choice([0, 1, 2]),  # 0=off, 1=auto, 2=on
+            'hazard_lights': random.choice([0, 0, 0, 1]),  # Emergency only
+            'turn_signal_active': random.choice([0, 0, 0, 1]),
+            
+            # === ELECTRICAL SYSTEMS ===
+            'alternator_output': round(random.uniform(13.8, 14.4), 1),
+            
+            # === EV-SPECIFIC FIELDS (30% of fleet) ===
+            # Determine if this is an EV based on vehicle ID hash
+            'is_ev': hash(vehicle_id) % 10 < 3,  # 30% EV fleet
+            
+            # EV Fields (only populated for EVs)
+            'soc': random.randint(15, 95) if hash(vehicle_id) % 10 < 3 else None,  # State of charge %
+            'volt': round(random.uniform(350, 420), 1) if hash(vehicle_id) % 10 < 3 else None,  # HV battery voltage
+            'regen_pwr': round(random.uniform(-30, 0), 1) if (hash(vehicle_id) % 10 < 3 and current_speed > 10) else (0 if hash(vehicle_id) % 10 < 3 else None),  # Regenerative power kW
+            
+            # ICE Fields (only populated for ICE vehicles)  
+            'fuel_rate': round(random.uniform(8.0, 15.0), 1) if hash(vehicle_id) % 10 >= 3 else None,  # Fuel consumption
+            'fuel_lvl': random.randint(10, 95) if hash(vehicle_id) % 10 >= 3 else None,  # Fuel level %
+            
+            # === CONNECTIVITY ===
+            'wifi_connected': random.choice([0, 1]),
+            'bluetooth_devices': random.randint(0, 3),  # Connected devices
+            'navigation_active': random.choice([1, 0]) if previous_state.engine_on else 0,
+            
+            # === COMMERCIAL VEHICLE SPECIFIC ===
+            'air_pressure': random.randint(90, 125),  # PSI air brakes
+            'hydraulic_pressure': random.randint(1800, 2200),  # PSI
+            
+        })
+        
+        # === MAINTENANCE INDICATORS (Progressive + Intelligent) ===
+        # Occasionally generate maintenance alert conditions (10% chance)
+        maintenance_alert_chance = random.random() < 0.1
+        
+        telemetry.update({
+            'oil_life': round(random.uniform(5, 15), 1) if maintenance_alert_chance else round(oil_life, 1),  # Sometimes low oil life
+            'brake_wear': round(random.uniform(10, 25), 1) if maintenance_alert_chance else round(brake_wear, 1),  # Sometimes low brake wear
+            'filter_life': random.randint(5, 20) if maintenance_alert_chance else random.randint(20, 100),  # Sometimes low filter life
+            'tire_tread_fl': round(random.uniform(1.5, 3.5), 1) if maintenance_alert_chance else round(random.uniform(4.0, 10.0), 1),  # Sometimes low tread
+            'tire_tread_fr': round(random.uniform(1.5, 3.5), 1) if maintenance_alert_chance else round(random.uniform(4.0, 10.0), 1),
+            'tire_tread_rl': round(random.uniform(1.5, 3.5), 1) if maintenance_alert_chance else round(random.uniform(4.0, 10.0), 1),
+            'tire_tread_rr': round(random.uniform(1.5, 3.5), 1) if maintenance_alert_chance else round(random.uniform(4.0, 10.0), 1),
+            'engine_hours_total': random.randint(8500, 12000) if maintenance_alert_chance else random.randint(5000, 8000),  # Sometimes high hours
+            'idle_hours_total': random.randint(1000, 3000),  # Total idle hours
+            
+            # === MAINTENANCE PROCESSOR COMPATIBLE FIELDS ===
+            'engineTemp': round(random.uniform(220, 240), 1) if maintenance_alert_chance else round(engine_temp, 1),  # Sometimes overheating
+            'oilPressure': round(random.uniform(10, 20), 1) if maintenance_alert_chance else round(random.uniform(25, 45), 1),  # Sometimes low pressure
+            'coolant_temp': round(random.uniform(215, 230), 1) if maintenance_alert_chance else round(random.uniform(180, 210), 1),  # Sometimes overheating
+            'batteryVoltage': round(random.uniform(11.5, 12.0), 1) if maintenance_alert_chance else round(random.uniform(12.2, 14.4), 1),  # Sometimes low voltage
+            'dtc_codes_active': 1 if maintenance_alert_chance or random.random() < 0.05 else 0,  # Higher chance with maintenance issues
+            'eng_temp': round(engine_temp, 1),  # Progressive engine temperature
+            'oil_press': round(random.uniform(20, 80), 1) if previous_state.engine_on else 0,
+            'coolant_temp': round(engine_temp - random.uniform(10, 20), 1),  # Related to engine temp
+            'dtc_codes_active': random.choice([0, 0, 0, 1]),  # Diagnostic codes
+        })
         
         # Calculate and add trip progress information
         if previous_state.route:
@@ -399,10 +636,15 @@ class RealtimeTelemetrySimulator:
         if engine_event:
             telemetry['engineEvent'] = engine_event
         
-        # Add maintenance alerts (simulated)
-        maintenance_alerts = self.generate_maintenance_alerts(telemetry, force_maintenance_alert)
-        if maintenance_alerts:
-            telemetry['maintenanceAlerts'] = maintenance_alerts
+        # Raw telemetry contains all fields needed for maintenance analysis
+        # MaintenanceProcessor will analyze these fields to detect maintenance needs:
+        # - oil_life, brake_wear, filter_life (maintenance indicators)
+        # - eng_temp, oil_press, coolant_temp (engine health)
+        # - tire_tread_fl/fr/rl/rr (tire wear)
+        # - engine_hours_total, idle_hours_total (usage patterns)
+        # - dtc_codes_active (diagnostic trouble codes)
+        
+        # NO maintenanceAlerts array - let Flink MaintenanceProcessor handle all detection
         
         # Add safety alerts (simulated) - DISABLED to prevent conflicts with detect_safety_events
         # safety_alerts = self.generate_safety_alerts(telemetry)
@@ -821,9 +1063,18 @@ class RealtimeTelemetrySimulator:
                 sys.stdout.flush()
                 return None
                 
+            cert_data = response['Item']
             print(f"✅ Certificate found for vehicleId: {vehicle_id}")
+            
+            # Check if certificate has required fields
+            if 'certificatePem' not in cert_data or 'privateKey' not in cert_data:
+                print(f"❌ Certificate for {vehicle_id} missing required fields (certificatePem, privateKey)")
+                print(f"🔍 Available fields: {list(cert_data.keys())}")
+                sys.stdout.flush()
+                return None
+                
             sys.stdout.flush()
-            return response['Item']
+            return cert_data
         except Exception as e:
             print(f"❌ Error getting certificate for {vehicle_id}: {e}")
             import sys
@@ -833,6 +1084,8 @@ class RealtimeTelemetrySimulator:
     def create_mqtt_connection(self, vehicle_id: str, vin: str = None):
         """Create MQTT connection using vehicle's X.509 certificate"""
         if not MQTT_AVAILABLE:
+            print(f"❌ MQTT not available - cannot create connection for {vehicle_id}")
+            sys.stdout.flush()
             return None
             
         # If only one parameter passed (old style), treat it as VIN and derive vehicle_id
@@ -892,6 +1145,10 @@ class RealtimeTelemetrySimulator:
             return client
             
         except Exception as e:
+            print(f"❌ Error creating MQTT connection for {vehicle_id}: {e}")
+            import traceback
+            traceback.print_exc()
+            sys.stdout.flush()
             return None
             
         try:
@@ -1077,6 +1334,9 @@ class RealtimeTelemetrySimulator:
         vehicle_id = vehicle['vehicleId']
         vin = vehicle.get('vin', vehicle_id)
         
+        print(f"🔍 DEBUG: Function started for {vehicle_id}")
+        sys.stdout.flush()
+        
         print(f"🚗 Starting telemetry simulation for {vehicle_id} - {trips_count} trips")
         self.logger.info(f"🚗 Starting telemetry simulation for {vehicle_id} - {trips_count} trips")
         sys.stdout.flush()
@@ -1094,7 +1354,7 @@ class RealtimeTelemetrySimulator:
             print(f"   - Reason code: {reason_code}")
             print(f"   - Flags: {flags}")
             sys.stdout.flush()
-            if reason_code == 0:
+            if reason_code == 0 or str(reason_code) == "Success":
                 connected = True
                 connecting = False
                 print(f"✅ MQTT connected to AWS IoT Core for {vehicle_id}")
@@ -1199,18 +1459,30 @@ class RealtimeTelemetrySimulator:
             self.logger.info(f"✅ Successfully connected to IoT Core for {vehicle_id}")
             sys.stdout.flush()
             
-            # Wait a bit after connection before proceeding
-            time.sleep(2)
+            # Proceed directly to callback setup (removed problematic sleep)
+            print(f"🔍 DEBUG: Proceeding directly to callback setup")
+            sys.stdout.flush()
             
         except Exception as e:
             print(f"❌ Failed to connect to IoT Core for {vehicle_id}: {e}")
+            print(f"🔍 DEBUG: Exception type: {type(e)}")
+            print(f"🔍 DEBUG: Exception args: {e.args}")
+            import traceback
+            traceback.print_exc()
             self.logger.error(f"❌ Failed to connect to IoT Core for {vehicle_id}: {e}")
             sys.stdout.flush()
             if mqtt_client:
                 mqtt_client.loop_stop()
             return  # Exit this vehicle's simulation
         
+        print(f"🔍 DEBUG: Past exception handler, about to setup callbacks")
+        sys.stdout.flush()
+        
+        print(f"🔍 DEBUG: About to print callback setup message")
+        sys.stdout.flush()
         print(f"🔧 Setting up MQTT callbacks and subscriptions for {vehicle_id}")
+        print(f"🔍 DEBUG: Printed callback setup message")
+        sys.stdout.flush()
         self.logger.info(f"🔧 Setting up MQTT callbacks and subscriptions for {vehicle_id}")
         
         start_time = time.time()
@@ -1228,10 +1500,16 @@ class RealtimeTelemetrySimulator:
         # Update the callback
         mqtt_client.on_publish = on_publish
         
+        print(f"🔍 DEBUG: Set on_publish callback")
+        sys.stdout.flush()
+        
         # Setup commands subscription for this vehicle
         print(f"📡 Skipping commands subscription for {vehicle_id} (not needed for telemetry)")
         # self.setup_commands_subscription(vehicle_id, mqtt_client)
         print(f"✅ Commands subscription setup complete for {vehicle_id}")
+        
+        print(f"🔍 DEBUG: Past subscription setup")
+        sys.stdout.flush()
         
         # Initialize heartbeat tracking
         last_heartbeat = 0
@@ -1239,9 +1517,14 @@ class RealtimeTelemetrySimulator:
         
         print(f"🚀 Starting telemetry loop for {vehicle_id}")
         self.logger.info(f"🚀 Starting telemetry loop for {vehicle_id}")
+        print(f"🔍 DEBUG: self.running = {self.running}, trips_count = {trips_count}")
+        sys.stdout.flush()
         
         try:
             completed_trips = 0
+            
+            print(f"🔍 DEBUG: About to enter while loop - self.running={self.running}, completed_trips={completed_trips}, trips_count={trips_count}")
+            sys.stdout.flush()
             
             while self.running and completed_trips < trips_count:
                 try:
@@ -1254,6 +1537,11 @@ class RealtimeTelemetrySimulator:
                     
                     # Get or create vehicle state
                     vehicle_state = self.vehicle_states.get(vehicle_id, VehicleState())
+                    
+                    # Apply forced alert parameters to vehicle state
+                    if vehicle_id not in self.vehicle_states:
+                        self.apply_forced_alert_params(vehicle_state)
+                        self.vehicle_states[vehicle_id] = vehicle_state
                     
                     # Generate standardized telemetry data
                     telemetry_data = self.generate_telemetry_data(vehicle, vehicle_state, force_maintenance_alert)
@@ -1288,15 +1576,14 @@ class RealtimeTelemetrySimulator:
                         self.vehicle_states[vehicle_id] = vehicle_state
                         continue
                     
-                    # Detect safety events and add to telemetry payload
-                    safety_events = self.detect_safety_events(telemetry_data, vehicle_state)
-                    if safety_events:
-                        telemetry_data['safetyAlerts'] = safety_events
-                        
-                        # Publish emergency alerts for critical safety events
-                        for event in safety_events:
-                            if event.get('severity') == 'HIGH':
-                                self.publish_emergency_alert(vehicle_id, vin, event.get('eventType', 'UNKNOWN'), mqtt_client)
+                    # Raw telemetry contains all fields needed for safety analysis
+                    # SafetyProcessor will analyze these fields to detect safety events:
+                    # - harsh_brk, harsh_acc, harsh_turn, speed_viol (driver behavior)
+                    # - eng_temp, tire_fl/fr/rl/rr, battery_voltage (vehicle health)
+                    # - seatbelt, phone_use (driver safety)
+                    # - aeb_act, abs_act, esc_act (safety systems)
+                    
+                    # NO safetyAlerts array - let Flink SafetyProcessor handle all detection
                     
                     # Update vehicle state
                     vehicle_state.last_speed = telemetry_data.get('speed', 0)
@@ -1312,13 +1599,10 @@ class RealtimeTelemetrySimulator:
                     # Human readable telemetry summary
                     city_name = getattr(self, 'current_city', 'Unknown')
                     progress = telemetry_data.get('tripProgress', {}).get('progressPercentage', 0)
-                    alerts = len(telemetry_data.get('safetyAlerts', []))
-                    maintenance = len(telemetry_data.get('maintenanceAlerts', []))
                     
                     print(f"📡 {vehicle_id}: {telemetry_data['speed']:.1f} km/h at ({telemetry_data['lat']:.4f}, {telemetry_data['lng']:.4f}) in {city_name}")
                     print(f"   Trip progress: {progress:.1f}% | Engine: {telemetry_data['engineRPM']} RPM, {telemetry_data['engineTemp']:.1f}°C")
-                    if alerts > 0 or maintenance > 0:
-                        print(f"   ⚠️ Alerts: {alerts} safety, {maintenance} maintenance")
+                    print(f"   Raw telemetry: {len([k for k in telemetry_data.keys() if not k.startswith('trip')])} fields → Flink processors")
                     
                     # Publish to Basic Ingest topic with QoS 0 (fire-and-forget)
                     try:
@@ -1372,7 +1656,8 @@ class RealtimeTelemetrySimulator:
                 except:
                     pass
         
-        print(f"✅ Telemetry simulation completed for {vehicle_id} ({message_count} messages sent)")
+        print(f"✅ Telemetry simulation completed for {vehicle_id}")
+        print(f"🔍 DEBUG: Function ending normally")
         sys.stdout.flush()
     
     def start_simulation(self, trips_per_vehicle: int = 3, max_vehicles: int = 10, vehicles: List[Dict] = None, force_maintenance_alert: bool = False):
@@ -1432,7 +1717,7 @@ class RealtimeTelemetrySimulator:
         try:
             for thread in self.simulation_threads:
                 print(f"🔄 Waiting for thread {thread.name} to complete...")
-                thread.join(timeout=10)  # 10 second timeout
+                thread.join(timeout=60)  # 60 second timeout for longer simulations
                 if thread.is_alive():
                     print(f"⚠️ Thread {thread.name} is still running after timeout")
                 else:
@@ -1476,7 +1761,78 @@ class RealtimeTelemetrySimulator:
         except Exception as e:
             print(f"⚠️ Error during cleanup: {e}")
 
-        print("✅ Telemetry simulation stopped")
+    def apply_forced_alert_params(self, vehicle_state: VehicleState):
+        """Apply forced alert parameters from API to vehicle state"""
+        vehicle_state.force_tire_blowout = self.force_tire_blowout
+        vehicle_state.force_engine_overheat = self.force_engine_overheat
+        vehicle_state.force_battery_critical = self.force_battery_critical
+        vehicle_state.force_brake_failure = self.force_brake_failure
+        vehicle_state.force_oil_pressure_low = self.force_oil_pressure_low
+        vehicle_state.force_hv_battery_degradation = self.force_hv_battery_degradation
+        vehicle_state.force_safety_event = self.force_safety_event
+        vehicle_state.safety_rate = getattr(self, 'safety_rate', 1.0)
+        
+        print(f"🎯 Applied forced alert params: tire_blowout={self.force_tire_blowout}, "
+              f"engine_overheat={self.force_engine_overheat}, safety_event={self.force_safety_event}")
+
+    def update_vehicle_conditions(self, vehicle_state: VehicleState, current_speed: float, acceleration: float, deceleration: float):
+        """Update vehicle conditions based on driving behavior and trip progression"""
+        
+        # Update trip distance (approximate)
+        if vehicle_state.last_speed > 0:
+            distance_increment = (current_speed + vehicle_state.last_speed) / 2 * (15 / 3600)  # 15 seconds in hours
+            vehicle_state.trip_distance += distance_increment
+        
+        # Track high speed driving (affects engine temp)
+        if current_speed > 60:
+            vehicle_state.high_speed_time += 15  # 15 second intervals
+            
+        # Progressive tire pressure loss (very gradual)
+        if random.random() < 0.001:  # 0.1% chance per telemetry point
+            vehicle_state.tire_pressure_fl -= random.uniform(0.1, 0.3)
+            vehicle_state.tire_pressure_fr -= random.uniform(0.1, 0.3)
+            vehicle_state.tire_pressure_rl -= random.uniform(0.1, 0.3)
+            vehicle_state.tire_pressure_rr -= random.uniform(0.1, 0.3)
+            
+        # Engine temperature increases with high speed driving
+        if current_speed > 70:
+            vehicle_state.engine_temp_base += random.uniform(0.1, 0.5)
+        elif current_speed < 30:
+            vehicle_state.engine_temp_base -= random.uniform(0.1, 0.3)  # Cool down
+            
+        # Battery degradation over time
+        if random.random() < 0.0001:  # Very rare degradation
+            vehicle_state.battery_voltage_base -= random.uniform(0.01, 0.05)
+            
+        # Oil life decreases with distance and engine load
+        oil_consumption = vehicle_state.trip_distance * 0.001  # Base consumption
+        if current_speed > 60:
+            oil_consumption *= 1.5  # Higher consumption at high speed
+        vehicle_state.oil_life = max(0, vehicle_state.oil_life - oil_consumption)
+        
+        # Brake wear increases with hard braking
+        if deceleration < -0.3:  # Hard braking detected
+            vehicle_state.hard_braking_count += 1
+            vehicle_state.brake_wear = max(0, vehicle_state.brake_wear - random.uniform(0.1, 0.5))
+            
+        # EV battery discharge (for EV vehicles)
+        if vehicle_state.soc_base is not None:
+            # SOC decreases with speed and distance
+            discharge_rate = 0.001 + (current_speed * 0.0001)  # Higher discharge at higher speeds
+            vehicle_state.soc_base = max(0, vehicle_state.soc_base - discharge_rate)
+            
+        # Clamp values to realistic ranges
+        vehicle_state.tire_pressure_fl = max(5.0, min(40.0, vehicle_state.tire_pressure_fl))
+        vehicle_state.tire_pressure_fr = max(5.0, min(40.0, vehicle_state.tire_pressure_fr))
+        vehicle_state.tire_pressure_rl = max(5.0, min(40.0, vehicle_state.tire_pressure_rl))
+        vehicle_state.tire_pressure_rr = max(5.0, min(40.0, vehicle_state.tire_pressure_rr))
+        vehicle_state.engine_temp_base = max(70.0, min(260.0, vehicle_state.engine_temp_base))
+        vehicle_state.battery_voltage_base = max(10.0, min(15.0, vehicle_state.battery_voltage_base))
+        
+        if vehicle_state.soc_base is not None:
+            vehicle_state.soc_base = max(0.0, min(100.0, vehicle_state.soc_base))
+        if vehicle_state.hv_voltage_base is not None:
+            vehicle_state.hv_voltage_base = max(250.0, min(450.0, vehicle_state.hv_voltage_base))
     
     def detect_safety_events(self, current_telemetry: Dict, previous_state: VehicleState) -> List[Dict]:
         """Detect safety events from telemetry data - uses exact route coordinates"""
@@ -1648,7 +2004,7 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description='Real-time telemetry simulator for CMS UI')
-    parser.add_argument('--profile', default='target-account', help='AWS profile name')
+    parser.add_argument('--profile', default='default', help='AWS profile name')
     parser.add_argument('--region', default='us-east-1', help='AWS region')
     parser.add_argument('--trips', type=int, default=3, help='Number of trips per vehicle to simulate')
     parser.add_argument('--vehicles', type=int, default=10, help='Maximum number of vehicles to simulate')
@@ -1664,6 +2020,18 @@ def main():
     parser.add_argument('--force-maintenance-alert', action='store_true', help='Force generation of maintenance alert for each trip')
     parser.add_argument('--driver-selection', default='consistent', choices=['random', 'consistent', 'specific'], help='Driver selection mode')
     parser.add_argument('--driver-id', help='Specific driver ID to use (when --driver-selection=specific)')
+    
+    # === FORCED ALERT PARAMETERS ===
+    parser.add_argument('--force-tire-blowout', action='store_true', help='Force tire pressure critical alerts')
+    parser.add_argument('--force-engine-overheat', action='store_true', help='Force engine overheating alerts')
+    parser.add_argument('--force-battery-critical', action='store_true', help='Force battery critical alerts')
+    parser.add_argument('--force-brake-failure', action='store_true', help='Force brake system failure alerts')
+    parser.add_argument('--force-oil-pressure-low', action='store_true', help='Force oil pressure low alerts')
+    parser.add_argument('--force-hv-battery-degradation', action='store_true', help='Force EV battery degradation alerts')
+    parser.add_argument('--force-safety-event', choices=['hard_braking', 'collision_avoidance', 'seatbelt_violation', 'phone_usage'], 
+                       help='Force specific safety event type')
+    parser.add_argument('--safety-rate', type=float, default=1.0, help='Safety event probability multiplier (0.0-1.0)')
+    parser.add_argument('--no-progressive-degradation', action='store_true', help='Disable intelligent condition progression')
     
     args = parser.parse_args()
     
@@ -1686,10 +2054,24 @@ def main():
         city_lat, city_lng = city_coordinates[args.city]
         print(f"🌍 Using {args.city.upper()} coordinates: {city_lat}, {city_lng}")
     
+    # Prepare forced alert parameters
+    alert_params = {
+        'force_tire_blowout': args.force_tire_blowout,
+        'force_engine_overheat': args.force_engine_overheat,
+        'force_battery_critical': args.force_battery_critical,
+        'force_brake_failure': args.force_brake_failure,
+        'force_oil_pressure_low': args.force_oil_pressure_low,
+        'force_hv_battery_degradation': args.force_hv_battery_degradation,
+        'force_safety_event': args.force_safety_event,
+        'safety_rate': args.safety_rate,
+        'progressive_degradation': not args.no_progressive_degradation
+    }
+    
     simulator = RealtimeTelemetrySimulator(
         profile_name=args.profile, 
         region=args.region,
-        certificates_table_name=args.certificates_table
+        certificates_table_name=args.certificates_table,
+        **alert_params
     )
     
     # Set city coordinates for route generation

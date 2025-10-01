@@ -1,5 +1,5 @@
 # CMS Simplified Deployment Makefile
-.PHONY: help install bootstrap deploy-all clean
+.PHONY: help install bootstrap deploy-all clean infrastructure
 
 # Default target
 .DEFAULT_GOAL := help
@@ -33,6 +33,7 @@ help: ## Show this help message
 	@echo "============================="
 	@echo ""
 	@echo "$(GREEN)🎯 Deployment Phases:$(NC)"
+	@echo "  make infrastructure      - Infrastructure Foundation (VPC, Subnets, ElastiCache)"
 	@echo "  make phase1              - Fleet Manager Interface (IoT, Storage, UI, Lambda, Cognito, S3)"
 	@echo "  make phase2              - Fleet Management Interface (historical data injection)"
 	@echo "  make phase3              - Telemetry Pipeline (MSK Deployment)"
@@ -87,6 +88,7 @@ deploy: ## Interactive deployment with profile and phase selection
 	echo "$(GREEN)✅ Selected stage: $$selected_stage$(NC)"; \
 	echo ""; \
 	echo "$(GREEN)Deployment Options:$(NC)"; \
+	echo "0. Infrastructure Foundation (VPC, Subnets, ElastiCache)"; \
 	echo "1. Fleet Manager Interface (IoT, Storage, UI, Lambda, Cognito, S3)"; \
 	echo "2. Fleet Management Interface (historical data injection)"; \
 	echo "3. Telemetry Pipeline (MSK Deployment)"; \
@@ -96,9 +98,11 @@ deploy: ## Interactive deployment with profile and phase selection
 	echo "7. Complete Pipeline Configuration"; \
 	echo "8. Deploy All Phases"; \
 	echo ""; \
-	read -p "Select deployment option (1-8): " deploy_choice; \
+	read -p "Select deployment option (0-8): " deploy_choice; \
 	echo ""; \
 	case $$deploy_choice in \
+		0) echo "$(BLUE)🚀 Infrastructure Foundation$(NC)"; \
+		   $(MAKE) infrastructure AWS_PROFILE=$$selected_profile DEPLOYMENT_STAGE=$$selected_stage ;; \
 		1) echo "$(BLUE)🚀 Phase 1: Fleet Manager Interface$(NC)"; \
 		   $(MAKE) phase1 AWS_PROFILE=$$selected_profile DEPLOYMENT_STAGE=$$selected_stage ;; \
 		2) echo "$(BLUE)🚀 Phase 2: Fleet Management Interface$(NC)"; \
@@ -137,6 +141,22 @@ build-ui: ## Build the React frontend application
 	@echo "$(BLUE)🔨 Building React frontend...$(NC)"
 	@cd ../modules/cms_ui/source/frontend && npm run build
 	@echo "$(GREEN)✅ Frontend build completed$(NC)"
+
+infrastructure: ## Infrastructure Foundation (VPC, Subnets, ElastiCache)
+	@echo "$(BLUE)🏗️  Infrastructure Foundation$(NC)"
+	@echo "Deploying: VPC, Subnets, Security Groups, ElastiCache Redis"
+	@echo "$(YELLOW)⚠️  This creates the foundation for all other services$(NC)"
+	@source .venv/bin/activate && \
+	CDK_DEFAULT_ACCOUNT=$$(aws sts get-caller-identity --profile $(AWS_PROFILE) --query Account --output text) \
+	CDK_DEFAULT_REGION=$(AWS_REGION) \
+	DEPLOYMENT_STAGE=$(DEPLOYMENT_STAGE) AWS_PROFILE=$(AWS_PROFILE) \
+	cdk deploy cms-$(DEPLOYMENT_STAGE)-infrastructure --require-approval never --profile $(AWS_PROFILE)
+	@echo "$(GREEN)✅ Infrastructure Foundation Complete$(NC)"
+	@echo "$(BLUE)📋 Infrastructure Details:$(NC)"
+	@REDIS_ENDPOINT=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-infrastructure --query 'Stacks[0].Outputs[?OutputKey==`RedisEndpoint`].OutputValue' --output text --profile $(AWS_PROFILE) 2>/dev/null || echo "Not available"); \
+	VPC_ID=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-infrastructure --query 'Stacks[0].Outputs[?OutputKey==`VpcId`].OutputValue' --output text --profile $(AWS_PROFILE) 2>/dev/null || echo "Not available"); \
+	echo "├── VPC ID: $$VPC_ID"; \
+	echo "└── Redis Endpoint: $$REDIS_ENDPOINT"
 
 phase1: build-ui ## Phase 1: Fleet Manager Interface (IoT, Storage, UI, Lambda, Cognito, S3)
 	@echo "$(BLUE)🚀 Phase 1: Fleet Manager Interface$(NC)"
@@ -218,6 +238,7 @@ configure-flink: ## Configure Flink applications
 	TRIPS_TABLE=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-storage --query 'Stacks[0].Outputs[?OutputKey==`TripsTableName`].OutputValue' --output text --profile $(AWS_PROFILE)); \
 	SAFETY_TABLE=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-storage --query 'Stacks[0].Outputs[?OutputKey==`SafetyEventsTableName`].OutputValue' --output text --profile $(AWS_PROFILE)); \
 	MAINTENANCE_TABLE=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-storage --query 'Stacks[0].Outputs[?OutputKey==`MaintenanceEventsTableName`].OutputValue' --output text --profile $(AWS_PROFILE)); \
+	REDIS_ENDPOINT=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-infrastructure --query 'Stacks[0].Outputs[?OutputKey==`RedisEndpoint`].OutputValue' --output text --profile $(AWS_PROFILE)); \
 	echo '{"ApplicationCodeConfigurationUpdate":{"CodeContentUpdate":{"S3ContentLocationUpdate":{"BucketARNUpdate":"arn:aws:s3:::'$$BUCKET_NAME'","FileKeyUpdate":"jars/cms-telemetry-processor-1.0.0.zip"}},"CodeContentTypeUpdate":"ZIPFILE"}}' > /tmp/flink-jar-update.json; \
 	aws kinesisanalyticsv2 list-applications --region $(AWS_REGION) --profile $(AWS_PROFILE) --query 'ApplicationSummaries[?contains(ApplicationName, `cms-$(DEPLOYMENT_STAGE)-flink`)].ApplicationName' --output text | tr '\t' '\n' | while read app; do \
 		if [ -n "$$app" ]; then \
@@ -253,7 +274,7 @@ configure-flink: ## Configure Flink applications
 					continue; \
 					;; \
 			esac; \
-			echo "{\"EnvironmentPropertyUpdates\":{\"PropertyGroups\":[{\"PropertyGroupId\":\"consumer.config.0\",\"PropertyMap\":{\"PROCESSOR_TYPE\":\"$$PROCESSOR_TYPE\",\"bootstrap.servers\":\"$$BOOTSTRAP_SERVERS\",\"security.protocol\":\"SASL_SSL\",\"sasl.mechanism\":\"AWS_MSK_IAM\",\"sasl.jaas.config\":\"software.amazon.msk.auth.iam.IAMLoginModule required;\",\"sasl.client.callback.handler.class\":\"software.amazon.msk.auth.iam.IAMClientCallbackHandler\",\"auto.offset.reset\":\"earliest\",\"enable.auto.commit\":\"false\",\"group.id\":\"$$GROUP_ID\",\"aws.region\":\"$(AWS_REGION)\",\"TABLE_NAME\":\"$$TABLE_NAME\"}}]}}" > /tmp/flink-env-update-$$app.json; \
+			echo "{\"EnvironmentPropertyUpdates\":{\"PropertyGroups\":[{\"PropertyGroupId\":\"consumer.config.0\",\"PropertyMap\":{\"PROCESSOR_TYPE\":\"$$PROCESSOR_TYPE\",\"bootstrap.servers\":\"$$BOOTSTRAP_SERVERS\",\"security.protocol\":\"SASL_SSL\",\"sasl.mechanism\":\"AWS_MSK_IAM\",\"sasl.jaas.config\":\"software.amazon.msk.auth.iam.IAMLoginModule required;\",\"sasl.client.callback.handler.class\":\"software.amazon.msk.auth.iam.IAMClientCallbackHandler\",\"auto.offset.reset\":\"earliest\",\"enable.auto.commit\":\"false\",\"group.id\":\"$$GROUP_ID\",\"aws.region\":\"$(AWS_REGION)\",\"TABLE_NAME\":\"$$TABLE_NAME\",\"REDIS_ENDPOINT\":\"$$REDIS_ENDPOINT\"}}]}}" > /tmp/flink-env-update-$$app.json; \
 			CURRENT_VERSION=$$(aws kinesisanalyticsv2 describe-application --application-name "$$app" --region $(AWS_REGION) --profile $(AWS_PROFILE) --query 'ApplicationDetail.ApplicationVersionId' --output text); \
 			aws kinesisanalyticsv2 update-application --application-name "$$app" --current-application-version-id $$CURRENT_VERSION --region $(AWS_REGION) --profile $(AWS_PROFILE) --application-configuration-update file:///tmp/flink-env-update-$$app.json >/dev/null 2>&1 && echo "✅ Updated env properties for $$app ($$PROCESSOR_TYPE)" || echo "❌ Failed to update env properties for $$app"; \
 			NEW_VERSION=$$(aws kinesisanalyticsv2 describe-application --application-name "$$app" --region $(AWS_REGION) --profile $(AWS_PROFILE) --query 'ApplicationDetail.ApplicationVersionId' --output text); \
@@ -332,14 +353,14 @@ configure-pipeline: ## Configure IoT rules and Flink applications
 	@cd scripts && AWS_PROFILE=$(AWS_PROFILE) DEPLOYMENT_STAGE=$(DEPLOYMENT_STAGE) python3 complete_integration.py
 	@echo "$(GREEN)✅ Pipeline configuration complete$(NC)"
 
-deploy-all: phase1 phase2 phase3 phase4 phase5 phase6 ## Deploy all phases sequentially
+deploy-all: infrastructure phase1 phase2 phase3 phase4 phase5 phase6 ## Deploy all phases sequentially
 	@echo "$(GREEN)🎉 All phases deployed successfully!$(NC)"
 	@$(MAKE) status
 
 status: ## Show deployment status
 	@echo "$(BLUE)📊 Deployment Status$(NC)"
 	@echo "===================="
-	@for stack in cms-$(DEPLOYMENT_STAGE)-storage cms-$(DEPLOYMENT_STAGE)-iot cms-$(DEPLOYMENT_STAGE)-ui cms-$(DEPLOYMENT_STAGE)-msk cms-$(DEPLOYMENT_STAGE)-flink; do \
+	@for stack in cms-$(DEPLOYMENT_STAGE)-infrastructure cms-$(DEPLOYMENT_STAGE)-storage cms-$(DEPLOYMENT_STAGE)-iot cms-$(DEPLOYMENT_STAGE)-ui cms-$(DEPLOYMENT_STAGE)-msk cms-$(DEPLOYMENT_STAGE)-flink; do \
 		status=$$(aws cloudformation describe-stacks --stack-name $$stack --query 'Stacks[0].StackStatus' --output text --profile $(AWS_PROFILE) 2>/dev/null || echo "NOT_DEPLOYED"); \
 		if [ "$$status" = "CREATE_COMPLETE" ] || [ "$$status" = "UPDATE_COMPLETE" ]; then \
 			echo "├── $$stack: $(GREEN)✅ $$status$(NC)"; \

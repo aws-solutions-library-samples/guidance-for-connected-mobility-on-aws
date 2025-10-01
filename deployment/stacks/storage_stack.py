@@ -5,8 +5,13 @@ Storage Stack - DynamoDB tables matching existing target-account schema exactly
 from aws_cdk import (
     Stack,
     aws_dynamodb as dynamodb,
+    aws_elasticache as elasticache,
+    aws_ec2 as ec2,
+    aws_s3 as s3,
     CfnOutput,
-    RemovalPolicy
+    RemovalPolicy,
+    Duration,
+    Fn
 )
 from constructs import Construct
 from typing import Dict
@@ -35,7 +40,8 @@ class StorageStack(Stack):
             removal_policy=RemovalPolicy.RETAIN,
             point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(point_in_time_recovery_enabled=True),
             stream=dynamodb.StreamViewType.NEW_AND_OLD_IMAGES,
-            time_to_live_attribute="ttl"
+            time_to_live_attribute="ttl",
+            encryption=dynamodb.TableEncryption.AWS_MANAGED
         )
         
         # Add GSI for tripId-timestamp queries
@@ -63,7 +69,8 @@ class StorageStack(Stack):
             removal_policy=RemovalPolicy.RETAIN,
             point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(point_in_time_recovery_enabled=True),
             stream=dynamodb.StreamViewType.NEW_AND_OLD_IMAGES,
-            time_to_live_attribute="ttl"
+            time_to_live_attribute="ttl",
+            encryption=dynamodb.TableEncryption.AWS_MANAGED
         )
         
         # Add GSI for vehicleId queries (REQUIRED for Lambda API)
@@ -87,7 +94,8 @@ class StorageStack(Stack):
             removal_policy=RemovalPolicy.RETAIN,
             point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(point_in_time_recovery_enabled=True),
             stream=dynamodb.StreamViewType.NEW_AND_OLD_IMAGES,
-            time_to_live_attribute="ttl"
+            time_to_live_attribute="ttl",
+            encryption=dynamodb.TableEncryption.AWS_MANAGED
         )
         
         # Add GSI for vehicleId queries (REQUIRED for Lambda API)
@@ -103,6 +111,10 @@ class StorageStack(Stack):
         self.tables['safety_events'].add_global_secondary_index(
             index_name="tripId-index",
             partition_key=dynamodb.Attribute(
+                name="tripId",
+                type=dynamodb.AttributeType.STRING
+            )
+        )
                 name="tripId",
                 type=dynamodb.AttributeType.STRING
             )
@@ -133,7 +145,8 @@ class StorageStack(Stack):
             removal_policy=RemovalPolicy.RETAIN,
             point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(point_in_time_recovery_enabled=True),
             stream=dynamodb.StreamViewType.NEW_AND_OLD_IMAGES,
-            time_to_live_attribute="ttl"
+            time_to_live_attribute="ttl",
+            encryption=dynamodb.TableEncryption.AWS_MANAGED
         )
         
         # Add GSI for vehicleId queries (REQUIRED for Lambda API)
@@ -168,7 +181,8 @@ class StorageStack(Stack):
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=RemovalPolicy.RETAIN,
-            point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(point_in_time_recovery_enabled=True)
+            point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(point_in_time_recovery_enabled=True),
+            encryption=dynamodb.TableEncryption.AWS_MANAGED
         )
         
         # Vehicles Table - matches cms-631ca2-591631-vehicles
@@ -181,7 +195,8 @@ class StorageStack(Stack):
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=RemovalPolicy.RETAIN,
-            point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(point_in_time_recovery_enabled=True)
+            point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(point_in_time_recovery_enabled=True),
+            encryption=dynamodb.TableEncryption.AWS_MANAGED
         )
         
         # Vehicle Certificates Table - matches cms-631ca2-591631-vehicle-certificates
@@ -194,7 +209,8 @@ class StorageStack(Stack):
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=RemovalPolicy.RETAIN,
-            point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(point_in_time_recovery_enabled=True)
+            point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(point_in_time_recovery_enabled=True),
+            encryption=dynamodb.TableEncryption.AWS_MANAGED
         )
         
         # User Preferences Table - matches cms-631ca2-591631-user-preferences
@@ -207,7 +223,8 @@ class StorageStack(Stack):
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=RemovalPolicy.RETAIN,
-            point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(point_in_time_recovery_enabled=True)
+            point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(point_in_time_recovery_enabled=True),
+            encryption=dynamodb.TableEncryption.AWS_MANAGED
         )
         
         # Dashboard Metrics Cache Table - matches cms-631ca2-591631-dashboard-metrics-cache
@@ -221,7 +238,8 @@ class StorageStack(Stack):
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=RemovalPolicy.RETAIN,
             point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(point_in_time_recovery_enabled=True),
-            time_to_live_attribute="ttl"
+            time_to_live_attribute="ttl",
+            encryption=dynamodb.TableEncryption.AWS_MANAGED
         )
         
         # Drivers Table - matches cms-631ca2-591631-drivers
@@ -234,7 +252,34 @@ class StorageStack(Stack):
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=RemovalPolicy.RETAIN,
-            point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(point_in_time_recovery_enabled=True)
+            point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(point_in_time_recovery_enabled=True),
+            encryption=dynamodb.TableEncryption.AWS_MANAGED
+        )
+        
+        # S3 Datalake Bucket for Iceberg Analytics
+        self.datalake_bucket = s3.Bucket(
+            self, "DatalakeBucket",
+            bucket_name=f"{construct_id}-datalake",
+            removal_policy=RemovalPolicy.RETAIN,
+            versioned=True,
+            public_read_access=False,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            lifecycle_rules=[
+                s3.LifecycleRule(
+                    id="ArchiveOldData",
+                    enabled=True,
+                    transitions=[
+                        s3.Transition(
+                            storage_class=s3.StorageClass.INFREQUENT_ACCESS,
+                            transition_after=Duration.days(30)
+                        ),
+                        s3.Transition(
+                            storage_class=s3.StorageClass.GLACIER,
+                            transition_after=Duration.days(90)
+                        )
+                    ]
+                )
+            ]
         )
         
         # Outputs for each table
@@ -252,3 +297,19 @@ class StorageStack(Stack):
                 value=table.table_arn,
                 export_name=f"{construct_id}-{export_name}-table-arn"
             )
+        
+        # S3 Datalake Bucket Outputs
+        CfnOutput(
+            self, "DatalakeBucketName",
+            value=self.datalake_bucket.bucket_name,
+            export_name=f"{construct_id}-datalake-bucket-name"
+        )
+        
+        CfnOutput(
+            self, "DatalakeBucketArn",
+            value=self.datalake_bucket.bucket_arn,
+            export_name=f"{construct_id}-datalake-bucket-arn"
+        )
+        
+        # TODO: Add ElastiCache Redis for real-time vehicle state
+        # Will be added to MSK stack for proper VPC co-location

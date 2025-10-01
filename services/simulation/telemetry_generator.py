@@ -84,10 +84,76 @@ class TelemetryGenerator:
             "tire_rr": round(random.uniform(28, 35), 1),
             "tire_temp_max": random.randint(90, 130),
             
+            # Advanced tire monitoring
+            "tire_tread_fl": round(random.uniform(4.0, 10.0), 1),  # mm tread depth
+            "tire_tread_fr": round(random.uniform(4.0, 10.0), 1),
+            "tire_tread_rl": round(random.uniform(4.0, 10.0), 1), 
+            "tire_tread_rr": round(random.uniform(4.0, 10.0), 1),
+            
             # Maintenance indicators
             "oil_life": random.randint(20, 100),
             "brake_wear": random.randint(30, 100),
             "filter_life": random.randint(40, 100),
+            
+            # === VEHICLE SECURITY & ACCESS ===
+            "doors_locked": random.choice([1, 1, 1, 0]),  # Usually locked
+            "windows_up": random.choice([1, 1, 0]),       # Usually up
+            "trunk_locked": random.choice([1, 1, 1, 0]),  # Usually locked
+            "alarm_armed": random.choice([1, 1, 0]),      # Often armed
+            "remote_start": random.choice([0, 0, 0, 1]),  # Rarely used
+            "keyless_entry": random.choice([1, 0]),       # Key proximity
+            
+            # === VEHICLE CONTROL SYSTEMS ===
+            "parking_brake": 1 if current_speed == 0 else random.choice([0, 0, 0, 1]),
+            "cruise_control": 1 if current_speed > 35 else 0,
+            "cruise_set_speed": int(current_speed) if current_speed > 35 else 0,
+            "traction_control": 1,  # Usually enabled
+            "stability_control": 1, # Usually enabled
+            "hill_assist": random.choice([0, 0, 1]) if current_speed < 5 else 0,
+            "auto_hold": random.choice([0, 1]) if current_speed == 0 else 0,
+            
+            # === CLIMATE & COMFORT ===
+            "hvac_on": random.choice([1, 1, 0]),  # Usually on
+            "target_temp": random.randint(68, 76), # Target temperature F
+            "cabin_temp": random.randint(65, 80),  # Actual cabin temp F
+            "defrost_on": random.choice([0, 0, 0, 1]),  # Rarely on
+            "seat_heat_driver": random.choice([0, 0, 1, 2]),  # Heat level 0-3
+            "seat_heat_passenger": random.choice([0, 0, 1]),
+            
+            # === LIGHTING SYSTEMS ===
+            "headlights": random.choice([0, 1, 2]),  # 0=off, 1=auto, 2=on
+            "fog_lights": random.choice([0, 0, 0, 1]),  # Rarely on
+            "hazard_lights": random.choice([0, 0, 0, 1]),  # Emergency only
+            "turn_signal_left": random.choice([0, 0, 0, 1]),
+            "turn_signal_right": random.choice([0, 0, 0, 1]),
+            "interior_lights": random.choice([0, 1]),
+            
+            # === ELECTRICAL SYSTEMS ===
+            "battery_voltage": round(random.uniform(12.2, 14.4), 1),  # 12V system
+            "alternator_output": round(random.uniform(13.8, 14.4), 1),
+            "power_outlets_active": random.randint(0, 2),  # Number of outlets in use
+            "usb_power_draw": round(random.uniform(0, 15), 1),  # Watts
+            
+            # === CONNECTIVITY & INFOTAINMENT ===
+            "wifi_connected": random.choice([0, 1]),
+            "bluetooth_devices": random.randint(0, 3),  # Connected devices
+            "radio_on": random.choice([1, 1, 0]),  # Usually on
+            "navigation_active": random.choice([1, 0]) if self.vehicle.state == "driving" else 0,
+            "voice_command_active": random.choice([0, 0, 0, 1]),  # Rarely active
+            
+            # === COMMERCIAL VEHICLE SPECIFIC ===
+            "pto_engaged": random.choice([0, 0, 1]) if current_speed == 0 else 0,
+            "hydraulic_pressure": random.randint(1800, 2200),  # PSI
+            "air_pressure": random.randint(90, 125),  # PSI air brakes
+            "compressor_status": 1,  # Air compressor running
+            "fifth_wheel_locked": 1,  # Trailer connected
+            
+            # === MAINTENANCE PREDICTORS ===
+            "engine_hours_total": self.vehicle.engine_hours,
+            "idle_hours_total": round(self.vehicle.engine_hours * 0.15, 1),  # ~15% idle
+            "hard_braking_events": random.randint(0, 2),  # Per trip
+            "overrev_events": random.randint(0, 1),  # Rare
+            "dtc_codes_active": random.choice([0, 0, 0, 1]),  # Diagnostic codes
             
             # === DELIVERY OPERATIONS (Always Present) ===
             "on_del": random.choice([0, 1]),
