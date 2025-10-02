@@ -84,6 +84,7 @@ export default function FleetVehicleMapView() {
   // Track if user has manually interacted with the map
   const [userHasInteracted, setUserHasInteracted] = useState(false);
   const [authHelper, setAuthHelper] = useState<any>(null);
+  const [authReady, setAuthReady] = useState(false);
 
   // Setup auth helper for Amazon Location Services
   useEffect(() => {
@@ -103,18 +104,18 @@ export default function FleetVehicleMapView() {
           console.log('✅ Auth helper created successfully');
           console.log('🔍 Auth helper methods:', Object.keys(authHelper));
           
-          // Test the transformRequest function
-          if (authHelper.transformRequest) {
-            console.log('✅ transformRequest method available');
-          } else {
-            console.log('❌ transformRequest method not available');
-          }
-          
-          // Test getMapAuthenticationOptions
+          // Test the auth options
           if (authHelper.getMapAuthenticationOptions) {
             const mapAuthOptions = authHelper.getMapAuthenticationOptions();
             console.log('🔍 getMapAuthenticationOptions result:', mapAuthOptions);
           }
+          
+          // Set auth ready after a small delay to ensure credentials are available
+          setTimeout(() => {
+            setAuthReady(true);
+            console.log('🔐 Authentication ready for map tiles');
+          }, 1000);
+          
         } catch (error) {
           console.error('❌ Failed to create auth helper:', error);
           setAuthHelper(null);
@@ -183,7 +184,6 @@ export default function FleetVehicleMapView() {
     }
   };
 
-  // Map style with Amazon Location Services Cognito authentication
   const mapStyle = useMemo(() => {
     const runtimeConfig = (window as any).runtimeConfig;
     const locationServicesEnabled = runtimeConfig?.locationServices?.enabled;
@@ -192,40 +192,34 @@ export default function FleetVehicleMapView() {
       runtimeConfig: !!runtimeConfig,
       locationServicesEnabled,
       hasAuthHelper: !!authHelper,
-      locationServices: runtimeConfig?.locationServices
+      authReady,
+      awsCredentials: runtimeConfig?.awsCredentials
     });
     
-    if (locationServicesEnabled && authHelper) {
-      // Use Amazon Location Services with Cognito authentication
+    // Use AWS Location Services Standard style if enabled and auth is ready
+    if (locationServicesEnabled && authHelper && authReady) {
       const region = runtimeConfig.locationServices.region || 'us-east-1';
+      const styleUrl = `https://maps.geo.${region}.amazonaws.com/v2/styles/Standard/descriptor`;
       
-      console.log('🗺️ Using Amazon Location Services with Cognito authentication:', { region });
+      console.log('🗺️ Using AWS Location Services Standard style:', { 
+        region, 
+        locationServicesEnabled,
+        hasAuthHelper: !!authHelper, 
+        authReady,
+        styleUrl 
+      });
       
-      // Use new v2 geo-maps API with default provider
-      return `https://maps.geo.${region}.amazonaws.com/v2/styles/Standard/descriptor`;
-    } else if (!locationServicesEnabled || !authHelper) {
-      // Fallback to OpenStreetMap if Location Services disabled or auth helper not ready
-      console.log('🗺️ Falling back to OpenStreetMap');
-      return {
-        version: 8,
-        sources: {
-          'osm-tiles': {
-            type: 'raster' as const,
-            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-            tileSize: 256,
-            attribution: '© OpenStreetMap contributors'
-          }
-        },
-        layers: [
-          {
-            id: 'osm-tiles',
-            type: 'raster' as const,
-            source: 'osm-tiles'
-          }
-        ]
-      };
+      return styleUrl;
+    } else {
+      // Don't show map until AWS Location Services auth is ready
+      console.log('🗺️ Waiting for AWS Location Services authentication...', { 
+        locationServicesEnabled, 
+        hasAuthHelper: !!authHelper, 
+        authReady 
+      });
+      return null;
     }
-  }, [authHelper]);
+  }, [authHelper, authReady]);
 
   // Fetch vehicle data from optimized locations API
   const fetchVehicleData = async () => {
@@ -729,109 +723,118 @@ export default function FleetVehicleMapView() {
           <>
             {/* Interactive Map */}
             <div style={{ height: '600px', width: '100%', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-              <Map
-                {...viewState}
-                onMove={evt => {
-                  setViewState(evt.viewState);
-                  setUserHasInteracted(true); // Mark interaction on any map movement
-                }}
-                onClick={handleMapClick}
-                interactiveLayerIds={['clusters', 'unclustered-point']}
-                mapStyle={mapStyle}
-                {...(authHelper ? authHelper.getMapAuthenticationOptions() : {})}
-                attributionControl={true}
-                style={{ width: '100%', height: '100%', cursor: 'pointer' }}
-              >
-                <NavigationControl position="top-right" />
-                
-                {/* Vehicle data source */}
-                <Source
-                  id="vehicles"
-                  type="geojson"
-                  data={vehicleGeoJSON}
-                  cluster={mapVisualization === 'clusters'}
-                  clusterMaxZoom={12}  // Stop clustering at zoom 12, show individual vehicles after
-                  clusterRadius={60}   // Larger cluster radius for better grouping
+              {mapStyle && (
+                <Map
+                  {...viewState}
+                  onMove={evt => {
+                    setViewState(evt.viewState);
+                    setUserHasInteracted(true); // Mark interaction on any map movement
+                  }}
+                  onClick={handleMapClick}
+                  interactiveLayerIds={['clusters', 'unclustered-point']}
+                  mapStyle={mapStyle}
+                  {...(() => {
+                    const authOptions = authHelper?.getMapAuthenticationOptions?.() || {};
+                    console.log('🔐 Applying auth options to Map:', authOptions);
+                    console.log('🗺️ Map style URL:', mapStyle);
+                    return authOptions;
+                  })()}
+                  onLoad={() => console.log('🗺️ Map loaded successfully with AWS Location Services')}
+                  onError={(error) => console.error('🚨 Map loading error:', error)}
+                  attributionControl={true}
+                  style={{ width: '100%', height: '100%', cursor: 'pointer' }}
                 >
-                  {/* Render based on selected visualization */}
-                  {mapVisualization === 'clusters' && (
-                    <>
-                      <Layer {...clusterLayer} />
-                      <Layer {...unclusteredPointLayer} />
-                    </>
-                  )}
+                  <NavigationControl position="top-right" />
                   
-                  {mapVisualization === 'heatmap' && (
-                    <Layer {...heatmapLayer} />
-                  )}
-                  
-                  {mapVisualization === 'markers' && (
-                    <Layer {...unclusteredPointLayer} />
-                  )}
-                </Source>
-                
-                {/* Individual markers for very detailed view (zoom > 12 and < 100 vehicles visible) */}
-                {viewState.zoom > 12 && filteredVehicles.length <= 100 && 
-                  filteredVehicles.map(createVehicleMarker).filter(marker => marker !== null)
-                }
-                
-                {/* Selected vehicle popup */}
-                {selectedVehicle && 
-                 selectedVehicle.location &&
-                 typeof selectedVehicle.location.lat === 'number' &&
-                 typeof selectedVehicle.location.lon === 'number' &&
-                 !isNaN(selectedVehicle.location.lat) &&
-                 !isNaN(selectedVehicle.location.lon) && (
-                  <Popup
-                    longitude={selectedVehicle.location.lon}
-                    latitude={selectedVehicle.location.lat}
-                    anchor="bottom"
-                    onClose={() => setSelectedVehicle(null)}
-                    closeButton={true}
-                    closeOnClick={false}
+                  {/* Vehicle data source */}
+                  <Source
+                    id="vehicles"
+                    type="geojson"
+                    data={vehicleGeoJSON}
+                    cluster={mapVisualization === 'clusters'}
+                    clusterMaxZoom={12}  // Stop clustering at zoom 12, show individual vehicles after
+                    clusterRadius={60}   // Larger cluster radius for better grouping
                   >
-                  <div style={{ padding: '10px', minWidth: '220px' }}>
-                    <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '14px' }}>
-                      {selectedVehicle.make} {selectedVehicle.model}
+                    {/* Render based on selected visualization */}
+                    {mapVisualization === 'clusters' && (
+                      <>
+                        <Layer {...clusterLayer} />
+                        <Layer {...unclusteredPointLayer} />
+                      </>
+                    )}
+                    
+                    {mapVisualization === 'heatmap' && (
+                      <Layer {...heatmapLayer} />
+                    )}
+                    
+                    {mapVisualization === 'markers' && (
+                      <Layer {...unclusteredPointLayer} />
+                    )}
+                  </Source>
+                  
+                  {/* Individual markers for very detailed view (zoom > 12 and < 100 vehicles visible) */}
+                  {viewState.zoom > 12 && filteredVehicles.length <= 100 && 
+                    filteredVehicles.map(createVehicleMarker).filter(marker => marker !== null)
+                  }
+                  
+                  {/* Selected vehicle popup */}
+                  {selectedVehicle && 
+                   selectedVehicle.location &&
+                   typeof selectedVehicle.location.lat === 'number' &&
+                   typeof selectedVehicle.location.lon === 'number' &&
+                   !isNaN(selectedVehicle.location.lat) &&
+                   !isNaN(selectedVehicle.location.lon) && (
+                    <Popup
+                      longitude={selectedVehicle.location.lon}
+                      latitude={selectedVehicle.location.lat}
+                      anchor="bottom"
+                      onClose={() => setSelectedVehicle(null)}
+                      closeButton={true}
+                      closeOnClick={false}
+                    >
+                    <div style={{ padding: '10px', minWidth: '220px' }}>
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '14px' }}>
+                        {selectedVehicle.make} {selectedVehicle.model}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>
+                        VIN: <span 
+                          style={{ cursor: 'pointer', color: '#0073bb', textDecoration: 'underline' }}
+                          onClick={() => {
+                            // Navigate to vehicle detail page using vehicleId
+                            window.location.href = `/fleets/vehicles/${selectedVehicle.vehicleId || selectedVehicle.vin}`;
+                          }}
+                        >
+                          {selectedVehicle.vin}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>
+                        Fleet: {selectedVehicle.fleet_name}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>
+                        Status: <span style={{ 
+                          color: selectedVehicle.status === 'CONNECTED' ? '#059669' : '#dc2626',
+                          fontWeight: 'bold'
+                        }}>
+                          {selectedVehicle.status}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>
+                        Speed: {Math.round(selectedVehicle.speed || 0)} mph
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>
+                        Fuel: {Math.round(selectedVehicle.fuel_level || 0)}%
+                      </div>
                     </div>
-                    <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>
-                      VIN: <span 
-                        style={{ cursor: 'pointer', color: '#0073bb', textDecoration: 'underline' }}
-                        onClick={() => {
-                          // Navigate to vehicle detail page using vehicleId
-                          window.location.href = `/fleets/vehicles/${selectedVehicle.vehicleId || selectedVehicle.vin}`;
-                        }}
-                      >
-                        {selectedVehicle.vin}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>
-                      Fleet: {selectedVehicle.fleet_name}
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>
-                      Status: <span style={{ 
-                        color: selectedVehicle.status === 'CONNECTED' ? '#059669' : '#dc2626',
-                        fontWeight: 'bold'
-                      }}>
-                        {selectedVehicle.status}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>
-                      Speed: {Math.round(selectedVehicle.speed || 0)} mph
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#666' }}>
-                      Fuel: {Math.round(selectedVehicle.fuel_level || 0)}%
-                    </div>
-                  </div>
-                </Popup>
-              )}
-            </Map>
-          </div>
+                  </Popup>
+                )}
+              </Map>
+            )}
+        </div>
 
-          {/* Fleet Summary Statistics */}
-          <Container
-            header={<Header variant="h3">Fleet Summary</Header>}
-          >
+        {/* Fleet Summary Statistics */}
+        <Container
+          header={<Header variant="h3">Fleet Summary</Header>}
+        >
             <ColumnLayout columns={3} variant="text-grid">
               <div>
                 <Box variant="awsui-key-label">Total Vehicles</Box>
