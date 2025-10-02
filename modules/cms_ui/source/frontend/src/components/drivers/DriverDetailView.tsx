@@ -25,6 +25,7 @@ import { getRuntimeConfig } from '../../config/api';
 import { SafetyEventsTable } from '../commons/SafetyEventsTable';
 import { SafetyEventLocationModal } from '../commons/SafetyEventLocationModal';
 import { TripsTable } from '../commons/TripsTable';
+import { useVehicle } from '../../contexts/VehicleContext';
 
 interface Driver {
   driverId: string;
@@ -88,6 +89,7 @@ interface DriverStats {
 export default function DriverDetailView() {
   const { driverId } = useParams<{ driverId: string }>();
   const navigate = useNavigate();
+  const { setDriverName } = useVehicle();
   const [driver, setDriver] = useState<Driver | null>(null);
   const [stats, setStats] = useState<DriverStats | null>(null);
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -130,7 +132,13 @@ export default function DriverDetailView() {
         throw new Error(`Failed to fetch driver: ${driverResponse.statusText}`);
       }
       const driverData = await driverResponse.json();
-      setDriver(driverData.driver || driverData); // Handle both wrapped and unwrapped responses
+      const driver = driverData.driver || driverData;
+      setDriver(driver);
+      
+      // Set driver name in context for breadcrumbs
+      const fullName = `${driver.firstName || ''} ${driver.lastName || ''}`.trim();
+      console.log('👤 Setting driver name in context:', fullName);
+      setDriverName(fullName || null);
 
       // Fetch trips for this driver
       let tripsData = { trips: [] };
@@ -149,29 +157,13 @@ export default function DriverDetailView() {
         setSafetyEvents(safetyData.events || safetyData.items || []);
       }
 
-      // Fetch vehicle VIN mapping for all unique vehicle IDs
-      const allVehicleIds = [
-        ...new Set([
-          ...(tripsData.trips || []).map((trip: Trip) => trip.vehicleId),
-          ...(safetyData.events || []).map((event: SafetyEvent) => event.vehicleId)
-        ])
-      ];
-
+      // Build VIN map from trip data (VIN is already in the response!)
       const vinMap: Record<string, string> = {};
-      for (const vehicleId of allVehicleIds) {
-        try {
-          const vehicleResponse = await fetch(`${apiEndpoint}api/v1/vehicles/${vehicleId}`);
-          if (vehicleResponse.ok) {
-            const vehicleData = await vehicleResponse.json();
-            const vehicle = vehicleData.vehicle || vehicleData;
-            if (vehicle.vin) {
-              vinMap[vehicleId] = vehicle.vin;
-            }
-          }
-        } catch (err) {
-          console.warn(`Failed to fetch VIN for vehicle ${vehicleId}:`, err);
+      (tripsData.trips || []).forEach((trip: Trip) => {
+        if (trip.vehicleId && trip.vin) {
+          vinMap[trip.vehicleId] = trip.vin;
         }
-      }
+      });
       setVehicleVinMap(vinMap);
 
       // Calculate stats
@@ -358,6 +350,7 @@ export default function DriverDetailView() {
                 showVehicleColumn={true}
                 showDriverColumn={false}
                 vehicleVinMap={vehicleVinMap}
+                totalTripsCount={tripsCount}
                 onTotalCountChange={setTripsCount}
               />
             )

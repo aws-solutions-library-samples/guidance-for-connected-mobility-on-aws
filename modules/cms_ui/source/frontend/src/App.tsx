@@ -5,6 +5,7 @@ import React, { useState } from "react";
 import "./App.css";
 import "./components/Header.css";
 import { Navigate, Route, Routes, useNavigate, useLocation, useParams } from "react-router-dom";
+import { VehicleProvider, useVehicle } from './contexts/VehicleContext';
 import {
   Alert,
   AppLayout,
@@ -88,6 +89,84 @@ function FleetDetailsWrapper() {
   const { fleetId } = useParams();
   return <FleetDetailsPage fleetId={fleetId} />;
 }
+
+// Reactive PageHeader component that responds to vehicle context changes
+const ReactivePageHeader = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { vehicleVin, driverName } = useVehicle();
+  
+  // Handle vehicle detail pages
+  if (location.pathname.startsWith('/vehicles/management/') && location.pathname !== '/vehicles/management') {
+    const vehicleId = location.pathname.split('/').pop();
+    console.log('🚗 App.tsx - vehicleId:', vehicleId, 'vehicleVin:', vehicleVin);
+    const displayName = vehicleVin || vehicleId;
+    
+    return (
+      <PageHeader
+        title={`Vehicle Details - ${displayName}`}
+        description="View detailed information about this vehicle including status, trips, and telemetry data."
+        breadcrumbs={[
+          { text: 'Home', href: '/' },
+          { text: 'Vehicle Management', href: UI_ROUTES.VEHICLE_MANAGEMENT },
+          { text: displayName || 'Vehicle Details' }
+        ]}
+        buttons={[
+          { 
+            text: 'Edit Vehicle', 
+            iconName: 'edit',
+            onClick: () => navigate(`${UI_ROUTES.VEHICLE_EDIT}?vehicleId=${vehicleId}`)
+          },
+          { 
+            text: 'View Trips', 
+            iconName: 'view-horizontal',
+            onClick: () => navigate(`/vehicles/management/${vehicleId}/trips`)
+          },
+          { 
+            text: 'Delete Vehicle', 
+            iconName: 'remove',
+            onClick: () => console.log('Delete vehicle:', vehicleId)
+          }
+        ]}
+        onBreadcrumbFollow={(e) => {
+          e.preventDefault();
+          if (e.detail.href) {
+            navigate(e.detail.href);
+          }
+        }}
+      />
+    );
+  }
+  
+  // Handle driver detail pages
+  if (location.pathname.startsWith('/drivers/')) {
+    const driverId = location.pathname.split('/')[2];
+    console.log('👤 App.tsx - driverId:', driverId, 'driverName:', driverName);
+    const displayName = driverName || driverId;
+    
+    return (
+      <PageHeader
+        title="Driver Details"
+        description={`View detailed information, trip history, and safety events for driver ${displayName}.`}
+        breadcrumbs={[
+          { text: 'Home', href: '/' },
+          { text: 'Driver Management', href: '/drivers' },
+          { text: displayName || 'Driver Details' }
+        ]}
+        buttons={[]}
+        onBreadcrumbFollow={(e) => {
+          e.preventDefault();
+          if (e.detail.href) {
+            navigate(e.detail.href);
+          }
+        }}
+      />
+    );
+  }
+  
+  // For non-vehicle/driver pages, return null
+  return null;
+};
 
 function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
   const initStateWithConfig = insertRuntimeConfig(initialState, runtimeConfig);
@@ -264,7 +343,8 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
           ...contextValue,
         }}
       >
-        {(isLocalDemo || auth.isAuthenticated) ? (
+        <VehicleProvider>
+          {(isLocalDemo || auth.isAuthenticated) ? (
           <I18nProvider locale="en" messages={[enMessages]}>
             <style>
               {`
@@ -747,13 +827,17 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
                           
                           if (pathname.startsWith('/vehicles/management/') && pathname !== '/vehicles/management') {
                             const vehicleId = pathname.split('/').pop();
+                            const { vehicleVin } = useVehicle();
+                            console.log('🚗 App.tsx - vehicleId:', vehicleId, 'vehicleVin:', vehicleVin);
+                            const displayName = vehicleVin || vehicleId;
+                            
                             return {
-                              title: `Vehicle Details - ${vehicleId}`,
+                              title: `Vehicle Details - ${displayName}`,
                               description: 'View detailed information about this vehicle including status, trips, and telemetry data.',
                               breadcrumbs: [
                                 { text: 'Home', href: '/' },
                                 { text: 'Vehicle Management', href: UI_ROUTES.VEHICLE_MANAGEMENT },
-                                { text: vehicleId || 'Vehicle Details' }
+                                { text: displayName || 'Vehicle Details' }
                               ],
                               buttons: [
                                 { 
@@ -833,6 +917,13 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
                       }
                     };
 
+                    // Use ReactivePageHeader for vehicle and driver detail pages
+                    if ((location.pathname.startsWith('/vehicles/management/') && location.pathname !== '/vehicles/management') ||
+                        location.pathname.startsWith('/drivers/')) {
+                      return <ReactivePageHeader />;
+                    }
+                    
+                    // Fallback to original logic for other pages
                     const config = getPageConfig(location.pathname);
                     return (
                       <PageHeader
@@ -1064,6 +1155,7 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
             </Alert>
           </div>
         )}
+        </VehicleProvider>
       </HomeContextProvider>
       
       {/* Floating Chat Button */}

@@ -31,6 +31,7 @@ import { SafetyEventsTable } from '../../commons/SafetyEventsTable';
 import { SafetyEventLocationModal } from '../../commons/SafetyEventLocationModal';
 import TirePressureWidget from './TirePressureWidget';
 import { TripsTable } from '../../commons/TripsTable';
+import { useVehicle } from '../../../contexts/VehicleContext';
 import './vehicle-detail-tabs-borderless.css';
 
 interface VehicleMetadata {
@@ -149,6 +150,7 @@ const VehicleDetailView: React.FC = () => {
   
   const { vehicleId } = useParams<{ vehicleId: string }>();
   const navigate = useNavigate();
+  const { setVehicleVin } = useVehicle();
   const userContext = useContext(UserContext);
   const { getAuthHeaders } = useAuth();
   
@@ -263,6 +265,16 @@ const VehicleDetailView: React.FC = () => {
     }
   }, [vehicleId]);
 
+  // Update document title when vehicle data loads
+  useEffect(() => {
+    console.log('Vehicle data for title update:', { vehicleData, vin: vehicleData?.vin, vehicleId });
+    if (vehicleData?.vin) {
+      document.title = `${vehicleData.vin} - Vehicle Details`;
+    } else if (vehicleId) {
+      document.title = `${vehicleId} - Vehicle Details`;
+    }
+  }, [vehicleData, vehicleId]);
+
   // Fetch last trip details when trips are loaded
   // Remove this useEffect since lastTrip details now come from vehicle response
   // useEffect(() => {
@@ -372,7 +384,10 @@ const VehicleDetailView: React.FC = () => {
       // Handle consolidated response format
       if (data.vehicle) {
         // New consolidated format
+        console.log('🚗 Setting vehicle data:', data.vehicle, 'VIN:', data.vehicle.vin);
         setVehicleData(data.vehicle);
+        console.log('🚗 Setting VIN in context:', data.vehicle.vin);
+        setVehicleVin(data.vehicle.vin || null);
         
         // Set trips data
         if (data.trips) {
@@ -448,7 +463,10 @@ const VehicleDetailView: React.FC = () => {
           return;
         }
         
+        console.log('🚗 Setting vehicle data (fallback path):', vehicle, 'VIN:', vehicle.vin);
         setVehicleData(vehicle);
+        console.log('🚗 Setting VIN in context (fallback path):', vehicle.vin);
+        setVehicleVin(vehicle.vin || null);
       }
       
       console.log('✅ Vehicle data loaded successfully');
