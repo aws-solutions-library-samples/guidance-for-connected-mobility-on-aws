@@ -747,7 +747,92 @@ def handler(event, context):
                 }
         
         if path.startswith('/api/v1/drivers/') and method == 'GET':
-            driver_id = path.split('/')[-1]
+            # Check if this is a trips endpoint
+            if path.endswith('/trips'):
+                driver_id = path.split('/')[-2]  # /api/v1/drivers/{driverId}/trips
+                limit = min(int(query_params.get('limit', 100)), 1000)
+                page = int(query_params.get('page', 1))
+                
+                try:
+                    trips_table = dynamodb.Table(os.environ.get('TRIPS_TABLE_NAME'))
+                    
+                    # Query trips by driverId using scan with filter (could be optimized with GSI)
+                    response = trips_table.scan(
+                        FilterExpression='driverId = :driverId',
+                        ExpressionAttributeValues={':driverId': driver_id},
+                        Limit=limit
+                    )
+                    
+                    trips = []
+                    for item in response.get('Items', []):
+                        # Get VIN from vehicles table
+                        vin = None
+                        try:
+                            vehicles_table = dynamodb.Table(os.environ.get('VEHICLES_TABLE_NAME'))
+                            vehicle_response = vehicles_table.get_item(Key={'vehicleId': item.get('vehicleId')})
+                            if 'Item' in vehicle_response:
+                                vin = vehicle_response['Item'].get('vin')
+                        except Exception:
+                            pass
+                        
+                        # Get driver name from drivers table
+                        driver_name = item.get('driverName', driver_id)
+                        if driver_name and driver_name.startswith('DRV-'):
+                            try:
+                                drivers_table = dynamodb.Table(os.environ.get('DRIVERS_TABLE_NAME'))
+                                driver_response = drivers_table.get_item(Key={'driverId': driver_name})
+                                if 'Item' in driver_response:
+                                    driver_item = driver_response['Item']
+                                    first_name = driver_item.get('firstName', '')
+                                    last_name = driver_item.get('lastName', '')
+                                    if first_name or last_name:
+                                        driver_name = f"{first_name} {last_name}".strip()
+                            except Exception:
+                                pass
+                        
+                        trip = {
+                            'tripId': item.get('tripId'),
+                            'vehicleId': item.get('vehicleId'),
+                            'vin': vin,
+                            'startTime': item.get('startTime'),
+                            'endTime': item.get('endTime', item.get('completedAt')),
+                            'duration': (item.get('durationMs', 0) / 1000 / 60) if item.get('durationMs') else 0,  # Convert ms to minutes
+                            'distance': item.get('totalDistance', item.get('distance', 0)),
+                            'startLocation': item.get('startLocation', {}),
+                            'endLocation': item.get('endLocation', {}),
+                            'maxSpeed': item.get('maxSpeed', 0),
+                            'avgSpeed': item.get('averageSpeed', item.get('avgSpeed', 0)),
+                            'fuelConsumption': item.get('currentFuelLevel', item.get('fuelConsumption', 0)),
+                            'driverScore': item.get('driverScore', 0),
+                            'driverName': driver_name,
+                            'assignedDriver': driver_name
+                        }
+                        trips.append(trip)
+                    
+                    # Define decimal handler
+                    def decimal_default(obj):
+                        from decimal import Decimal
+                        if isinstance(obj, Decimal):
+                            return int(obj) if obj % 1 == 0 else float(obj)
+                        raise TypeError
+                    
+                    return {
+                        'statusCode': 200,
+                        'headers': cors_headers,
+                        'body': json.dumps({
+                            'trips': trips,
+                            'totalCount': len(trips)
+                        }, default=decimal_default)
+                    }
+                except Exception as e:
+                    return {
+                        'statusCode': 500,
+                        'headers': cors_headers,
+                        'body': json.dumps({'error': str(e)})
+                    }
+            else:
+                # Regular driver GET endpoint
+                driver_id = path.split('/')[-1]
             try:
                 drivers_table = dynamodb.Table(os.environ.get('DRIVERS_TABLE_NAME'))
                 response = drivers_table.get_item(Key={'driverId': driver_id})
@@ -1860,6 +1945,101 @@ def handler(event, context):
                     'body': json.dumps({'error': f'Failed to fetch fleet comparison: {str(e)}'})
                 }
         
+        # Handle vehicle safety events endpoint
+        if path.startswith('/api/v1/vehicles/') and path.endswith('/safety-events') and method == 'GET':
+            vehicle_id = path.split('/')[-2]
+            limit = min(int(query_params.get('limit', 20)), 100)
+            page = int(query_params.get('page', 1))
+            trip_id = query_params.get('tripId')  # Optional trip filter
+            
+            try:
+                safety_events_table = dynamodb.Table(os.environ.get('SAFETY_EVENTS_TABLE_NAME'))
+                
+                # Use scan with filter for vehicleId (no GSI available)
+                scan_kwargs = {
+                    'FilterExpression': 'vehicleId = :vehicle_id',
+                    'ExpressionAttributeValues': {':vehicle_id': vehicle_id}
+                }
+                
+                # Add trip filter if specified
+                if trip_id:
+                    scan_kwargs['FilterExpression'] += ' AND tripId = :trip_id'
+                    scan_kwargs['ExpressionAttributeValues'][':trip_id'] = trip_id
+                
+                # Get all items first for pagination
+                all_items = []
+                response = safety_events_table.scan(**scan_kwargs)
+                all_items.extend(response.get('Items', []))
+                
+                while 'LastEvaluatedKey' in response:
+                    scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+                    response = safety_events_table.scan(**scan_kwargs)
+                    all_items.extend(response.get('Items', []))
+                
+                # Sort by timestamp (newest first)
+                all_items.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
+                
+                # Apply pagination
+                total_items = len(all_items)
+                start_index = (page - 1) * limit
+                end_index = start_index + limit
+                paginated_items = all_items[start_index:end_index]
+                
+                # Convert to API format
+                events = []
+                for item in paginated_items:
+                    # Fix timestamp - convert from milliseconds to seconds if needed
+                    timestamp = item.get('timestamp')
+                    if timestamp and isinstance(timestamp, (int, float)) and timestamp > 9999999999:
+                        timestamp = int(timestamp / 1000)
+                    
+                    event = {
+                        'eventId': item.get('eventId'),
+                        'tripId': item.get('tripId'),
+                        'vehicleId': item.get('vehicleId'),
+                        'driverId': item.get('driverId'),
+                        'eventType': item.get('eventType', 'unknown'),
+                        'severity': item.get('severity', 'medium'),
+                        'timestamp': timestamp,
+                        'location': {
+                            'latitude': float(item.get('latitude', 0)) if item.get('latitude') else float(item.get('lat', 0)),
+                            'longitude': float(item.get('longitude', 0)) if item.get('longitude') else float(item.get('lng', 0))
+                        },
+                        'description': item.get('description', item.get('message', '')),
+                        'speed': item.get('speed', 0),
+                        'gForce': item.get('gForce', 0)
+                    }
+                    events.append(event)
+                
+                # Define decimal handler
+                def decimal_default(obj):
+                    from decimal import Decimal
+                    if isinstance(obj, Decimal):
+                        return int(obj) if obj % 1 == 0 else float(obj)
+                    raise TypeError
+                
+                return {
+                    'statusCode': 200,
+                    'headers': cors_headers,
+                    'body': json.dumps({
+                        'events': events,
+                        'pagination': {
+                            'page': page,
+                            'limit': limit,
+                            'total': total_items,
+                            'totalPages': (total_items + limit - 1) // limit
+                        }
+                    }, default=decimal_default)
+                }
+                
+            except Exception as e:
+                print(f"Error fetching vehicle safety events: {e}")
+                return {
+                    'statusCode': 500,
+                    'headers': cors_headers,
+                    'body': json.dumps({'error': f'Failed to fetch safety events: {str(e)}'})
+                }
+        
         # Handle vehicle safety alerts endpoint
         if path.startswith('/api/v1/vehicles/') and path.endswith('/safety-alerts') and method == 'GET':
             vehicle_id = path.split('/')[-2]
@@ -2364,6 +2544,21 @@ def handler(event, context):
                     # Calculate safety events count (simplified - could be cached)
                     safety_events_count = 0  # TODO: Could query safety events table if needed
                     
+                    # Get driver name from drivers table
+                    driver_name = trip.get('driverName', 'Unknown Driver')
+                    if driver_name and driver_name.startswith('DRV-'):
+                        try:
+                            drivers_table = dynamodb.Table(os.environ.get('DRIVERS_TABLE_NAME'))
+                            driver_response = drivers_table.get_item(Key={'driverId': driver_name})
+                            if 'Item' in driver_response:
+                                driver_item = driver_response['Item']
+                                first_name = driver_item.get('firstName', '')
+                                last_name = driver_item.get('lastName', '')
+                                if first_name or last_name:
+                                    driver_name = f"{first_name} {last_name}".strip()
+                        except Exception:
+                            pass
+                    
                     # Convert timestamp fields from milliseconds to seconds if needed
                     start_time = trip.get('startTime')
                     if start_time:
@@ -2389,10 +2584,13 @@ def handler(event, context):
                         'tripId': trip.get('tripId'),
                         'vehicleId': trip.get('vehicleId'),
                         'startTime': start_time,
-                        'endTime': end_time,
-                        'duration': trip.get('duration', 0),
-                        'distance': trip.get('distance', 0),
-                        'driverName': trip.get('driverName', 'Unknown Driver'),
+                        'endTime': end_time or trip.get('completedAt'),
+                        'duration': (trip.get('durationMs', 0) / 1000 / 60) if trip.get('durationMs') else 0,  # Convert ms to minutes
+                        'distance': trip.get('totalDistance', trip.get('distance', 0)),
+                        'maxSpeed': trip.get('maxSpeed', 0),
+                        'avgSpeed': trip.get('averageSpeed', trip.get('avgSpeed', 0)),
+                        'fuelConsumption': trip.get('currentFuelLevel', trip.get('fuelConsumption', 0)),
+                        'driverName': driver_name,
                         'driverScore': trip.get('driverScore', 0),
                         'safetyEventsCount': safety_events_count
                     })
@@ -2424,6 +2622,91 @@ def handler(event, context):
                     'statusCode': 500,
                     'headers': cors_headers,
                     'body': json.dumps({'error': f'Failed to fetch trips: {str(e)}'})
+                }
+        
+        # Handle vehicle safety events endpoint
+        if path.startswith('/api/v1/vehicles/') and path.endswith('/safety-events') and method == 'GET':
+            vehicle_id = path.split('/')[-2]
+            limit = int(query_params.get('limit', 20))
+            page = int(query_params.get('page', 1))
+            
+            try:
+                safety_events_table = dynamodb.Table(os.environ.get('SAFETY_EVENTS_TABLE_NAME'))
+                
+                # Query safety events by vehicleId using scan with filter
+                response = safety_events_table.scan(
+                    FilterExpression='vehicleId = :vehicle_id',
+                    ExpressionAttributeValues={':vehicle_id': vehicle_id},
+                    Limit=limit * page  # Get enough items for pagination
+                )
+                
+                all_events = response.get('Items', [])
+                
+                # Handle pagination manually
+                start_index = (page - 1) * limit
+                end_index = start_index + limit
+                events = all_events[start_index:end_index]
+                
+                # Transform events to include proper field mappings
+                safety_events = []
+                for event in events:
+                    # Get driver name if available
+                    driver_name = event.get('driverId', 'Unknown Driver')
+                    if driver_name and driver_name.startswith('DRV-'):
+                        try:
+                            drivers_table = dynamodb.Table(os.environ.get('DRIVERS_TABLE_NAME'))
+                            driver_response = drivers_table.get_item(Key={'driverId': driver_name})
+                            if 'Item' in driver_response:
+                                driver_item = driver_response['Item']
+                                first_name = driver_item.get('firstName', '')
+                                last_name = driver_item.get('lastName', '')
+                                if first_name or last_name:
+                                    driver_name = f"{first_name} {last_name}".strip()
+                        except Exception:
+                            pass
+                    
+                    safety_event = {
+                        'eventId': event.get('eventId'),
+                        'tripId': event.get('tripId'),
+                        'vehicleId': event.get('vehicleId'),
+                        'driverId': event.get('driverId'),
+                        'eventType': event.get('eventType'),
+                        'severity': event.get('severity'),
+                        'timestamp': event.get('timestamp'),
+                        'location': {
+                            'latitude': event.get('latitude', event.get('lat', 0)),
+                            'longitude': event.get('longitude', event.get('lng', 0))
+                        } if event.get('latitude') or event.get('lat') else None,
+                        'description': event.get('description', event.get('message')),
+                        'speed': event.get('speed'),
+                        'gForce': event.get('gForce'),
+                        'driverName': driver_name
+                    }
+                    safety_events.append(safety_event)
+                
+                # Define decimal handler before using it
+                def decimal_default(obj):
+                    from decimal import Decimal
+                    if isinstance(obj, Decimal):
+                        return int(obj) if obj % 1 == 0 else float(obj)
+                    raise TypeError
+                
+                return {
+                    'statusCode': 200,
+                    'headers': cors_headers,
+                    'body': json.dumps({
+                        'events': safety_events,
+                        'totalCount': len(all_events),
+                        'page': page,
+                        'limit': limit,
+                        'vehicleId': vehicle_id
+                    }, default=decimal_default)
+                }
+            except Exception as e:
+                return {
+                    'statusCode': 500,
+                    'headers': cors_headers,
+                    'body': json.dumps({'error': f'Failed to fetch safety events: {str(e)}'})
                 }
         
         # Handle individual vehicle detail endpoint

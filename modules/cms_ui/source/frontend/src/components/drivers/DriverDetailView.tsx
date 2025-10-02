@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -17,9 +17,14 @@ import {
   TextFilter,
   Button,
   Alert,
-  Spinner
+  Spinner,
+  Modal,
+  Icon
 } from '@cloudscape-design/components';
 import { getRuntimeConfig } from '../../config/api';
+import { SafetyEventsTable } from '../commons/SafetyEventsTable';
+import { SafetyEventLocationModal } from '../commons/SafetyEventLocationModal';
+import { TripsTable } from '../commons/TripsTable';
 
 interface Driver {
   driverId: string;
@@ -60,6 +65,7 @@ interface SafetyEvent {
   eventId: string;
   tripId: string;
   vehicleId: string;
+  vin?: string;
   eventType: string;
   severity: string;
   timestamp: number;
@@ -85,17 +91,24 @@ export default function DriverDetailView() {
   const [driver, setDriver] = useState<Driver | null>(null);
   const [stats, setStats] = useState<DriverStats | null>(null);
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [tripsCount, setTripsCount] = useState(0);
   const [safetyEvents, setSafetyEvents] = useState<SafetyEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [vehicleVinMap, setVehicleVinMap] = useState<Record<string, string>>({});
+  const [locationModalVisible, setLocationModalVisible] = useState(false);
+  const [selectedEventLocation, setSelectedEventLocation] = useState<{latitude: number, longitude: number} | null>(null);
+  const [selectedEventDetails, setSelectedEventDetails] = useState<SafetyEvent | null>(null);
 
   // Pagination and filtering
-  const [tripsCurrentPage, setTripsCurrentPage] = useState(1);
-  const [tripsFilterText, setTripsFilterText] = useState('');
-  const [safetyCurrentPage, setSafetyCurrentPage] = useState(1);
-  const [safetyFilterText, setSafetyFilterText] = useState('');
   const itemsPerPage = 10;
+
+  const handleLocationClick = (location: {latitude: number, longitude: number}, eventDetails?: SafetyEvent) => {
+    setSelectedEventLocation(location);
+    setSelectedEventDetails(eventDetails || null);
+    setLocationModalVisible(true);
+  };
 
   useEffect(() => {
     if (driverId) {
@@ -121,10 +134,11 @@ export default function DriverDetailView() {
 
       // Fetch trips for this driver
       let tripsData = { trips: [] };
-      const tripsResponse = await fetch(`${apiEndpoint}api/v1/trips?driverId=${driverId}&limit=100`);
+      const tripsResponse = await fetch(`${apiEndpoint}api/v1/drivers/${driverId}/trips?limit=100`);
       if (tripsResponse.ok) {
         tripsData = await tripsResponse.json();
         setTrips(tripsData.trips || tripsData.items || []);
+        setTripsCount(tripsData.totalCount || tripsData.trips?.length || 0);
       }
 
       // Fetch safety events for this driver
@@ -134,6 +148,31 @@ export default function DriverDetailView() {
         safetyData = await safetyResponse.json();
         setSafetyEvents(safetyData.events || safetyData.items || []);
       }
+
+      // Fetch vehicle VIN mapping for all unique vehicle IDs
+      const allVehicleIds = [
+        ...new Set([
+          ...(tripsData.trips || []).map((trip: Trip) => trip.vehicleId),
+          ...(safetyData.events || []).map((event: SafetyEvent) => event.vehicleId)
+        ])
+      ];
+
+      const vinMap: Record<string, string> = {};
+      for (const vehicleId of allVehicleIds) {
+        try {
+          const vehicleResponse = await fetch(`${apiEndpoint}api/v1/vehicles/${vehicleId}`);
+          if (vehicleResponse.ok) {
+            const vehicleData = await vehicleResponse.json();
+            const vehicle = vehicleData.vehicle || vehicleData;
+            if (vehicle.vin) {
+              vinMap[vehicleId] = vehicle.vin;
+            }
+          }
+        } catch (err) {
+          console.warn(`Failed to fetch VIN for vehicle ${vehicleId}:`, err);
+        }
+      }
+      setVehicleVinMap(vinMap);
 
       // Calculate stats
       calculateStats(tripsData?.trips || [], safetyData?.events || []);
@@ -186,34 +225,9 @@ export default function DriverDetailView() {
     return 'red';
   };
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity.toLowerCase()) {
-      case 'high': return 'error';
-      case 'medium': return 'warning';
-      case 'low': return 'success';
-      default: return 'info';
-    }
-  };
 
-  // Filter trips
-  const filteredTrips = trips.filter(trip =>
-    trip.tripId.toLowerCase().includes(tripsFilterText.toLowerCase()) ||
-    trip.vehicleId.toLowerCase().includes(tripsFilterText.toLowerCase())
-  );
 
-  // Filter safety events
-  const filteredSafetyEvents = safetyEvents.filter(event =>
-    event.eventType.toLowerCase().includes(safetyFilterText.toLowerCase()) ||
-    event.vehicleId.toLowerCase().includes(safetyFilterText.toLowerCase())
-  );
 
-  // Paginate trips
-  const tripsStartIndex = (tripsCurrentPage - 1) * itemsPerPage;
-  const paginatedTrips = filteredTrips.slice(tripsStartIndex, tripsStartIndex + itemsPerPage);
-
-  // Paginate safety events
-  const safetyStartIndex = (safetyCurrentPage - 1) * itemsPerPage;
-  const paginatedSafetyEvents = filteredSafetyEvents.slice(safetyStartIndex, safetyStartIndex + itemsPerPage);
 
   if (loading) {
     return (
@@ -337,179 +351,51 @@ export default function DriverDetailView() {
           },
           {
             id: 'trips',
-            label: `Trips (${trips.length})`,
+            label: `Trips (${tripsCount})`,
             content: (
-              <Container>
-                <Table
-                  columnDefinitions={[
-                    {
-                      id: 'vehicleId',
-                      header: 'Vehicle VIN',
-                      cell: item => item.vin || item.vehicleId, // Use VIN if available, fallback to vehicleId
-                      sortingField: 'vehicleId'
-                    },
-                    {
-                      id: 'startTime',
-                      header: 'Start Time',
-                      cell: item => new Date(item.startTime).toLocaleString(),
-                      sortingField: 'startTime'
-                    },
-                    {
-                      id: 'duration',
-                      header: 'Duration',
-                      cell: item => formatDuration(item.duration || 0),
-                      sortingField: 'duration'
-                    },
-                    {
-                      id: 'distance',
-                      header: 'Distance',
-                      cell: item => `${(item.distance || 0).toFixed(1)} mi`,
-                      sortingField: 'distance'
-                    },
-                    {
-                      id: 'avgSpeed',
-                      header: 'Avg Speed',
-                      cell: item => `${(item.avgSpeed || 0).toFixed(1)} mph`,
-                      sortingField: 'avgSpeed'
-                    },
-                    {
-                      id: 'driverScore',
-                      header: 'Score',
-                      cell: item => {
-                        const score = item.driverScore || 0;
-                        return (
-                          <Badge color={getScoreColor(score)}>
-                            {score.toFixed(1)}
-                          </Badge>
-                        );
-                      },
-                      sortingField: 'driverScore'
-                    },
-                    {
-                      id: 'actions',
-                      header: '',
-                      cell: item => (
-                        <Button
-                          variant="icon"
-                          iconName="external"
-                          ariaLabel="View trip details"
-                          onClick={() => {
-                            // Navigate to trip detail page
-                            const encodedTripId = encodeURIComponent(item.tripId);
-                            navigate(`/vehicles/management/${item.vehicleId}/trips/${encodedTripId}`);
-                          }}
-                        />
-                      ),
-                      width: 60
-                    }
-                  ]}
-                  items={paginatedTrips}
-                  loading={loading}
-                  empty={
-                    <Box textAlign="center" color="inherit">
-                      <b>No trips found</b>
-                      <Box padding={{ bottom: 's' }} variant="p" color="inherit">
-                        No trips found for this driver.
-                      </Box>
-                    </Box>
-                  }
-                  filter={
-                    <TextFilter
-                      filteringText={tripsFilterText}
-                      onChange={({ detail }) => setTripsFilterText(detail.filteringText)}
-                      placeholder="Search trips..."
-                    />
-                  }
-                  pagination={
-                    <Pagination
-                      currentPageIndex={tripsCurrentPage}
-                      pagesCount={Math.ceil(filteredTrips.length / itemsPerPage)}
-                      onChange={({ detail }) => setTripsCurrentPage(detail.currentPageIndex)}
-                    />
-                  }
-                  sortingDisabled
-                />
-              </Container>
+              <TripsTable 
+                driverId={driverId}
+                showVehicleColumn={true}
+                showDriverColumn={false}
+                vehicleVinMap={vehicleVinMap}
+                onTotalCountChange={setTripsCount}
+              />
             )
           },
           {
             id: 'safety',
             label: `Safety Events (${safetyEvents.length})`,
             content: (
-              <Container>
-                <Table
-                  columnDefinitions={[
-                    {
-                      id: 'timestamp',
-                      header: 'Time',
-                      cell: item => new Date(item.timestamp * 1000).toLocaleString(),
-                      sortingField: 'timestamp'
-                    },
-                    {
-                      id: 'eventType',
-                      header: 'Event Type',
-                      cell: item => item.eventType.replace(/_/g, ' '),
-                      sortingField: 'eventType'
-                    },
-                    {
-                      id: 'severity',
-                      header: 'Severity',
-                      cell: item => (
-                        <Badge color={getSeverityColor(item.severity)}>
-                          {item.severity}
-                        </Badge>
-                      ),
-                      sortingField: 'severity'
-                    },
-                    {
-                      id: 'vehicleId',
-                      header: 'Vehicle',
-                      cell: item => item.vehicleId,
-                      sortingField: 'vehicleId'
-                    },
-                    {
-                      id: 'tripId',
-                      header: 'Trip ID',
-                      cell: item => item.tripId,
-                      sortingField: 'tripId'
-                    },
-                    {
-                      id: 'description',
-                      header: 'Description',
-                      cell: item => item.description || 'N/A'
-                    }
-                  ]}
-                  items={paginatedSafetyEvents}
-                  loading={loading}
-                  empty={
-                    <Box textAlign="center" color="inherit">
-                      <b>No safety events</b>
-                      <Box padding={{ bottom: 's' }} variant="p" color="inherit">
-                        No safety events found for this driver.
-                      </Box>
-                    </Box>
-                  }
-                  filter={
-                    <TextFilter
-                      filteringText={safetyFilterText}
-                      onChange={({ detail }) => setSafetyFilterText(detail.filteringText)}
-                      placeholder="Search safety events..."
-                    />
-                  }
-                  pagination={
-                    <Pagination
-                      currentPageIndex={safetyCurrentPage}
-                      pagesCount={Math.ceil(filteredSafetyEvents.length / itemsPerPage)}
-                      onChange={({ detail }) => setSafetyCurrentPage(detail.currentPageIndex)}
-                    />
-                  }
-                  sortingDisabled
-                />
-              </Container>
+              <SafetyEventsTable
+                driverId={driverId}
+                onLocationClick={handleLocationClick}
+                showVehicleColumn={true}
+                showDriverColumn={false}
+                showTripColumn={false}
+                vehicleVinMap={vehicleVinMap}
+                totalEventsCount={safetyEvents.length}
+              />
             )
           }
         ]}
       />
+
+      {/* Location Modal */}
+      {selectedEventLocation && (
+        <SafetyEventLocationModal
+          visible={locationModalVisible}
+          onDismiss={() => setLocationModalVisible(false)}
+          eventLocation={selectedEventLocation}
+          eventDetails={selectedEventDetails ? {
+            eventType: selectedEventDetails.eventType,
+            severity: selectedEventDetails.severity,
+            vehicleId: selectedEventDetails.vehicleId,
+            timestamp: selectedEventDetails.timestamp,
+            description: selectedEventDetails.description
+          } : undefined}
+          vehicleVinMap={vehicleVinMap}
+        />
+      )}
     </SpaceBetween>
   );
 }

@@ -19,6 +19,7 @@ export interface UseAuthReturn {
   login: () => void;
   logout: () => void;
   getAccessToken: () => string | null;
+  getIdToken: () => string | null;
   getAuthHeaders: () => Record<string, string>;
   isTokenValid: () => boolean;
 }
@@ -67,6 +68,7 @@ export const useAuth = (): UseAuthReturn => {
     login,
     logout,
     getAccessToken: () => simpleAuth.token,
+    getIdToken: () => simpleAuth.idToken,
     getAuthHeaders: () => simpleAuth.token ? { Authorization: `Bearer ${simpleAuth.token}` } : {},
     isTokenValid: () => simpleAuth.isAuthenticated,
   };

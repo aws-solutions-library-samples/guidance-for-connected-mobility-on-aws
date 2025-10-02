@@ -29,21 +29,12 @@ const loadRuntimeConfig = async () => {
       return config;
     }
   } catch (error) {
-    console.warn('⚠️ Failed to load runtime configuration:', error);
+    console.error('❌ Failed to load runtime configuration:', error);
+    throw new Error('Runtime configuration is required but could not be loaded. Please ensure the configuration is properly deployed.');
   }
 
-  // Fallback configuration
-  return {
-    awsRegion: "us-east-1",
-    isDemoMode: "false",
-    apiEndpoint: getApiEndpoint(),
-    awsCredentials: {
-      region: "us-east-1",
-      identityPoolId: "us-east-1:238cef9d-33b7-4c3c-b6f3-4366e94935c9",
-      userPoolId: "us-east-1_8soCrvjIG",
-      userPoolWebClientId: "7m4lk21hb41keefm07me4boo3o"
-    }
-  };
+  // No fallback - configuration is required
+  throw new Error('Runtime configuration not found. Please ensure the configuration is properly deployed.');
 };
 
 const initializeApp = async () => {

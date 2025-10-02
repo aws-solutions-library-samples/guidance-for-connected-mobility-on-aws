@@ -95,7 +95,7 @@ flink_stack = FlinkStack(
     description="Guidance for Connected Mobility (SO5947) - Flink Deployment"
 )
 
-# 6. UI Stack (Frontend and API)
+# 6. UI Stack (Frontend and API with Location Services)
 ui_stack = UIStack(
     app, 
     f"{stack_prefix}-ui",

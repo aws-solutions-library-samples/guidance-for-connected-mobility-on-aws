@@ -33,6 +33,29 @@ class UIStack(Stack):
                  **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
         
+        # Amazon Location Services resources
+        self.map = location.CfnMap(
+            self, "CMSVehicleMap",
+            map_name="cms-vehicle-map",
+            configuration=location.CfnMap.MapConfigurationProperty(
+                style="VectorEsriStreets"
+            ),
+            description="Map for Connected Mobility Solution vehicle tracking",
+            pricing_plan="RequestBasedUsage"
+        )
+        
+        self.place_index = location.CfnPlaceIndex(
+            self, "CMSPlaceIndex",
+            index_name="cms-place-index",
+            data_source="Esri",
+            description="Place index for Connected Mobility Solution",
+            pricing_plan="RequestBasedUsage"
+        )
+        
+        # Route calculator - reference existing one instead of creating new
+        # The simulator expects 'cms-route-calculator' to exist
+        self.route_calculator_name = "cms-route-calculator"
+        
         # Use actual table names from storage stack (with suffixes)
         table_names = {
             'fleets': storage_tables['fleets'].table_name,
@@ -78,13 +101,107 @@ class UIStack(Stack):
         self.identity_pool = cognito.CfnIdentityPool(
             self, "CMSIdentityPool",
             identity_pool_name=f"{construct_id}-identity",
-            allow_unauthenticated_identities=False,
+            allow_unauthenticated_identities=True,
             cognito_identity_providers=[
                 cognito.CfnIdentityPool.CognitoIdentityProviderProperty(
                     client_id=self.user_pool_client.user_pool_client_id,
                     provider_name=self.user_pool.user_pool_provider_name
                 )
             ]
+        )
+        
+        # IAM role for unauthenticated users to access Location Services
+        unauthenticated_role = iam.Role(
+            self, "CognitoUnauthenticatedRole",
+            assumed_by=iam.FederatedPrincipal(
+                "cognito-identity.amazonaws.com",
+                {
+                    "StringEquals": {
+                        "cognito-identity.amazonaws.com:aud": self.identity_pool.ref
+                    },
+                    "ForAnyValue:StringLike": {
+                        "cognito-identity.amazonaws.com:amr": "unauthenticated"
+                    }
+                },
+                "sts:AssumeRoleWithWebIdentity"
+            ),
+            inline_policies={
+                "LocationServicesPolicy": iam.PolicyDocument(
+                    statements=[
+                        # New geo-maps actions for maps
+                        iam.PolicyStatement(
+                            effect=iam.Effect.ALLOW,
+                            actions=[
+                                "geo-maps:GetTile",
+                                "geo-maps:GetStaticMap"
+                            ],
+                            resources=[
+                                "arn:aws:geo-maps:us-east-1::provider/default",
+                                "arn:aws:geo-maps:us-east-1::provider/default/*"
+                            ]
+                        ),
+                        # Legacy geo actions for backward compatibility
+                        iam.PolicyStatement(
+                            effect=iam.Effect.ALLOW,
+                            actions=[
+                                "geo:GetMap*",
+                                "geo:DescribeMap"
+                            ],
+                            resources=[
+                                self.map.attr_arn
+                            ]
+                        )
+                    ]
+                )
+            }
+        )
+        
+        # IAM role for authenticated users to access Location Services
+        authenticated_role = iam.Role(
+            self, "CognitoAuthenticatedRole",
+            assumed_by=iam.FederatedPrincipal(
+                "cognito-identity.amazonaws.com",
+                {
+                    "StringEquals": {
+                        "cognito-identity.amazonaws.com:aud": self.identity_pool.ref
+                    },
+                    "ForAnyValue:StringLike": {
+                        "cognito-identity.amazonaws.com:amr": "authenticated"
+                    }
+                },
+                "sts:AssumeRoleWithWebIdentity"
+            ),
+            inline_policies={
+                "LocationServicesPolicy": iam.PolicyDocument(
+                    statements=[
+                        iam.PolicyStatement(
+                            effect=iam.Effect.ALLOW,
+                            actions=[
+                                "geo:GetMap*",
+                                "geo:DescribeMap",
+                                "geo:SearchPlaceIndex*",
+                                "geo:GetPlace",
+                                "geo:CalculateRoute*"
+                            ],
+                            resources=[
+                                f"arn:aws:geo:{self.region}:{self.account}:map/*",
+                                f"arn:aws:geo:{self.region}:{self.account}:place-index/*",
+                                f"arn:aws:geo:{self.region}:{self.account}:route-calculator/*"
+                            ]
+                        )
+                    ]
+                )
+            }
+        )
+        
+        # Attach roles to identity pool
+        cognito.CfnIdentityPoolRoleAttachment(
+            self, "IdentityPoolRoleAttachment",
+            identity_pool_id=self.identity_pool.ref,
+            roles={
+                "authenticated": authenticated_role.role_arn,
+                "unauthenticated": unauthenticated_role.role_arn
+            }
         )
         
         # Private S3 bucket (secure)
@@ -329,8 +446,15 @@ class UIStack(Stack):
             "awsRegion": "us-east-1",
             "mapAuth": {
                 "identityPoolClient": f"cognito-idp.us-east-1.amazonaws.com/{self.user_pool.user_pool_id}",
-                "mapName": "cms-map",
+                "mapName": self.map.map_name,
                 "identityPoolId": self.identity_pool.ref
+            },
+            "locationServices": {
+                "mapName": self.map.map_name,
+                "placeIndexName": self.place_index.index_name, 
+                "routeCalculatorName": self.route_calculator_name,
+                "region": "us-east-1",
+                "enabled": True
             },
             "isDemoMode": "false",
             "apiEndpoint": self.api.url,
@@ -414,14 +538,7 @@ class UIStack(Stack):
         # Ensure password is set after user creation
         set_password_resource.node.add_dependency(default_user_resource)
         
-        # Location Services Route Calculator - commented out since it already exists
-        # The simulator expects 'cms-route-calculator' to exist
-        # self.route_calculator = location.CfnRouteCalculator(
-        #     self, "CMSRouteCalculator", 
-        #     calculator_name="cms-route-calculator",
-        #     data_source="Here",
-        #     description="Route calculator for CMS telemetry simulation"
-        # )
+        # Location Services resources are created above
         
         CfnOutput(
             self, "UserPoolId",
@@ -468,6 +585,21 @@ class UIStack(Stack):
         
         CfnOutput(
             self, "RouteCalculatorName",
-            value="cms-route-calculator",
+            value=self.route_calculator_name,
             description="Location Services route calculator name for telemetry simulation"
+        )
+        
+        # Location Services outputs
+        CfnOutput(
+            self, "LocationServicesMapName",
+            value=self.map.map_name,
+            description="Amazon Location Services Map name",
+            export_name=f"{construct_id}-map-name"
+        )
+        
+        CfnOutput(
+            self, "LocationServicesPlaceIndexName", 
+            value=self.place_index.index_name,
+            description="Amazon Location Services Place Index name",
+            export_name=f"{construct_id}-place-index-name"
         )

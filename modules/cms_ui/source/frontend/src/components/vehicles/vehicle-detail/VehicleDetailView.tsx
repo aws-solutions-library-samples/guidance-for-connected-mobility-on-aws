@@ -27,7 +27,10 @@ import { UserContext } from '../../commons/UserContext';
 import { UI_ROUTES } from "../../../utils/constants";
 import { RouteMapModal } from './RouteMapModal';
 import { TripMap } from '../trip-detail/TripMap';
+import { SafetyEventsTable } from '../../commons/SafetyEventsTable';
+import { SafetyEventLocationModal } from '../../commons/SafetyEventLocationModal';
 import TirePressureWidget from './TirePressureWidget';
+import { TripsTable } from '../../commons/TripsTable';
 import './vehicle-detail-tabs-borderless.css';
 
 interface VehicleMetadata {
@@ -204,7 +207,14 @@ const VehicleDetailView: React.FC = () => {
   const [latestTelemetry, setLatestTelemetry] = useState<any>(null);
 
   // Request deduplication
+  const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
+  const [locationModalVisible, setLocationModalVisible] = useState(false);
   const [ongoingRequests, setOngoingRequests] = useState<Set<string>>(new Set());
+
+  const handleLocationClick = (location: {latitude: number, longitude: number}, event?: any) => {
+    setSelectedEvent(event || { location });
+    setLocationModalVisible(true);
+  };
 
   // Derived data for recent activity table
   const recentActivity = [
@@ -962,215 +972,26 @@ const VehicleDetailView: React.FC = () => {
                   id: "trips",
                   label: `Trips (${tripsTotal})`,
                   content: (
-                    <Container>
-                      <SpaceBetween size="s">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap', minHeight: '40px' }}>
-                          <Header variant="h2" counter={`(${getPaginatedTrips().length} of ${tripsTotal} total)`}>
-                            Trips
-                          </Header>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                            <CollectionPreferences
-                              title="Preferences"
-                              confirmLabel="Confirm"
-                              cancelLabel="Cancel"
-                              preferences={{
-                                pageSize: tripsPageSize
-                              }}
-                              pageSizePreference={{
-                                title: "Page size",
-                                options: [
-                                  { value: 10, label: "10 items" },
-                                  { value: 20, label: "20 items" },
-                                  { value: 50, label: "50 items" }
-                                ]
-                              }}
-                            />
-                            <Pagination
-                              currentPageIndex={tripsCurrentPage}
-                              pagesCount={Math.ceil(tripsTotal / tripsPageSize)}
-                              onChange={({ detail }) => fetchTripsPage(detail.currentPageIndex)}
-                            />
-                          </div>
-                        </div>
-                        <Table
-                      loading={loading}
-                      loadingText="Loading trips..."
-                      enableKeyboardNavigation={true}
-                      sortingDisabled={false}
-                      items={getPaginatedTrips()}
-                      columnDefinitions={[
-                        {
-                          id: "startTime",
-                          header: "Start Time",
-                          sortingField: "startTime",
-                          cell: (trip: Trip) => {
-                            const startTime = trip.startTime;
-                            if (!startTime) return 'N/A';
-                            return new Date(startTime * 1000).toLocaleString();
-                          }
-                        },
-                        {
-                          id: "endTime",
-                          header: "End Time", 
-                          sortingField: "endTime",
-                          cell: (trip: Trip) => {
-                            const endTime = trip.endTime;
-                            if (!endTime) return 'Active';
-                            return new Date(endTime * 1000).toLocaleString();
-                          }
-                        },
-                        {
-                          id: "duration",
-                          header: "Duration",
-                          cell: (trip: Trip) => {
-                            const duration = trip.duration || 0;
-                            const hours = Math.floor(duration / 3600);
-                            const minutes = Math.floor((duration % 3600) / 60);
-                            return `${hours}h ${minutes}m`;
-                          }
-                        },
-                        {
-                          id: "distance",
-                          header: "Distance",
-                          cell: (trip: Trip) => `${(trip.distance || trip.totalLength || 0).toFixed(1)} km`
-                        },
-                        {
-                          id: "driver",
-                          header: "Driver",
-                          cell: (trip: Trip) => trip.driverName || trip.assignedDriver || 'Unknown'
-                        },
-                        {
-                          id: "driverScore",
-                          header: "Driver Score",
-                          cell: (trip: Trip) => trip.driverScore || 0
-                        },
-                        {
-                          id: "safetyEvents",
-                          header: "Safety Events",
-                          cell: (trip: Trip) => trip.safetyEventsCount || 0
-                        },
-                        {
-                          id: "actions",
-                          header: "Actions",
-                          cell: (trip: Trip) => (
-                            <Button variant="icon" iconName="external" ariaLabel="View trip details" onClick={() => handleViewTrip(trip)} />
-                          )
-                        }
-                      ]}
-                      variant="full-page"
-                      stickyHeader={true}
-                      empty={
-                        <Box textAlign="center" color="inherit">
-                          <Box variant="strong" textAlign="center" color="inherit">
-                            No trips
-                          </Box>
-                          <Box variant="p" padding={{ bottom: "s" }} color="inherit">
-                            No trips recorded for this vehicle.
-                          </Box>
-                        </Box>
-                      }
+                    <TripsTable
+                      vehicleId={vehicleId}
+                      showVehicleColumn={false}
+                      showDriverColumn={true}
+                      totalTripsCount={tripsTotal}
                     />
-                      </SpaceBetween>
-                    </Container>
                   )
                 },
                 {
                   id: "safety",
                   label: `Safety Events (${safetyEventsTotal})`,
                   content: (
-                    <Container>
-                      <SpaceBetween size="s">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap', minHeight: '40px' }}>
-                          <Header variant="h2" counter={`(${safetyEvents.length} of ${safetyEventsTotal} total)`}>
-                            Safety Events
-                          </Header>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                            <CollectionPreferences
-                              title="Preferences"
-                              confirmLabel="Confirm"
-                              cancelLabel="Cancel"
-                              preferences={{
-                                pageSize: safetyPageSize
-                              }}
-                              pageSizePreference={{
-                                title: "Page size",
-                                options: [
-                                  { value: 10, label: "10 items" },
-                                  { value: 20, label: "20 items" },
-                                  { value: 50, label: "50 items" }
-                                ]
-                              }}
-                            />
-                            <Pagination
-                              currentPageIndex={safetyCurrentPage}
-                              pagesCount={Math.ceil(safetyEventsTotal / safetyPageSize)}
-                              onChange={({ detail }) => fetchSafetyEventsPage(detail.currentPageIndex)}
-                            />
-                          </div>
-                        </div>
-                        <Table
-                      loading={loading}
-                      loadingText="Loading safety events..."
-                      enableKeyboardNavigation={true}
-                      sortingDisabled={false}
-                      items={safetyEvents}
-                      columnDefinitions={[
-                        {
-                          id: "timestamp",
-                          header: "Time",
-                          cell: (event: SafetyEvent) => {
-                            const timestamp = event.timestamp;
-                            if (!timestamp) return 'N/A';
-                            return new Date(timestamp * 1000).toLocaleString();
-                          }
-                        },
-                        {
-                          id: "eventType",
-                          header: "Event Type",
-                          cell: (event: SafetyEvent) => event.eventType || event.message || 'Unknown'
-                        },
-                        {
-                          id: "severity",
-                          header: "Severity",
-                          cell: (event: SafetyEvent) => (
-                            <Badge color={event.severity === 'HIGH' ? 'red' : event.severity === 'MEDIUM' ? 'blue' : 'grey'}>
-                              {event.severity || 'Unknown'}
-                            </Badge>
-                          )
-                        },
-                        {
-                          id: "speed",
-                          header: "Speed",
-                          cell: (event: SafetyEvent) => event.speed ? `${event.speed} mph` : 'N/A'
-                        },
-                        {
-                          id: "location",
-                          header: "Location",
-                          cell: (event: SafetyEvent) => {
-                            const lat = event.latitude || event.lat;
-                            const lng = event.longitude || event.lng;
-                            if (lat && lng) {
-                              return `${parseFloat(lat.toString()).toFixed(4)}, ${parseFloat(lng.toString()).toFixed(4)}`;
-                            }
-                            return 'N/A';
-                          }
-                        }
-                      ]}
-                      variant="full-page"
-                      stickyHeader={true}
-                      empty={
-                        <Box textAlign="center" color="inherit">
-                          <Box variant="strong" textAlign="center" color="inherit">
-                            No safety events
-                          </Box>
-                          <Box variant="p" padding={{ bottom: "s" }} color="inherit">
-                            No safety events recorded for this vehicle.
-                          </Box>
-                        </Box>
-                      }
+                    <SafetyEventsTable
+                      vehicleId={vehicleId}
+                      onLocationClick={handleLocationClick}
+                      showVehicleColumn={false}
+                      showDriverColumn={true}
+                      showTripColumn={true}
+                      totalEventsCount={safetyEventsTotal}
                     />
-                      </SpaceBetween>
-                    </Container>
                   )
                 },
                 {
@@ -1270,6 +1091,25 @@ const VehicleDetailView: React.FC = () => {
                 }
               ]}
             />
+
+            {/* Safety Event Location Modal */}
+            {selectedEvent && (
+              <SafetyEventLocationModal
+                visible={locationModalVisible}
+                onDismiss={() => setLocationModalVisible(false)}
+                eventLocation={{
+                  latitude: selectedEvent.location?.latitude || 0,
+                  longitude: selectedEvent.location?.longitude || 0
+                }}
+                eventDetails={{
+                  eventType: selectedEvent.eventType,
+                  severity: selectedEvent.severity,
+                  vehicleId: selectedEvent.vehicleId,
+                  timestamp: selectedEvent.timestamp,
+                  description: selectedEvent.description
+                }}
+              />
+            )}
       </SpaceBetween>
     </Container>
   );

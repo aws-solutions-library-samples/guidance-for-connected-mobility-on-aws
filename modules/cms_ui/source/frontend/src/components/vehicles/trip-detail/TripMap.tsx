@@ -6,6 +6,7 @@ import { StatusIndicator, Box, Badge } from '@cloudscape-design/components';
 import Map, { Source, Layer, Marker, Popup } from 'react-map-gl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { getMapConfiguration, MapConfig } from '../../../utils/mapConfig';
 
 interface TripMapProps {
   route?: Array<{ lat: number; lng: number; timestamp?: string; speed?: number }>;
@@ -23,6 +24,21 @@ export function TripMap({ route, startLocation, endLocation, safetyEvents = [], 
   const [mapError, setMapError] = useState<string | null>(null);
   const [hoveredEvent, setHoveredEvent] = useState<any>(null);
   const [popupInfo, setPopupInfo] = useState<any>(null);
+  const [mapConfig, setMapConfig] = useState<MapConfig | null>(null);
+
+  // Setup map configuration
+  useEffect(() => {
+    const setupMap = async () => {
+      try {
+        const config = await getMapConfiguration();
+        setMapConfig(config);
+      } catch (error) {
+        console.error('Failed to setup map configuration:', error);
+        setMapError('Failed to load map configuration');
+      }
+    };
+    setupMap();
+  }, []);
 
   // Get vehicle icon based on type
   const getVehicleIcon = (type: string) => {
@@ -128,6 +144,15 @@ export function TripMap({ route, startLocation, endLocation, safetyEvents = [], 
 
   const mapStyle = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 
+  // Don't render map until configuration is loaded
+  if (!mapConfig) {
+    return (
+      <div style={{ height, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <StatusIndicator type="loading">Loading map...</StatusIndicator>
+      </div>
+    );
+  }
+
   const getSeverityColor = (severity: string) => {
     switch (severity?.toLowerCase()) {
       case 'critical': return '#d32f2f';
@@ -168,7 +193,8 @@ export function TripMap({ route, startLocation, endLocation, safetyEvents = [], 
         ref={mapRef}
         initialViewState={getInitialViewState()}
         style={{ width: '100%', height: '100%' }}
-        mapStyle={mapStyle}
+        mapStyle={mapConfig.mapStyle}
+        {...(mapConfig.authOptions || {})}
         mapLib={maplibregl}
         onError={(error) => {
           console.error('Map error:', error);

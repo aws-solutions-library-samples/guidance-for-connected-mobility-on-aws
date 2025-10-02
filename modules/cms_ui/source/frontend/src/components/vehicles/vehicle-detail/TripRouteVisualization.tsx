@@ -22,6 +22,7 @@ import {
 // Map component for route visualization
 import Map, { NavigationControl, Marker, Source, Layer } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { getMapConfiguration, MapConfig } from '../../../utils/mapConfig';
 
 interface RoutePoint {
   timestamp: string;
@@ -92,11 +93,25 @@ export const TripRouteVisualization: React.FC<TripRouteVisualizationProps> = ({
   const [selectedTrip, setSelectedTrip] = useState<TripRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [showRouteModal, setShowRouteModal] = useState(false);
+  const [mapConfig, setMapConfig] = useState<MapConfig | null>(null);
   const [mapViewState, setMapViewState] = useState({
     longitude: -122.4194,
     latitude: 37.7749,
     zoom: 12
   });
+
+  // Setup map configuration
+  useEffect(() => {
+    const setupMap = async () => {
+      try {
+        const config = await getMapConfiguration();
+        setMapConfig(config);
+      } catch (error) {
+        console.error('Failed to setup map configuration:', error);
+      }
+    };
+    setupMap();
+  }, []);
 
   // Fetch trips for the vehicle
   useEffect(() => {
@@ -516,13 +531,18 @@ export const TripRouteVisualization: React.FC<TripRouteVisualizationProps> = ({
             {/* Interactive Map */}
             <Box>
               <div style={{ height: '500px', width: '100%', borderRadius: '8px', overflow: 'hidden' }}>
-                <Map
-                  {...mapViewState}
-                  onMove={evt => setMapViewState(evt.viewState)}
-                  mapStyle={{
-                    version: 8,
-                    sources: {
-                      'osm-tiles': {
+                {!mapConfig ? (
+                  <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <StatusIndicator type="loading">Loading map...</StatusIndicator>
+                  </div>
+                ) : (
+                  <Map
+                    {...mapViewState}
+                    onMove={evt => setMapViewState(evt.viewState)}
+                    mapStyle={mapConfig.mapStyle}
+                    {...(mapConfig.authOptions || {})}
+                    style={{ width: '100%', height: '100%' }}
+                  >
                         type: 'raster',
                         tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
                         tileSize: 256,

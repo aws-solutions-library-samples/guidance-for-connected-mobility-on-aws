@@ -15,6 +15,7 @@ import {
 } from '@cloudscape-design/components';
 import { getRuntimeConfig } from '../../../../config/api';
 import { AlertsFleetFilter, useAlertsFleetFilter } from '../../../commons/AlertsFleetFilter';
+import { getMapConfiguration, MapConfig } from '../../../../utils/mapConfig';
 
 // MapLibre GL JS with React Map GL
 import Map, { NavigationControl, Marker, Popup, Source, Layer } from 'react-map-gl/maplibre';
@@ -38,6 +39,7 @@ const VehicleMapView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [mapConfig, setMapConfig] = useState<MapConfig | null>(null);
 
   const {
     selectedFleet,
@@ -60,24 +62,18 @@ const VehicleMapView: React.FC = () => {
     zoom: 4
   });
 
-  const mapStyle = {
-    version: 8,
-    sources: {
-      'osm-tiles': {
-        type: 'raster' as const,
-        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-        tileSize: 256,
-        attribution: '© OpenStreetMap contributors'
+  // Setup map configuration
+  useEffect(() => {
+    const setupMap = async () => {
+      try {
+        const config = await getMapConfiguration();
+        setMapConfig(config);
+      } catch (error) {
+        console.error('Failed to setup map configuration:', error);
       }
-    },
-    layers: [
-      {
-        id: 'osm-tiles',
-        type: 'raster' as const,
-        source: 'osm-tiles'
-      }
-    ]
-  };
+    };
+    setupMap();
+  }, []);
 
   const fetchVehicleData = async () => {
     try {
@@ -411,14 +407,20 @@ const VehicleMapView: React.FC = () => {
         <>
           {/* Interactive Map */}
           <div style={{ height: '500px', width: '100%', borderRadius: '8px', overflow: 'hidden' }}>
-            <Map
-              {...viewState}
-              onMove={evt => setViewState(evt.viewState)}
-              onClick={handleMapClick}
-              interactiveLayerIds={['clusters', 'unclustered-point']}
-              mapStyle={mapStyle}
-              style={{ width: '100%', height: '100%', cursor: 'pointer' }}
-            >
+            {!mapConfig ? (
+              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <StatusIndicator type="loading">Loading map...</StatusIndicator>
+              </div>
+            ) : (
+              <Map
+                {...viewState}
+                onMove={evt => setViewState(evt.viewState)}
+                onClick={handleMapClick}
+                interactiveLayerIds={['clusters', 'unclustered-point']}
+                mapStyle={mapConfig.mapStyle}
+                {...(mapConfig.authOptions || {})}
+                style={{ width: '100%', height: '100%', cursor: 'pointer' }}
+              >
               <NavigationControl position="top-right" />
               
               {/* Vehicle data source with clustering */}
@@ -482,7 +484,8 @@ const VehicleMapView: React.FC = () => {
                   </div>
                 </Popup>
               )}
-            </Map>
+              </Map>
+            )}
           </div>
 
           {/* Fleet Summary */}

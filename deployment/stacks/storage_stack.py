@@ -115,10 +115,6 @@ class StorageStack(Stack):
                 type=dynamodb.AttributeType.STRING
             )
         )
-                name="tripId",
-                type=dynamodb.AttributeType.STRING
-            )
-        )
         
         # Add GSI for vehicleId-timestamp queries (proper design for time range queries)
         self.tables['safety_events'].add_global_secondary_index(
@@ -133,7 +129,14 @@ class StorageStack(Stack):
             )
         )
         
-        # Maintenance Events Table - matches cms-631ca2-591631-maintenance-alerts-new
+        # Maintenance Events Table - Enhanced Schema with Repair Instructions
+        # Core: alertId, vehicleId, timestamp, alertType, severity, message, status
+        # Management: createdDate, lastUpdated, daysOpen, dueDate, priority, category
+        # Cost/Duration: estimatedCost, estimatedDuration
+        # Triggers: currentValue, thresholdValue, triggerField, triggerCondition
+        # Repair: repairInstructions, manualReference, requiredTools, safetyWarnings
+        # Context: currentMileage, driverId, tripId, lat, lng
+        # See maintenance_alert_schema.md for complete field documentation
         self.tables['maintenance_events'] = dynamodb.Table(
             self, "MaintenanceEventsTable",
             table_name=f"{construct_id}-maintenance-alerts",

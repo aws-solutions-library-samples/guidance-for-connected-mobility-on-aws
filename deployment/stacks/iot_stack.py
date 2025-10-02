@@ -8,7 +8,6 @@ from aws_cdk import (
     aws_iam as iam,
     aws_sqs as sqs,
     aws_lambda as lambda_,
-    aws_lambda_python_alpha as python,
     aws_dynamodb as dynamodb,
     CfnOutput,
     Duration,
@@ -165,9 +164,9 @@ class IoTStack(Stack):
         )
         
         # Lambda function to process IoT lifecycle events (using PythonFunction with bundled dependencies)
-        self.iot_lifecycle_processor = python.PythonFunction(
+        self.iot_lifecycle_processor = lambda_.Function(
             self, "IoTLifecycleProcessor",
-            entry="../modules/cms_ui/source/handlers/iot_lifecycle_events",
+            code=lambda_.Code.from_asset("../modules/cms_ui/source/handlers/iot_lifecycle_events"),
             runtime=lambda_.Runtime.PYTHON_3_11,
             handler="lambda_function.lambda_handler",
             timeout=Duration.seconds(300),
@@ -178,10 +177,10 @@ class IoTStack(Stack):
             }
         )
         
-        # Lambda function for IoT API operations (using PythonFunction with bundled dependencies)
-        self.iot_api_function = python.PythonFunction(
+        # Lambda function for IoT API operations (using standard Lambda with bundled dependencies)
+        self.iot_api_function = lambda_.Function(
             self, "IoTAPIFunction",
-            entry="../modules/cms_ui/source/handlers/iot_api",
+            code=lambda_.Code.from_asset("../modules/cms_ui/source/handlers/iot_api"),
             runtime=lambda_.Runtime.PYTHON_3_11,
             handler="index.lambda_handler",
             timeout=Duration.seconds(300),

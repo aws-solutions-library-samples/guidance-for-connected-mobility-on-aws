@@ -16,6 +16,7 @@ import {
 import Map, { Source, Layer, Marker, Popup } from 'react-map-gl';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { getMapConfiguration, MapConfig } from '../../../utils/mapConfig';
 
 interface Trip {
   trip_id: string;
@@ -68,11 +69,25 @@ interface RouteMapModalProps {
 export function RouteMapModal({ trip, onDismiss, safetyAlerts = [] }: RouteMapModalProps) {
   const mapRef = useRef<any>();
   const [selectedAlert, setSelectedAlert] = useState<SafetyAlert | null>(null);
+  const [mapConfig, setMapConfig] = useState<MapConfig | null>(null);
   const [viewState, setViewState] = useState({
     longitude: trip.start_location.lon || -122.4194,
     latitude: trip.start_location.lat || 37.7749,
     zoom: 12
   });
+
+  // Setup map configuration
+  useEffect(() => {
+    const setupMap = async () => {
+      try {
+        const config = await getMapConfiguration();
+        setMapConfig(config);
+      } catch (error) {
+        console.error('Failed to setup map configuration:', error);
+      }
+    };
+    setupMap();
+  }, []);
 
   // Create route line from route points
   const routeGeoJSON = {
@@ -166,13 +181,20 @@ export function RouteMapModal({ trip, onDismiss, safetyAlerts = [] }: RouteMapMo
           header={<Header variant="h3">Route Map with Safety Alerts</Header>}
         >
           <div style={{ height: '500px', width: '100%' }}>
-            <Map
-              ref={mapRef}
-              {...viewState}
-              onMove={evt => setViewState(evt.viewState)}
-              mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
-              style={{ width: '100%', height: '100%' }}
-              mapLib={maplibregl}
+            {!mapConfig ? (
+              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <StatusIndicator type="loading">Loading map...</StatusIndicator>
+              </div>
+            ) : (
+              <Map
+                ref={mapRef}
+                {...viewState}
+                onMove={evt => setViewState(evt.viewState)}
+                mapStyle={mapConfig.mapStyle}
+                {...(mapConfig.authOptions || {})}
+                style={{ width: '100%', height: '100%' }}
+                mapLib={maplibregl}
+              >
             >
               {/* Route Line */}
               <Source id="route" type="geojson" data={routeGeoJSON}>

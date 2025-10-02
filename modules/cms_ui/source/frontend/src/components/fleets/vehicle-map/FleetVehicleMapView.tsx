@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { getRuntimeConfig } from '../../../config/api';
 import {
   SplitPanel,
@@ -28,6 +28,9 @@ import { getRealtimeApiClient } from "../../../services/RealtimeDataService";
 // MapLibre GL JS with React Map GL (works with both OpenStreetMap and Amazon Location Services)
 import Map, { NavigationControl, Marker, Popup, Source, Layer } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { fromCognitoIdentityPool } from '@aws-sdk/credential-provider-cognito-identity';
+import { CognitoIdentityClient } from '@aws-sdk/client-cognito-identity';
+import { withIdentityPoolId } from '@aws/amazon-location-utilities-auth-helper';
 
 interface Vehicle {
   vehicleId: string;
@@ -80,6 +83,47 @@ export default function FleetVehicleMapView() {
   
   // Track if user has manually interacted with the map
   const [userHasInteracted, setUserHasInteracted] = useState(false);
+  const [authHelper, setAuthHelper] = useState<any>(null);
+
+  // Setup auth helper for Amazon Location Services
+  useEffect(() => {
+    const setupLocationAuth = async () => {
+      console.log('🚀 Setting up Amazon Location Services authentication');
+      
+      const runtimeConfig = (window as any).runtimeConfig;
+      
+      if (runtimeConfig?.awsCredentials?.identityPoolId) {
+        console.log('✅ Setting up Amazon Location Services with identity pool');
+        console.log('🔑 Identity Pool ID:', runtimeConfig.awsCredentials.identityPoolId);
+        
+        try {
+          // Create auth helper for Amazon Location Services (unauthenticated access)
+          const authHelper = await withIdentityPoolId(runtimeConfig.awsCredentials.identityPoolId);
+          setAuthHelper(authHelper);
+          console.log('✅ Auth helper created successfully');
+          console.log('🔍 Auth helper methods:', Object.keys(authHelper));
+          
+          // Test the transformRequest function
+          if (authHelper.transformRequest) {
+            console.log('✅ transformRequest method available');
+          } else {
+            console.log('❌ transformRequest method not available');
+          }
+          
+          // Test getMapAuthenticationOptions
+          if (authHelper.getMapAuthenticationOptions) {
+            const mapAuthOptions = authHelper.getMapAuthenticationOptions();
+            console.log('🔍 getMapAuthenticationOptions result:', mapAuthOptions);
+          }
+        } catch (error) {
+          console.error('❌ Failed to create auth helper:', error);
+          setAuthHelper(null);
+        }
+      }
+    };
+    
+    setupLocationAuth();
+  }, []);
   
   
   const visualizationOptions = [
@@ -139,25 +183,49 @@ export default function FleetVehicleMapView() {
     }
   };
 
-  // OpenStreetMap style (ready for Amazon Location Services upgrade)
-  const mapStyle = {
-    version: 8,
-    sources: {
-      'osm-tiles': {
-        type: 'raster' as const,
-        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-        tileSize: 256,
-        attribution: '© OpenStreetMap contributors | Ready for Amazon Location Services'
-      }
-    },
-    layers: [
-      {
-        id: 'osm-tiles',
-        type: 'raster' as const,
-        source: 'osm-tiles'
-      }
-    ]
-  };
+  // Map style with Amazon Location Services Cognito authentication
+  const mapStyle = useMemo(() => {
+    const runtimeConfig = (window as any).runtimeConfig;
+    const locationServicesEnabled = runtimeConfig?.locationServices?.enabled;
+    
+    console.log('🗺️ Map style debug:', {
+      runtimeConfig: !!runtimeConfig,
+      locationServicesEnabled,
+      hasAuthHelper: !!authHelper,
+      locationServices: runtimeConfig?.locationServices
+    });
+    
+    if (locationServicesEnabled && authHelper) {
+      // Use Amazon Location Services with Cognito authentication
+      const region = runtimeConfig.locationServices.region || 'us-east-1';
+      
+      console.log('🗺️ Using Amazon Location Services with Cognito authentication:', { region });
+      
+      // Use new v2 geo-maps API with default provider
+      return `https://maps.geo.${region}.amazonaws.com/v2/styles/Standard/descriptor`;
+    } else if (!locationServicesEnabled || !authHelper) {
+      // Fallback to OpenStreetMap if Location Services disabled or auth helper not ready
+      console.log('🗺️ Falling back to OpenStreetMap');
+      return {
+        version: 8,
+        sources: {
+          'osm-tiles': {
+            type: 'raster' as const,
+            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+            tileSize: 256,
+            attribution: '© OpenStreetMap contributors'
+          }
+        },
+        layers: [
+          {
+            id: 'osm-tiles',
+            type: 'raster' as const,
+            source: 'osm-tiles'
+          }
+        ]
+      };
+    }
+  }, [authHelper]);
 
   // Fetch vehicle data from optimized locations API
   const fetchVehicleData = async () => {
@@ -670,6 +738,7 @@ export default function FleetVehicleMapView() {
                 onClick={handleMapClick}
                 interactiveLayerIds={['clusters', 'unclustered-point']}
                 mapStyle={mapStyle}
+                {...(authHelper ? authHelper.getMapAuthenticationOptions() : {})}
                 attributionControl={true}
                 style={{ width: '100%', height: '100%', cursor: 'pointer' }}
               >
