@@ -136,7 +136,33 @@ This Guidance supports deployment in the following AWS Regions:
 
 ## Deployment Steps
 
-### Option 1: Automated Deployment with Makefile (Recommended)
+### Option 1: Interactive Deployment with Makefile (Recommended)
+
+The interactive deployment guides you through profile selection, environment configuration, and phased deployment.
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/aws-solutions-library-samples/guidance-for-connected-mobility-on-aws.git
+   cd guidance-for-connected-mobility-on-aws/deployment
+   ```
+
+2. Start interactive deployment:
+   ```bash
+   make deploy
+   ```
+
+3. Follow the prompts to:
+   - Select your AWS profile
+   - Choose deployment stage (dev, prod, or custom)
+   - Select deployment phase or deploy all phases
+
+Note: We recommend deploying one phase at a time to ensure no issues in the deployment
+
+4. When the deployment is complete, all necessary data will be available on the screen, URL, username/password.
+
+![Architecture Diagram](/documentation/deployment_options1.png)
+
+### Option 2: Automated Deployment with Makefile
 
 The Makefile automates environment setup, dependency installation, and phased deployment.
 
@@ -171,7 +197,7 @@ The Makefile automates environment setup, dependency installation, and phased de
    aws cloudformation describe-stacks --stack-name cms-dev-ui --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontURL`].OutputValue' --output text
    ```
 
-### Option 2: Manual CDK Deployment
+### Option 3: Manual CDK Deployment
 
 For more control over individual stack deployments:
 
@@ -228,14 +254,14 @@ For more control over individual stack deployments:
 
 ## Deployment Validation
 
-1. **Verify CloudFormation stacks**: Open the AWS CloudFormation console and verify that all stacks with names starting with `cms-dev` show `CREATE_COMPLETE` status.
+1. **Verify CloudFormation stacks**: Open the AWS CloudFormation console and verify that all stacks with names starting with `cms-{deployment-stage}` show `CREATE_COMPLETE` status.
 
 2. **Check DynamoDB tables**: In the DynamoDB console, verify that the following tables are created:
-   - `cms-dev-storage-vehicles`
-   - `cms-dev-storage-drivers`
-   - `cms-dev-storage-trips`
-   - `cms-dev-storage-safety-events`
-   - `cms-dev-storage-maintenance-alerts`
+   - `cms-{deployment-stage}-storage-vehicles`
+   - `cms-{deployment-stage}-storage-drivers`
+   - `cms-{deployment-stage}-storage-trips`
+   - `cms-{deployment-stage}-storage-safety-events`
+   - `cms-{deployment-stage}-storage-maintenance-alerts`
 
 3. **Validate ElastiCache for Redis**: Verify the Redis cluster is running:
    ```bash
@@ -267,21 +293,29 @@ For more control over individual stack deployments:
    aws cloudformation describe-stacks --stack-name cms-dev-ui --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontURL`].OutputValue' --output text
    ```
 
+Or: 
+
+see the outputs: 
+
+![img](/documentation/deployment_outputs1.png)
+
 2. **Open the URL** in your web browser to access the Connected Mobility dashboard.
 
 3. **Default login credentials** (if authentication is enabled):
-   - Username: `admin@example.com`
-   - Password: `TempPassword123!`
+   - Username: `FleetManager@example.com`
+   - Password: `FleetManager123!`
+
+![img](/documentation/login1.png)
 
 ### Running the Fleet Simulator
 
-1. **Start the simulator** to generate sample telemetry data:
+1. **Start the simulator service** to help generate sample telemetry data:
    ```bash
-   cd modules/fleet_simulator
-   python3 simulator.py --vehicles 10 --duration 3600
+   cd service/simulator
+   ./manage_simulation.sh start
    ```
 
-2. **Monitor telemetry ingestion** in the web application under "Telemetry Dashboard".
+2. **Create a vehicle and run the simulator** from the UI to generate data
 
 ### Expected Output
 
