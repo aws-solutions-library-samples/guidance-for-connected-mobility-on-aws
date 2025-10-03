@@ -17,6 +17,7 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import com.cms.telemetry.sink.RedisTelemetrySink;
+import com.cms.telemetry.TireTelemetryTransformer;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.types.Row;
@@ -129,6 +130,17 @@ public class TelemetryProcessor {
         telemetryStream.addSink(new RedisTelemetrySink(redisEndpoint))
             .name("Redis Vehicle State Cache");
 
+        // Add tire telemetry transformation for tire prediction model
+        DataStream<TireTelemetryTransformer.TireTelemetryRecord> tireStream = telemetryStream
+            .flatMap(new TireTelemetryTransformer())
+            .name("Transform Tire Telemetry");
+
+        // Add Iceberg sink for tire analytics
+        addTireIcebergSink(env, tireStream, s3DatalakeBucket);
+        
+        // Print tire telemetry for monitoring
+        tireStream.print("Tire Telemetry");
+
         // Add Iceberg sink for analytics
         addIcebergSink(env, processedStream, s3DatalakeBucket);
 
@@ -204,6 +216,86 @@ public class TelemetryProcessor {
             return rawData.substring(start, end);
         } catch (Exception e) {
             return "UNKNOWN";
+        }
+    }
+
+    private static void addTireIcebergSink(
+        StreamExecutionEnvironment env, 
+        DataStream<TireTelemetryTransformer.TireTelemetryRecord> stream, 
+        String s3DatalakeBucket
+    ) {
+        try {
+            StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+            
+            // Use existing Iceberg catalog
+            tableEnv.executeSql(
+                "CREATE CATALOG IF NOT EXISTS iceberg_catalog WITH (" +
+                "'type'='iceberg'," +
+                "'warehouse'='s3://" + s3DatalakeBucket + "/warehouse'," +
+                "'catalog-impl'='org.apache.iceberg.aws.glue.GlueCatalog'," +
+                "'io-impl'='org.apache.iceberg.aws.s3.S3FileIO'" +
+                ")"
+            );
+            
+            // Create tire telemetry table
+            tableEnv.executeSql(
+                "CREATE TABLE IF NOT EXISTS iceberg_catalog.cms_analytics.tire_telemetry (" +
+                "device_id STRING," +
+                "event_timestamp STRING," +
+                "timestamp_epoch BIGINT," +
+                "aaid STRING," +
+                "asset_type STRING," +
+                "asset_id STRING," +
+                "tpms_avm_tire_position STRING," +
+                "tpms_pressure_in_mbar DOUBLE," +
+                "tpms_condition STRING," +
+                "tpms_tire_temperature_in_celsius DOUBLE," +
+                "tread_depth_mm DOUBLE," +
+                "latitude DOUBLE," +
+                "longitude DOUBLE," +
+                "year INT," +
+                "month INT," +
+                "day INT," +
+                "hour INT" +
+                ") PARTITIONED BY (year, month, day) " +
+                "WITH (" +
+                "'format-version'='2'," +
+                "'write.format.default'='parquet'," +
+                "'write.parquet.compression-codec'='snappy'" +
+                ")"
+            );
+            
+            // Convert stream to table rows
+            DataStream<Row> rowStream = stream.map(record -> 
+                Row.of(
+                    record.deviceId,
+                    record.eventTimestamp,
+                    record.timestampEpoch,
+                    record.aaid,
+                    record.assetType,
+                    record.assetId,
+                    record.tpmsAvmTirePosition,
+                    record.tpmsPressureInMbar,
+                    record.tpmsCondition,
+                    record.tpmsTireTemperatureInCelsius,
+                    record.treadDepthMm,
+                    record.latitude,
+                    record.longitude,
+                    record.year,
+                    record.month,
+                    record.day,
+                    record.hour
+                )
+            );
+            
+            // Register as table and insert
+            Table table = tableEnv.fromDataStream(rowStream);
+            table.executeInsert("iceberg_catalog.cms_analytics.tire_telemetry");
+            
+            LOG.info("✅ Tire telemetry Iceberg sink configured for S3 data lake");
+            
+        } catch (Exception e) {
+            LOG.warn("⚠️ Tire Iceberg sink setup failed - tire analytics disabled: {}", e.getMessage());
         }
     }
 
