@@ -262,7 +262,7 @@ class StorageStack(Stack):
         # S3 Datalake Bucket for Iceberg Analytics
         self.datalake_bucket = s3.Bucket(
             self, "DatalakeBucket",
-            bucket_name=f"{construct_id}-datalake",
+            bucket_name=f"{construct_id}-datalake-{self.account}",
             removal_policy=RemovalPolicy.RETAIN,
             versioned=True,
             public_read_access=False,
@@ -285,8 +285,14 @@ class StorageStack(Stack):
             ]
         )
         
+        # Add datalake bucket name to tables dictionary for downstream services
+        self.tables['datalake_bucket_name'] = self.datalake_bucket.bucket_name
+        
         # Outputs for each table
         for table_name, table in self.tables.items():
+            # Skip non-table entries (like datalake_bucket_name)
+            if not hasattr(table, 'table_name'):
+                continue
             # Replace underscores with hyphens for export names
             export_name = table_name.replace('_', '-')
             CfnOutput(

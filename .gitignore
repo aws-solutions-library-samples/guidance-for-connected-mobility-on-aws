@@ -521,3 +521,5 @@ deployment/cdk.out*/
 deployment/.venv/
 deployment/node_modules/
 modules/cms_ui_backup_20250924_103609
+diagram_env
+scripts

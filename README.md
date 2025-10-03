@@ -30,7 +30,7 @@ Connected mobility applications require complex integration of IoT devices, real
 - Implements industry best practices for fleet management and safety compliance
 - Offers realistic simulation capabilities for testing without physical vehicle fleets
 
-![Architecture Diagram](assets/images/architecture_final.png)
+![Architecture Diagram](/documentation/architecture_final.png)
 
 ### Architecture Flow
 
@@ -38,12 +38,14 @@ Connected mobility applications require complex integration of IoT devices, real
 2. **Data Ingestion**: Telemetry data flows through Amazon MSK (Kafka) for high-throughput processing
 3. **Real-time Processing**: Apache Flink on Amazon Kinesis Data Analytics processes streams to generate trips, safety events, and maintenance alerts
 4. **Data Storage**: Processed data is stored in DynamoDB with automatic scaling and backup
-5. **Fleet Management**: Web application provides comprehensive fleet management, driver tracking, and analytics dashboards
-6. **Simulation**: Integrated fleet simulator generates realistic telemetry for testing and development
+5. **Real-time State Management**: Amazon ElastiCache for Redis maintains last known vehicle state for sub-second lookups
+6. **Location Services**: Amazon Location Service provides maps, geocoding, and route calculation for vehicle tracking and trip planning
+7. **Fleet Management**: Web application provides comprehensive fleet management, driver tracking, and analytics dashboards with real-time map visualization
+8. **Simulation**: Integrated fleet simulator generates realistic telemetry for testing and development
 
 ### Cost
 
-_You are responsible for the cost of the AWS services used while running this Guidance. As of October 2024, the cost for running this Guidance with the default settings in the US East (N. Virginia) region is approximately $450.00 per month for processing 1,000 vehicles with moderate usage._
+_You are responsible for the cost of the AWS services used while running this Guidance. As of October 2024, the cost for running this Guidance with the default settings in the US East (N. Virginia) region is approximately $410.00 per month for processing 1,000 vehicles with moderate usage._
 
 _We recommend creating a [Budget](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html) through [AWS Cost Explorer](https://aws.amazon.com/aws-cost-management/aws-cost-explorer/) to help manage costs. Prices are subject to change. For full details, refer to the pricing webpage for each AWS service used in this Guidance._
 
@@ -56,6 +58,8 @@ The following table provides a sample cost breakdown for deploying this Guidance
 | Amazon MSK | 3 kafka.m5.large brokers, 100 GB storage each | $194.40 |
 | Amazon Kinesis Data Analytics | 1 KPU running 24/7 | $108.00 |
 | Amazon DynamoDB | 10 GB storage, 1M read/write requests | $3.50 |
+| Amazon ElastiCache for Redis | cache.t3.micro node | $12.41 |
+| Amazon Location Service | 100K map tile requests, 10K geocoding requests | $8.00 |
 | AWS IoT Core | 1M messages per month | $5.00 |
 | Amazon API Gateway | 1M REST API calls per month | $3.50 |
 | Amazon Cognito | 1,000 active users per month | $0.00 |
@@ -63,7 +67,7 @@ The following table provides a sample cost breakdown for deploying this Guidance
 | AWS Lambda | 10M invocations, 512MB memory | $20.00 |
 | Amazon S3 | 50 GB storage, 1M requests | $1.50 |
 | Amazon VPC | NAT Gateway, data transfer | $45.60 |
-| **Total** | | **~$390.00** |
+| **Total** | | **~$410.00** |
 
 ## Prerequisites
 
@@ -76,7 +80,6 @@ These deployment instructions are optimized to best work on **Amazon Linux 2023 
 - Python 3.9 or later
 - AWS CLI v2
 - AWS CDK v2.100.0 or later
-- Docker (for local development)
 
 **Installation commands for Amazon Linux 2023:**
 ```bash
@@ -93,25 +96,18 @@ sudo ./aws/install
 
 # Install AWS CDK
 npm install -g aws-cdk
-
-# Install Docker
-sudo dnf install -y docker
-sudo systemctl start docker
-sudo usermod -a -G docker ec2-user
 ```
 
 ### Third-party tools
-
 - **Git** - For cloning the repository
 - **Make** - For running deployment scripts (optional)
 
 ### AWS account requirements
-
 - **AWS Account** with appropriate permissions for creating IAM roles, VPCs, and AWS services
 - **AWS CLI configured** with credentials that have administrative permissions
 - **Sufficient service quotas** for the services used (see Service limits section)
 
-### aws cdk bootstrap
+### AWS CDK
 
 This Guidance uses AWS CDK. If you are using AWS CDK for the first time, please perform the following bootstrapping:
 
@@ -140,35 +136,70 @@ This Guidance supports deployment in the following AWS Regions:
 
 ## Deployment Steps
 
+### Option 1: Automated Deployment with Makefile (Recommended)
+
+The Makefile automates environment setup, dependency installation, and phased deployment.
+
 1. Clone the repository:
    ```bash
    git clone https://github.com/aws-solutions-library-samples/guidance-for-connected-mobility-on-aws.git
+   cd guidance-for-connected-mobility-on-aws/deployment
    ```
 
-2. Navigate to the repository folder:
+2. View available deployment options:
    ```bash
+   make help
+   ```
+
+3. Deploy all phases sequentially:
+   ```bash
+   make deploy-all
+   ```
+
+   Or deploy individual phases:
+   ```bash
+   make infrastructure  # Phase 0: VPC, Subnets, ElastiCache
+   make phase1          # Phase 1: IoT, Storage, UI, Lambda, Cognito
+   make phase2          # Phase 2: Historical data injection
+   make phase3          # Phase 3: MSK Deployment
+   make phase3b         # Phase 4: MSK Configuration + IoT Integration
+   make phase4          # Phase 5: Flink Stream Processing
+   ```
+
+4. Capture the CloudFront distribution URL:
+   ```bash
+   aws cloudformation describe-stacks --stack-name cms-dev-ui --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontURL`].OutputValue' --output text
+   ```
+
+### Option 2: Manual CDK Deployment
+
+For more control over individual stack deployments:
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/aws-solutions-library-samples/guidance-for-connected-mobility-on-aws.git
    cd guidance-for-connected-mobility-on-aws
    ```
 
-3. Create and activate a Python virtual environment:
+2. Create and activate a Python virtual environment:
    ```bash
    python3 -m venv .venv
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    ```
 
-4. Install Python dependencies:
+3. Install Python dependencies:
    ```bash
    pip install -r deployment/requirements.txt
    ```
 
-5. Install Node.js dependencies:
+4. Install Node.js dependencies:
    ```bash
    cd modules/cms_ui/source/frontend
    npm install
    cd ../../../../
    ```
 
-6. Configure deployment parameters by editing `deployment/config.json`:
+5. Configure deployment parameters by editing `deployment/config.json`:
    ```json
    {
      "stackPrefix": "cms-dev",
@@ -178,42 +209,22 @@ This Guidance supports deployment in the following AWS Regions:
    }
    ```
 
-7. Deploy the infrastructure foundation:
+6. Deploy stacks in order:
    ```bash
    cd deployment
    cdk deploy cms-dev-infrastructure --require-approval never
-   ```
-
-8. Deploy the storage layer:
-   ```bash
    cdk deploy cms-dev-storage --require-approval never
-   ```
-
-9. Deploy the messaging layer (MSK):
-   ```bash
    cdk deploy cms-dev-msk --require-approval never
+   cdk deploy cms-dev-iot --require-approval never
+   cdk deploy cms-dev-telemetry-integration --require-approval never
+   cdk deploy cms-dev-flink --require-approval never
+   cdk deploy cms-dev-ui --require-approval never
    ```
 
-10. Deploy the IoT and telemetry integration:
-    ```bash
-    cdk deploy cms-dev-iot --require-approval never
-    cdk deploy cms-dev-telemetry-integration --require-approval never
-    ```
-
-11. Deploy the Flink processing applications:
-    ```bash
-    cdk deploy cms-dev-flink --require-approval never
-    ```
-
-12. Deploy the presentation layer (UI):
-    ```bash
-    cdk deploy cms-dev-ui --require-approval never
-    ```
-
-13. Capture the CloudFront distribution URL:
-    ```bash
-    aws cloudformation describe-stacks --stack-name cms-dev-ui --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontURL`].OutputValue' --output text
-    ```
+7. Capture the CloudFront distribution URL:
+   ```bash
+   aws cloudformation describe-stacks --stack-name cms-dev-ui --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontURL`].OutputValue' --output text
+   ```
 
 ## Deployment Validation
 
@@ -226,12 +237,23 @@ This Guidance supports deployment in the following AWS Regions:
    - `cms-dev-storage-safety-events`
    - `cms-dev-storage-maintenance-alerts`
 
-3. **Validate MSK cluster**: Run the following command to check MSK cluster status:
+3. **Validate ElastiCache for Redis**: Verify the Redis cluster is running:
+   ```bash
+   aws elasticache describe-cache-clusters --cache-cluster-id cms-dev-redis --show-cache-node-info
+   ```
+
+4. **Verify Amazon Location Service resources**: Check that map and place index are created:
+   ```bash
+   aws location list-maps
+   aws location list-place-indexes
+   ```
+
+5. **Validate MSK cluster**: Run the following command to check MSK cluster status:
    ```bash
    aws kafka describe-cluster --cluster-arn $(aws kafka list-clusters --query 'ClusterInfoList[0].ClusterArn' --output text)
    ```
 
-4. **Test API Gateway**: Verify the API is accessible:
+6. **Test API Gateway**: Verify the API is accessible:
    ```bash
    curl -X GET $(aws cloudformation describe-stacks --stack-name cms-dev-ui --query 'Stacks[0].Outputs[?OutputKey==`ApiEndpoint`].OutputValue' --output text)/api/v1/health
    ```

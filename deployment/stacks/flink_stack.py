@@ -228,7 +228,8 @@ class FlinkStack(Stack):
         
         # Add DynamoDB permissions for all tables
         for table in storage_tables.values():
-            table.grant_read_write_data(self.flink_role)
+            if hasattr(table, 'grant_read_write_data'):
+                table.grant_read_write_data(self.flink_role)
         
         # Add explicit DynamoDB permissions for storage tables
         self.flink_role.add_to_policy(
@@ -253,6 +254,17 @@ class FlinkStack(Stack):
         
         # Add S3 permissions for JAR bucket
         self.jar_bucket.grant_read(self.flink_role)
+        
+        # Add S3 write permissions for datalake bucket
+        datalake_bucket_name = storage_tables.get('datalake_bucket_name')
+        if datalake_bucket_name:
+            self.flink_role.add_to_policy(
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=["s3:PutObject", "s3:PutObjectAcl"],
+                    resources=[f"arn:aws:s3:::{datalake_bucket_name}/*"]
+                )
+            )
         
         # CloudWatch Log Groups for all Flink applications
         self.event_driven_telemetry_log_group = logs.LogGroup(
