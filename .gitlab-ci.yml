@@ -3,19 +3,14 @@ stages:
 
 sync_to_github:
   stage: sync
-  image: alpine/git:latest
+  image: alpine:latest
   before_script:
     - apk add --no-cache git
     - git config --global user.email "ci@example.com"
     - git config --global user.name "GitLab CI"
   script:
-    # Clone the full repository
     - git fetch --unshallow || true
-    
-    # Add GitHub remote
     - git remote add github https://${GITHUB_TOKEN}@github.com/aws-solutions-library-samples/guidance-for-connected-mobility-on-aws.git || true
-    
-    # Push to GitHub
     - git push github HEAD:main --force --tags
     
   variables:
