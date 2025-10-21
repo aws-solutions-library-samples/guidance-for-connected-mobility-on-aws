@@ -1,0 +1,208 @@
+{
+  "manifest_version": "1.0.0",
+  "transform_type": "in_vehicle",
+  "source_name": "AWS IoT FleetWise",
+  "source_format": "json",
+  "description": "Transform AWS IoT FleetWise campaign data to CMS Signal Catalog format",
+  
+  "vehicle_id_mapping": {
+    "source_field": "Vehicle.VehicleIdentification.VIN",
+    "target_field": "vin",
+    "mapping_type": "direct"
+  },
+  
+  "signal_mappings": [
+    {
+      "cms_signal": "vin",
+      "source_path": "Vehicle.VehicleIdentification.VIN",
+      "data_type": "string",
+      "required": true
+    },
+    {
+      "cms_signal": "ts",
+      "source_path": "Vehicle.timestamp",
+      "data_type": "timestamp",
+      "required": true
+    },
+    {
+      "cms_signal": "timestamp",
+      "source_path": "Vehicle.timestamp",
+      "data_type": "timestamp",
+      "required": true
+    },
+    {
+      "cms_signal": "lat",
+      "source_path": "Vehicle.CurrentLocation.Latitude",
+      "data_type": "float",
+      "required": true
+    },
+    {
+      "cms_signal": "lon",
+      "source_path": "Vehicle.CurrentLocation.Longitude",
+      "data_type": "float",
+      "required": true
+    },
+    {
+      "cms_signal": "alt",
+      "source_path": "Vehicle.CurrentLocation.Altitude",
+      "data_type": "float",
+      "default_value": 0
+    },
+    {
+      "cms_signal": "spd",
+      "source_path": "Vehicle.Speed",
+      "data_type": "float",
+      "required": true,
+      "conversion": {
+        "type": "multiply",
+        "factor": 0.621371,
+        "comment": "Convert km/h to mph"
+      }
+    },
+    {
+      "cms_signal": "hdg",
+      "source_path": "Vehicle.TravelDirection",
+      "data_type": "float",
+      "default_value": 0
+    },
+    {
+      "cms_signal": "odo",
+      "source_path": "Vehicle.TripMeterReading",
+      "data_type": "float",
+      "conversion": {
+        "type": "multiply",
+        "factor": 0.621371,
+        "comment": "Convert km to miles"
+      }
+    },
+    {
+      "cms_signal": "eng_temp",
+      "source_path": "Vehicle.Powertrain.CombustionEngine.ECT",
+      "data_type": "float",
+      "conversion": {
+        "type": "formula",
+        "formula": "value * 1.8 + 32",
+        "comment": "Convert Celsius to Fahrenheit"
+      }
+    },
+    {
+      "cms_signal": "oil_press",
+      "source_path": "Vehicle.Powertrain.CombustionEngine.OilPressure",
+      "data_type": "float",
+      "conversion": {
+        "type": "multiply",
+        "factor": 0.145038,
+        "comment": "Convert kPa to PSI"
+      }
+    },
+    {
+      "cms_signal": "fuel_lvl",
+      "source_path": "Vehicle.Powertrain.FuelSystem.Level",
+      "data_type": "integer"
+    },
+    {
+      "cms_signal": "soc",
+      "source_path": "Vehicle.Powertrain.TractionBattery.StateOfCharge.Current",
+      "data_type": "float",
+      "condition": {
+        "field": "Vehicle.VehicleIdentification.VehicleType",
+        "operator": "equals",
+        "value": "EV"
+      }
+    },
+    {
+      "cms_signal": "volt",
+      "source_path": "Vehicle.Powertrain.TractionBattery.Voltage",
+      "data_type": "float",
+      "condition": {
+        "field": "Vehicle.VehicleIdentification.VehicleType",
+        "operator": "equals",
+        "value": "EV"
+      }
+    },
+    {
+      "cms_signal": "tire_fl",
+      "source_path": "Vehicle.Chassis.Axle.Row1.Wheel.Left.Tire.Pressure",
+      "data_type": "float",
+      "conversion": {
+        "type": "multiply",
+        "factor": 0.145038,
+        "comment": "Convert kPa to PSI"
+      }
+    },
+    {
+      "cms_signal": "tire_fr",
+      "source_path": "Vehicle.Chassis.Axle.Row1.Wheel.Right.Tire.Pressure",
+      "data_type": "float",
+      "conversion": {
+        "type": "multiply",
+        "factor": 0.145038,
+        "comment": "Convert kPa to PSI"
+      }
+    },
+    {
+      "cms_signal": "tire_rl",
+      "source_path": "Vehicle.Chassis.Axle.Row2.Wheel.Left.Tire.Pressure",
+      "data_type": "float",
+      "conversion": {
+        "type": "multiply",
+        "factor": 0.145038,
+        "comment": "Convert kPa to PSI"
+      }
+    },
+    {
+      "cms_signal": "tire_rr",
+      "source_path": "Vehicle.Chassis.Axle.Row2.Wheel.Right.Tire.Pressure",
+      "data_type": "float",
+      "conversion": {
+        "type": "multiply",
+        "factor": 0.145038,
+        "comment": "Convert kPa to PSI"
+      }
+    },
+    {
+      "cms_signal": "battery_voltage",
+      "source_path": "Vehicle.Electrical.Battery.Voltage",
+      "data_type": "float"
+    },
+    {
+      "cms_signal": "gear",
+      "source_path": "Vehicle.Powertrain.Transmission.CurrentGear",
+      "data_type": "integer"
+    }
+  ],
+  
+  "static_fields": {
+    "data_source": "fleetwise",
+    "auto_registered": false
+  },
+  
+  "validation": {
+    "required_signals": ["vin", "ts", "lat", "lon", "spd"],
+    "range_checks": [
+      {
+        "signal": "spd",
+        "min": 0,
+        "max": 200
+      },
+      {
+        "signal": "lat",
+        "min": -90,
+        "max": 90
+      },
+      {
+        "signal": "lon",
+        "min": -180,
+        "max": 180
+      }
+    ]
+  },
+  
+  "metadata": {
+    "created_by": "CMS Team",
+    "created_at": "2025-10-21T15:30:00Z",
+    "version": "1.0.0",
+    "description": "Standard FleetWise VSS signal mapping to CMS format",
+    "notes": "Based on Vehicle Signal Specification (VSS) standard"
+  }
+}

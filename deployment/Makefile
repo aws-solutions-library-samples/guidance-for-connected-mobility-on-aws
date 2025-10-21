@@ -34,6 +34,7 @@ help: ## Show this help message
 	@echo ""
 	@echo "$(GREEN)🎯 Deployment Phases:$(NC)"
 	@echo "  make infrastructure      - Infrastructure Foundation (VPC, Subnets, ElastiCache)"
+	@echo "  make data-processing     - Data Processing Foundation (Signal Catalog, Transform Manifests)"
 	@echo "  make phase1              - Fleet Manager Interface (IoT, Storage, UI, Lambda, Cognito, S3)"
 	@echo "  make phase2              - Fleet Management Interface (historical data injection)"
 	@echo "  make phase3              - Telemetry Pipeline (MSK Deployment)"
@@ -157,6 +158,23 @@ infrastructure: ## Infrastructure Foundation (VPC, Subnets, ElastiCache)
 	VPC_ID=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-infrastructure --query 'Stacks[0].Outputs[?OutputKey==`VpcId`].OutputValue' --output text --profile $(AWS_PROFILE) 2>/dev/null || echo "Not available"); \
 	echo "├── VPC ID: $$VPC_ID"; \
 	echo "└── Redis Endpoint: $$REDIS_ENDPOINT"
+
+data-processing: ## Phase 0.5: Data Processing Foundation (Signal Catalog, Transform Manifests)
+	@echo "$(BLUE)📊 Phase 0.5: Data Processing Foundation$(NC)"
+	@echo "Deploying: Signal Catalog, Transform Manifests, Data Source Configs"
+	@source .venv/bin/activate && \
+	CDK_DEFAULT_ACCOUNT=$$(aws sts get-caller-identity --profile $(AWS_PROFILE) --query Account --output text) \
+	CDK_DEFAULT_REGION=$(AWS_REGION) \
+	DEPLOYMENT_STAGE=$(DEPLOYMENT_STAGE) AWS_PROFILE=$(AWS_PROFILE) \
+	cdk deploy cms-$(DEPLOYMENT_STAGE)-data-processing --require-approval never --profile $(AWS_PROFILE)
+	@echo "$(BLUE)📤 Seeding Signal Catalog from JSON...$(NC)"
+	@cd scripts && AWS_PROFILE=$(AWS_PROFILE) DEPLOYMENT_STAGE=$(DEPLOYMENT_STAGE) python3 seed_signal_catalog.py
+	@echo "$(GREEN)✅ Phase 0.5 Complete: Data Processing Foundation deployed$(NC)"
+	@echo "$(BLUE)📋 Data Processing Details:$(NC)"
+	@CATALOG_TABLE=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-data-processing --query 'Stacks[0].Outputs[?OutputKey==`SignalCatalogTableName`].OutputValue' --output text --profile $(AWS_PROFILE) 2>/dev/null || echo "Not available"); \
+	MANIFESTS_BUCKET=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-data-processing --query 'Stacks[0].Outputs[?OutputKey==`ManifestsBucketName`].OutputValue' --output text --profile $(AWS_PROFILE) 2>/dev/null || echo "Not available"); \
+	echo "├── Signal Catalog Table: $$CATALOG_TABLE"; \
+	echo "└── Manifests Bucket: $$MANIFESTS_BUCKET"
 
 phase1: build-ui ## Phase 1: Fleet Manager Interface (IoT, Storage, UI, Lambda, Cognito, S3)
 	@echo "$(BLUE)🚀 Phase 1: Fleet Manager Interface$(NC)"

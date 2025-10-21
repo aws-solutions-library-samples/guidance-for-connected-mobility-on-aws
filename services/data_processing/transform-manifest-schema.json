@@ -1,0 +1,308 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CMS Transform Manifest Schema",
+  "version": "1.0.0",
+  "description": "Schema for transformation manifests that convert external data formats to CMS Signal Catalog format. Similar to FleetWise decoder manifests.",
+  
+  "type": "object",
+  "required": ["manifest_version", "transform_type", "source_name", "signal_mappings"],
+  
+  "properties": {
+    "manifest_version": {
+      "type": "string",
+      "description": "Version of the transform manifest schema",
+      "example": "1.0.0"
+    },
+    
+    "transform_type": {
+      "type": "string",
+      "enum": ["in_vehicle", "cloud_to_cloud"],
+      "description": "Type of transformation: in_vehicle (DBC-like) or cloud_to_cloud (OEM API)"
+    },
+    
+    "source_name": {
+      "type": "string",
+      "description": "Name of the data source (e.g., 'FleetWise', 'OEM1', 'DBC-CAN')",
+      "example": "OEM1-API"
+    },
+    
+    "source_format": {
+      "type": "string",
+      "description": "Format of source data",
+      "enum": ["json", "protobuf", "can", "custom"],
+      "example": "json"
+    },
+    
+    "authentication": {
+      "type": "object",
+      "description": "Authentication configuration for cloud-to-cloud transforms",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["none", "api_key", "oauth2", "aws_iam"],
+          "example": "oauth2"
+        },
+        "credentials_secret_arn": {
+          "type": "string",
+          "description": "ARN of AWS Secrets Manager secret containing credentials",
+          "example": "arn:aws:secretsmanager:us-east-1:123456789012:secret:oem-api-creds"
+        },
+        "token_endpoint": {
+          "type": "string",
+          "description": "OAuth2 token endpoint URL",
+          "example": "https://api.oem.com/oauth/token"
+        }
+      }
+    },
+    
+    "api_endpoints": {
+      "type": "object",
+      "description": "API endpoints for cloud-to-cloud transforms",
+      "properties": {
+        "base_url": {
+          "type": "string",
+          "description": "Base URL for API calls",
+          "example": "https://api.oem.com/v1"
+        },
+        "vehicle_list": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "example": "/vehicles"
+            },
+            "method": {
+              "type": "string",
+              "enum": ["GET", "POST"],
+              "example": "GET"
+            },
+            "response_path": {
+              "type": "string",
+              "description": "JSONPath to vehicle list in response",
+              "example": "data.vehicles"
+            }
+          }
+        },
+        "telemetry": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "example": "/vehicles/{vehicle_id}/telemetry/latest"
+            },
+            "method": {
+              "type": "string",
+              "enum": ["GET", "POST"],
+              "example": "GET"
+            },
+            "response_path": {
+              "type": "string",
+              "description": "JSONPath to telemetry data in response",
+              "example": "data"
+            },
+            "polling_interval_seconds": {
+              "type": "integer",
+              "description": "How often to poll for new data",
+              "minimum": 1,
+              "example": 5
+            }
+          }
+        }
+      }
+    },
+    
+    "vehicle_id_mapping": {
+      "type": "object",
+      "description": "How to map source vehicle IDs to VINs",
+      "properties": {
+        "source_field": {
+          "type": "string",
+          "description": "Field name in source data containing vehicle ID",
+          "example": "vehicle_id"
+        },
+        "target_field": {
+          "type": "string",
+          "description": "Target field in CMS format (usually 'vin')",
+          "example": "vin"
+        },
+        "mapping_type": {
+          "type": "string",
+          "enum": ["direct", "lookup_table", "api_call"],
+          "description": "How to perform the mapping"
+        },
+        "lookup_table_s3": {
+          "type": "string",
+          "description": "S3 path to CSV mapping file (source_id,vin)",
+          "example": "s3://bucket/oem-vin-mapping.csv"
+        }
+      }
+    },
+    
+    "signal_mappings": {
+      "type": "array",
+      "description": "Array of signal transformation rules",
+      "items": {
+        "type": "object",
+        "required": ["cms_signal", "source_path"],
+        "properties": {
+          "cms_signal": {
+            "type": "string",
+            "description": "Target signal name from CMS Signal Catalog",
+            "example": "spd"
+          },
+          "source_path": {
+            "type": "string",
+            "description": "JSONPath or CAN signal name in source data",
+            "example": "vehicle_data.speed_kmh"
+          },
+          "data_type": {
+            "type": "string",
+            "enum": ["integer", "float", "string", "boolean", "timestamp"],
+            "example": "float"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether this signal is required",
+            "default": false
+          },
+          "default_value": {
+            "description": "Default value if source field is missing",
+            "example": 0
+          },
+          "conversion": {
+            "type": "object",
+            "description": "Conversion to apply to the value",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["multiply", "divide", "add", "subtract", "formula", "lookup"],
+                "example": "multiply"
+              },
+              "factor": {
+                "type": "number",
+                "description": "Factor for multiply/divide operations",
+                "example": 0.621371
+              },
+              "offset": {
+                "type": "number",
+                "description": "Offset for add/subtract operations",
+                "example": 32
+              },
+              "formula": {
+                "type": "string",
+                "description": "Custom formula (use 'value' as variable)",
+                "example": "value * 1.8 + 32"
+              },
+              "lookup_table": {
+                "type": "object",
+                "description": "Key-value mapping for lookup conversions",
+                "example": {
+                  "0": "P",
+                  "1": "I",
+                  "2": "D"
+                }
+              },
+              "comment": {
+                "type": "string",
+                "description": "Human-readable explanation of conversion",
+                "example": "Convert km/h to mph"
+              }
+            }
+          },
+          "condition": {
+            "type": "object",
+            "description": "Conditional mapping (only apply if condition is true)",
+            "properties": {
+              "field": {
+                "type": "string",
+                "description": "Field to check",
+                "example": "vehicle_type"
+              },
+              "operator": {
+                "type": "string",
+                "enum": ["equals", "not_equals", "greater_than", "less_than", "contains"],
+                "example": "equals"
+              },
+              "value": {
+                "description": "Value to compare against",
+                "example": "EV"
+              }
+            }
+          }
+        }
+      }
+    },
+    
+    "static_fields": {
+      "type": "object",
+      "description": "Static fields to add to every message",
+      "example": {
+        "data_source": "oem1",
+        "auto_registered": true
+      }
+    },
+    
+    "validation": {
+      "type": "object",
+      "description": "Validation rules for transformed data",
+      "properties": {
+        "required_signals": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of CMS signals that must be present",
+          "example": ["vin", "ts", "lat", "lon", "spd"]
+        },
+        "range_checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "signal": {
+                "type": "string",
+                "example": "spd"
+              },
+              "min": {
+                "type": "number",
+                "example": 0
+              },
+              "max": {
+                "type": "number",
+                "example": 200
+              }
+            }
+          }
+        }
+      }
+    },
+    
+    "metadata": {
+      "type": "object",
+      "description": "Manifest metadata",
+      "properties": {
+        "created_by": {
+          "type": "string",
+          "example": "customer@example.com"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "example": "2025-10-21T15:30:00Z"
+        },
+        "version": {
+          "type": "string",
+          "example": "1.0.0"
+        },
+        "description": {
+          "type": "string",
+          "example": "Transform manifest for OEM1 API telemetry data"
+        },
+        "notes": {
+          "type": "string",
+          "example": "Updated to handle new tire pressure format"
+        }
+      }
+    }
+  }
+}

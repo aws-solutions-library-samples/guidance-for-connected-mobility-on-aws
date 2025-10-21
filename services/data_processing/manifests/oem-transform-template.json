@@ -1,0 +1,204 @@
+{
+  "manifest_version": "1.0.0",
+  "transform_type": "cloud_to_cloud",
+  "source_name": "CUSTOMER_OEM_NAME",
+  "source_format": "json",
+  "description": "Customer-provided transformation manifest for OEM API integration",
+  
+  "authentication": {
+    "type": "oauth2",
+    "credentials_secret_arn": "arn:aws:secretsmanager:REGION:ACCOUNT:secret:oem-api-credentials",
+    "token_endpoint": "https://api.oem.com/oauth/token"
+  },
+  
+  "api_endpoints": {
+    "base_url": "https://api.oem.com/v1",
+    "vehicle_list": {
+      "path": "/vehicles",
+      "method": "GET",
+      "response_path": "data.vehicles"
+    },
+    "telemetry": {
+      "path": "/vehicles/{vehicle_id}/telemetry/latest",
+      "method": "GET",
+      "response_path": "data",
+      "polling_interval_seconds": 5
+    }
+  },
+  
+  "vehicle_id_mapping": {
+    "source_field": "vehicle_id",
+    "target_field": "vin",
+    "mapping_type": "lookup_table",
+    "lookup_table_s3": "s3://BUCKET/oem-vin-mapping.csv"
+  },
+  
+  "signal_mappings": [
+    {
+      "cms_signal": "vin",
+      "source_path": "vehicle_id",
+      "data_type": "string",
+      "required": true,
+      "comment": "Will be mapped via lookup table"
+    },
+    {
+      "cms_signal": "ts",
+      "source_path": "timestamp",
+      "data_type": "timestamp",
+      "required": true
+    },
+    {
+      "cms_signal": "timestamp",
+      "source_path": "timestamp",
+      "data_type": "timestamp",
+      "required": true
+    },
+    {
+      "cms_signal": "lat",
+      "source_path": "gps.coordinates.lat",
+      "data_type": "float",
+      "required": true
+    },
+    {
+      "cms_signal": "lon",
+      "source_path": "gps.coordinates.lon",
+      "data_type": "float",
+      "required": true
+    },
+    {
+      "cms_signal": "alt",
+      "source_path": "gps.altitude_meters",
+      "data_type": "float",
+      "conversion": {
+        "type": "multiply",
+        "factor": 3.28084,
+        "comment": "Convert meters to feet"
+      },
+      "default_value": 0
+    },
+    {
+      "cms_signal": "spd",
+      "source_path": "vehicle_data.speed_kmh",
+      "data_type": "float",
+      "required": true,
+      "conversion": {
+        "type": "multiply",
+        "factor": 0.621371,
+        "comment": "Convert km/h to mph"
+      }
+    },
+    {
+      "cms_signal": "hdg",
+      "source_path": "vehicle_data.heading_degrees",
+      "data_type": "float",
+      "default_value": 0
+    },
+    {
+      "cms_signal": "odo",
+      "source_path": "vehicle_data.odometer_km",
+      "data_type": "float",
+      "conversion": {
+        "type": "multiply",
+        "factor": 0.621371,
+        "comment": "Convert km to miles"
+      }
+    },
+    {
+      "cms_signal": "fuel_lvl",
+      "source_path": "fuel.level_percent",
+      "data_type": "integer",
+      "default_value": 0
+    },
+    {
+      "cms_signal": "eng_temp",
+      "source_path": "engine.coolant_temp_celsius",
+      "data_type": "float",
+      "conversion": {
+        "type": "formula",
+        "formula": "value * 1.8 + 32",
+        "comment": "Convert Celsius to Fahrenheit"
+      }
+    },
+    {
+      "cms_signal": "oil_press",
+      "source_path": "engine.oil_pressure_psi",
+      "data_type": "float",
+      "default_value": 0
+    },
+    {
+      "cms_signal": "battery_voltage",
+      "source_path": "electrical.battery_voltage",
+      "data_type": "float",
+      "default_value": 12.0
+    },
+    {
+      "cms_signal": "soc",
+      "source_path": "battery.state_of_charge_percent",
+      "data_type": "float",
+      "default_value": 0,
+      "condition": {
+        "field": "vehicle_type",
+        "operator": "equals",
+        "value": "EV"
+      }
+    },
+    {
+      "cms_signal": "tire_fl",
+      "source_path": "tires.front_left.pressure_psi",
+      "data_type": "float",
+      "default_value": 32.0
+    },
+    {
+      "cms_signal": "tire_fr",
+      "source_path": "tires.front_right.pressure_psi",
+      "data_type": "float",
+      "default_value": 32.0
+    },
+    {
+      "cms_signal": "tire_rl",
+      "source_path": "tires.rear_left.pressure_psi",
+      "data_type": "float",
+      "default_value": 32.0
+    },
+    {
+      "cms_signal": "tire_rr",
+      "source_path": "tires.rear_right.pressure_psi",
+      "data_type": "float",
+      "default_value": 32.0
+    }
+  ],
+  
+  "static_fields": {
+    "data_source": "oem",
+    "auto_registered": false
+  },
+  
+  "validation": {
+    "required_signals": ["vin", "ts", "lat", "lon", "spd"],
+    "range_checks": [
+      {
+        "signal": "spd",
+        "min": 0,
+        "max": 200
+      },
+      {
+        "signal": "lat",
+        "min": -90,
+        "max": 90
+      },
+      {
+        "signal": "lon",
+        "min": -180,
+        "max": 180
+      }
+    ]
+  },
+  
+  "metadata": {
+    "created_by": "customer@example.com",
+    "created_at": "2025-10-21T15:30:00Z",
+    "version": "1.0.0",
+    "description": "Template for OEM API transformation - customize for your OEM's data format",
+    "notes": "Replace CUSTOMER_OEM_NAME, API endpoints, and field mappings with your OEM's actual format"
+  }
+}

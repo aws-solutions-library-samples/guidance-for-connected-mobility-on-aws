@@ -9,6 +9,7 @@ with separate stacks for each major component.
 import os
 from aws_cdk import App, Environment, Aspects
 from stacks.infrastructure_stack import InfrastructureStack
+from stacks.data_processing_stack import DataProcessingStack
 from stacks.iot_stack import IoTStack
 from stacks.msk_stack import MSKStack
 from stacks.flink_stack import FlinkStack
@@ -48,6 +49,14 @@ infrastructure_stack = InfrastructureStack(
     f"{stack_prefix}-infrastructure", 
     env=env,
     description="Guidance for Connected Mobility (SO9618) - Infrastructure Foundation"
+)
+
+# 0.5. Data Processing Stack (Signal Catalog, Transform Manifests)
+data_processing_stack = DataProcessingStack(
+    app,
+    f"{stack_prefix}-data-processing",
+    env=env,
+    description="Guidance for Connected Mobility (SO9618) - Data Processing Foundation"
 )
 
 # 1. Storage Stack (DynamoDB tables) - needed by Flink and UI
