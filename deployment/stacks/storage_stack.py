@@ -124,10 +124,7 @@ class StorageStack(Stack):
         )
         
         # Outputs
-        CfnOutput(self, "ServiceHistoryTableName",
-            value=self.tables['service_history'].table_name,
-            export_name=f"{construct_id}-service-history-table"
-        )
+        # ServiceHistoryTableName output removed - generated automatically in loop below
         
         CfnOutput(self, "ServiceInvoiceBucketName",
             value=self.invoice_bucket.bucket_name,
