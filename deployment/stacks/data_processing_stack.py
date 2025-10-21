@@ -8,6 +8,9 @@ from aws_cdk import (
     aws_dynamodb as dynamodb,
     aws_s3 as s3,
     aws_s3_deployment as s3deploy,
+    aws_lambda as lambda_,
+    aws_apigateway as apigw,
+    aws_iam as iam,
     RemovalPolicy,
     Duration,
     CfnOutput
@@ -120,6 +123,44 @@ class DataProcessingStack(Stack):
         )
         
         # ===================================================================
+        # 5. Data Processing API Lambda
+        # ===================================================================
+        self.api_lambda = lambda_.Function(
+            self, 'DataProcessingAPI',
+            function_name=f'cms-{deployment_stage}-data-processing-api',
+            runtime=lambda_.Runtime.PYTHON_3_11,
+            handler='data_processing_api.handler',
+            code=lambda_.Code.from_asset('../services/data_processing/lambda'),
+            environment={
+                'SIGNAL_CATALOG_TABLE': self.signal_catalog_table.table_name,
+                'DATA_SOURCE_CONFIGS_TABLE': self.data_source_configs_table.table_name,
+                'MANIFESTS_BUCKET': self.manifests_bucket.bucket_name
+            },
+            timeout=Duration.seconds(30),
+            memory_size=512
+        )
+        
+        # Grant permissions
+        self.signal_catalog_table.grant_read_write_data(self.api_lambda)
+        self.data_source_configs_table.grant_read_write_data(self.api_lambda)
+        self.manifests_bucket.grant_read_write(self.api_lambda)
+        
+        # ===================================================================
+        # 6. API Gateway REST API
+        # ===================================================================
+        self.api = apigw.LambdaRestApi(
+            self, 'DataProcessingAPI',
+            rest_api_name=f'cms-{deployment_stage}-data-processing-api',
+            handler=self.api_lambda,
+            proxy=True,
+            default_cors_preflight_options=apigw.CorsOptions(
+                allow_origins=apigw.Cors.ALL_ORIGINS,
+                allow_methods=apigw.Cors.ALL_METHODS,
+                allow_headers=['Content-Type', 'Authorization']
+            )
+        )
+        
+        # ===================================================================
         # Outputs
         # ===================================================================
         CfnOutput(
@@ -140,7 +181,14 @@ class DataProcessingStack(Stack):
             description='Transform Manifests S3 Bucket'
         )
         
+        CfnOutput(
+            self, 'APIEndpoint',
+            value=self.api.url,
+            description='Data Processing API Endpoint'
+        )
+        
         # Export for other stacks
         self.signal_catalog_table_name = self.signal_catalog_table.table_name
         self.data_source_configs_table_name = self.data_source_configs_table.table_name
         self.manifests_bucket_name = self.manifests_bucket.bucket_name
+        self.api_endpoint = self.api.url
