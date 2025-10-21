@@ -40,31 +40,30 @@ class DataProcessingStack(Stack):
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=RemovalPolicy.RETAIN,
-            point_in_time_recovery=True,
-            
-            # GSI for querying by signal name across all groups
-            global_secondary_indexes=[
-                dynamodb.GlobalSecondaryIndex(
-                    index_name='signal-name-index',
-                    partition_key=dynamodb.Attribute(
-                        name='signal_name',
-                        type=dynamodb.AttributeType.STRING
-                    ),
-                    projection_type=dynamodb.ProjectionType.ALL
-                ),
-                dynamodb.GlobalSecondaryIndex(
-                    index_name='status-index',
-                    partition_key=dynamodb.Attribute(
-                        name='status',
-                        type=dynamodb.AttributeType.STRING
-                    ),
-                    sort_key=dynamodb.Attribute(
-                        name='signal_name',
-                        type=dynamodb.AttributeType.STRING
-                    ),
-                    projection_type=dynamodb.ProjectionType.ALL
-                )
-            ]
+            point_in_time_recovery=True
+        )
+        
+        # Add GSIs
+        self.signal_catalog_table.add_global_secondary_index(
+            index_name='signal-name-index',
+            partition_key=dynamodb.Attribute(
+                name='signal_name',
+                type=dynamodb.AttributeType.STRING
+            ),
+            projection_type=dynamodb.ProjectionType.ALL
+        )
+        
+        self.signal_catalog_table.add_global_secondary_index(
+            index_name='status-index',
+            partition_key=dynamodb.Attribute(
+                name='status',
+                type=dynamodb.AttributeType.STRING
+            ),
+            sort_key=dynamodb.Attribute(
+                name='signal_name',
+                type=dynamodb.AttributeType.STRING
+            ),
+            projection_type=dynamodb.ProjectionType.ALL
         )
         
         # ===================================================================
@@ -79,19 +78,17 @@ class DataProcessingStack(Stack):
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=RemovalPolicy.RETAIN,
-            point_in_time_recovery=True,
-            
-            # GSI for querying by source type
-            global_secondary_indexes=[
-                dynamodb.GlobalSecondaryIndex(
-                    index_name='source-type-index',
-                    partition_key=dynamodb.Attribute(
-                        name='source_type',
-                        type=dynamodb.AttributeType.STRING
-                    ),
-                    projection_type=dynamodb.ProjectionType.ALL
-                )
-            ]
+            point_in_time_recovery=True
+        )
+        
+        # Add GSI
+        self.data_source_configs_table.add_global_secondary_index(
+            index_name='source-type-index',
+            partition_key=dynamodb.Attribute(
+                name='source_type',
+                type=dynamodb.AttributeType.STRING
+            ),
+            projection_type=dynamodb.ProjectionType.ALL
         )
         
         # ===================================================================
@@ -149,7 +146,7 @@ class DataProcessingStack(Stack):
         # 6. API Gateway REST API
         # ===================================================================
         self.api = apigw.LambdaRestApi(
-            self, 'DataProcessingAPI',
+            self, 'DataProcessingRestAPI',
             rest_api_name=f'cms-{deployment_stage}-data-processing-api',
             handler=self.api_lambda,
             proxy=True,
