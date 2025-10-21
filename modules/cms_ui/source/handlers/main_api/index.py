@@ -4,11 +4,13 @@ import os
 import time
 from datetime import datetime, timedelta
 from cache_client import create_cached_dynamodb_client
+from decimal import Decimal
 
 # Create cached DynamoDB client
 redis_endpoint = os.environ.get('REDIS_ENDPOINT')
 dynamodb_client = create_cached_dynamodb_client(redis_endpoint)
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+s3_client = boto3.client('s3')
 
 def handler(event, context):
     # Handle fleets POST endpoint first
@@ -239,7 +241,8 @@ def handler(event, context):
         'VEHICLES_TABLE_NAME', 
         'FLEETS_TABLE_NAME',
         'DASHBOARD_METRICS_CACHE_TABLE',
-        'DRIVERS_TABLE_NAME'
+        'DRIVERS_TABLE_NAME',
+        'SERVICE_HISTORY_TABLE_NAME'
     ]
     
     for env_var in required_env_vars:
@@ -3337,6 +3340,134 @@ def handler(event, context):
                     'statusCode': 500,
                     'headers': cors_headers,
                     'body': json.dumps({'error': f'Failed to fetch maintenance alerts: {str(e)}'})
+                }
+        
+        # Service History Endpoints
+        if path == '/api/v1/service-history' and method == 'GET':
+            try:
+                vehicle_id = query_params.get('vehicleId')
+                service_type = query_params.get('serviceType')
+                limit = int(query_params.get('limit', 50))
+                
+                service_history_table = dynamodb.Table(os.environ.get('SERVICE_HISTORY_TABLE_NAME'))
+                
+                if vehicle_id:
+                    # Get service history for specific vehicle
+                    response = service_history_table.query(
+                        KeyConditionExpression='vehicleId = :vehicleId',
+                        ExpressionAttributeValues={':vehicleId': vehicle_id},
+                        ScanIndexForward=False,  # Most recent first
+                        Limit=limit
+                    )
+                elif service_type:
+                    # Get service history by service type
+                    response = service_history_table.query(
+                        IndexName='ServiceTypeIndex',
+                        KeyConditionExpression='serviceType = :serviceType',
+                        ExpressionAttributeValues={':serviceType': service_type},
+                        ScanIndexForward=False,
+                        Limit=limit
+                    )
+                else:
+                    # Get all service history (paginated)
+                    response = service_history_table.scan(Limit=limit)
+                
+                return {
+                    'statusCode': 200,
+                    'headers': cors_headers,
+                    'body': json.dumps({
+                        'serviceRecords': response.get('Items', []),
+                        'count': len(response.get('Items', []))
+                    }, default=decimal_default)
+                }
+            except Exception as e:
+                return {
+                    'statusCode': 500,
+                    'headers': cors_headers,
+                    'body': json.dumps({'error': f'Failed to fetch service history: {str(e)}'})
+                }
+        
+        if path == '/api/v1/service-history' and method == 'POST':
+            try:
+                body = json.loads(event.get('body', '{}'))
+                entry = body.get('entry', body)
+                
+                # Generate service record ID
+                service_record = {
+                    'vehicleId': entry['vehicleId'],
+                    'serviceDate': entry['serviceDate'],
+                    'serviceType': entry['serviceType'],
+                    'dealerId': entry['dealerId'],
+                    'mileage': entry.get('mileage'),
+                    'serviceDetails': entry.get('serviceDetails', {}),
+                    'cost': entry.get('cost', {}),
+                    'technician': entry.get('technician'),
+                    'warranty': entry.get('warranty', {}),
+                    'createdAt': datetime.utcnow().isoformat(),
+                    'updatedAt': datetime.utcnow().isoformat()
+                }
+                
+                service_history_table = dynamodb.Table(os.environ.get('SERVICE_HISTORY_TABLE_NAME'))
+                service_history_table.put_item(Item=service_record)
+                
+                return {
+                    'statusCode': 201,
+                    'headers': cors_headers,
+                    'body': json.dumps({'serviceRecord': service_record}, default=decimal_default)
+                }
+            except Exception as e:
+                return {
+                    'statusCode': 500,
+                    'headers': cors_headers,
+                    'body': json.dumps({'error': f'Failed to create service record: {str(e)}'})
+                }
+        
+        if path.startswith('/api/v1/service-history/') and method == 'GET':
+            try:
+                # Extract vehicleId and serviceDate from path
+                path_parts = path.split('/')
+                if len(path_parts) >= 5:
+                    vehicle_id = path_parts[4]
+                    service_date = path_parts[5] if len(path_parts) > 5 else None
+                    
+                    service_history_table = dynamodb.Table(os.environ.get('SERVICE_HISTORY_TABLE_NAME'))
+                    
+                    if service_date:
+                        # Get specific service record
+                        response = service_history_table.get_item(
+                            Key={'vehicleId': vehicle_id, 'serviceDate': service_date}
+                        )
+                        if 'Item' not in response:
+                            return {
+                                'statusCode': 404,
+                                'headers': cors_headers,
+                                'body': json.dumps({'error': 'Service record not found'})
+                            }
+                        return {
+                            'statusCode': 200,
+                            'headers': cors_headers,
+                            'body': json.dumps({'serviceRecord': response['Item']}, default=decimal_default)
+                        }
+                    else:
+                        # Get all service records for vehicle
+                        response = service_history_table.query(
+                            KeyConditionExpression='vehicleId = :vehicleId',
+                            ExpressionAttributeValues={':vehicleId': vehicle_id},
+                            ScanIndexForward=False
+                        )
+                        return {
+                            'statusCode': 200,
+                            'headers': cors_headers,
+                            'body': json.dumps({
+                                'serviceRecords': response.get('Items', []),
+                                'count': len(response.get('Items', []))
+                            }, default=decimal_default)
+                        }
+            except Exception as e:
+                return {
+                    'statusCode': 500,
+                    'headers': cors_headers,
+                    'body': json.dumps({'error': f'Failed to fetch service record: {str(e)}'})
                 }
         
         return {

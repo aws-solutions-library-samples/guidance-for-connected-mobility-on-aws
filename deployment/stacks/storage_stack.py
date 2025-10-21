@@ -57,6 +57,83 @@ class StorageStack(Stack):
             )
         )
         
+        # Service History Table - NEW
+        self.tables['service_history'] = dynamodb.Table(
+            self, "ServiceHistoryTable",
+            table_name=f"{construct_id}-service-history",
+            partition_key=dynamodb.Attribute(
+                name="vehicleId",
+                type=dynamodb.AttributeType.STRING
+            ),
+            sort_key=dynamodb.Attribute(
+                name="serviceDate",
+                type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.RETAIN,
+            point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(point_in_time_recovery_enabled=True),
+            stream=dynamodb.StreamViewType.NEW_AND_OLD_IMAGES,
+            encryption=dynamodb.TableEncryption.AWS_MANAGED
+        )
+        
+        # GSI for service type queries
+        self.tables['service_history'].add_global_secondary_index(
+            index_name="ServiceTypeIndex",
+            partition_key=dynamodb.Attribute(
+                name="serviceType",
+                type=dynamodb.AttributeType.STRING
+            ),
+            sort_key=dynamodb.Attribute(
+                name="serviceDate",
+                type=dynamodb.AttributeType.STRING
+            )
+        )
+        
+        # GSI for dealer queries
+        self.tables['service_history'].add_global_secondary_index(
+            index_name="DealerIndex",
+            partition_key=dynamodb.Attribute(
+                name="dealerId",
+                type=dynamodb.AttributeType.STRING
+            ),
+            sort_key=dynamodb.Attribute(
+                name="serviceDate",
+                type=dynamodb.AttributeType.STRING
+            )
+        )
+        
+        # S3 bucket for service invoices
+        self.invoice_bucket = s3.Bucket(
+            self, "ServiceInvoiceBucket",
+            bucket_name=f"{construct_id}-service-invoices",
+            encryption=s3.BucketEncryption.S3_MANAGED,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            versioned=True,
+            lifecycle_rules=[
+                s3.LifecycleRule(
+                    id="ArchiveOldInvoices",
+                    transitions=[
+                        s3.Transition(
+                            storage_class=s3.StorageClass.GLACIER,
+                            transition_after=Duration.days(365)
+                        )
+                    ]
+                )
+            ],
+            removal_policy=RemovalPolicy.RETAIN
+        )
+        
+        # Outputs
+        CfnOutput(self, "ServiceHistoryTableName",
+            value=self.tables['service_history'].table_name,
+            export_name=f"{construct_id}-service-history-table"
+        )
+        
+        CfnOutput(self, "ServiceInvoiceBucketName",
+            value=self.invoice_bucket.bucket_name,
+            export_name=f"{construct_id}-service-invoice-bucket"
+        )
+        
         # Trips Table - matches cms-631ca2-591631-trips-new
         self.tables['trips'] = dynamodb.Table(
             self, "TripsTable",

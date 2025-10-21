@@ -1,6 +1,6 @@
 #!/bin/bash
 
-FRONTEND_DIR="/Users/givenand/connected-mobility-workspace/modules/cms_ui/source/frontend"
+FRONTEND_DIR="$(dirname "$0")"
 PUBLIC_DIR="$FRONTEND_DIR/public"
 BUILD_DIR="$FRONTEND_DIR/build"
 

@@ -1,0 +1,48 @@
+# GitHub Sync Exclusions
+# Files that should NOT be synced to public GitHub repository
+
+# AWS Credentials and Configuration
+.aws/
+*.pem
+*.key
+*-key.json
+credentials
+config.json
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Internal Documentation
+/internal/
+/docs/internal/
+INTERNAL*.md
+
+# Customer Data
+/customer-data/
+/test-data/real/
+
+# Deployment Secrets
+deployment/secrets/
+deployment/*.secret
+deployment/config.production.json
+
+# CI/CD Tokens
+.gitlab-ci-local.yml
+ci-secrets.yml
+
+# IDE and Local Development
+.vscode/settings.json
+.idea/workspace.xml
+*.local
+
+# Temporary Files
+*.tmp
+*.bak
+*~
+
+# Build Artifacts (if sensitive)
+# Uncomment if needed
+# dist/
+# build/

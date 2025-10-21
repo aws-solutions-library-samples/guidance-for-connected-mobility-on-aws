@@ -104,4 +104,15 @@ ui_stack = UIStack(
     description="Guidance for Connected Mobility (SO9618) - Presentation Layer"
 )
 
+# 7. Predictive Maintenance Agent Stack (Optional - deploy separately if needed)
+if os.environ.get('DEPLOY_PREDICTIVE_AGENT') == 'true':
+    from stacks.predictive_agent_stack import PredictiveAgentStack
+    
+    predictive_agent_stack = PredictiveAgentStack(
+        app,
+        f"{stack_prefix}-predictive-agent",
+        env=env,
+        description="Guidance for Connected Mobility (SO9618) - Predictive Maintenance Agent"
+    )
+
 app.synth()

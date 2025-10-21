@@ -67,7 +67,8 @@ class UIStack(Stack):
             'user_preferences': storage_tables['user_preferences'].table_name,
             'dashboard_metrics_cache': storage_tables['dashboard_metrics_cache'].table_name,
             'vehicle_certificates': storage_tables['vehicle_certificates'].table_name,
-            'drivers': storage_tables['drivers'].table_name
+            'drivers': storage_tables['drivers'].table_name,
+            'service_history': storage_tables['service_history'].table_name
         }
         
         # Cognito User Pool
@@ -337,6 +338,7 @@ class UIStack(Stack):
                 'DASHBOARD_METRICS_CACHE_TABLE': table_names['dashboard_metrics_cache'],
                 'VEHICLE_CERTIFICATES_TABLE_NAME': table_names['vehicle_certificates'],
                 'DRIVERS_TABLE_NAME': table_names['drivers'],
+                'SERVICE_HISTORY_TABLE_NAME': storage_tables['service_history'].table_name,
                 'USER_POOL_ID': self.user_pool.user_pool_id,
                 'CLIENT_ID': self.user_pool_client.user_pool_client_id,
                 'REDIS_ENDPOINT': redis_endpoint if redis_endpoint else ''  # Use parameter or empty

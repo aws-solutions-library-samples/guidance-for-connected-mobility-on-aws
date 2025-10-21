@@ -334,6 +334,15 @@ samconfig.toml
 # ===================================
 # IDE / Editor Files
 # ===================================
+# Amazon Q / Kiro
+.kiro/
+
+# Local configuration
+.config/
+
+# Workspace files
+workspace.json
+
 # VSCode
 .vscode/
 !.vscode/settings.json
