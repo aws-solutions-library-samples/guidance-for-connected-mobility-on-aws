@@ -1,0 +1,124 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2017 - 2018 Autonomic Incorporated - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ * 
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ * 
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+syntax = "proto3";
+
+package autonomic.ext.telemetry;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/telemetry/modules";
+option java_package = "com.autonomic.ext.telemetry.modules";
+option java_outer_classname = "ModuleProto";
+option java_multiple_files = true;
+
+option cc_enable_arenas = true;
+
+option objc_class_prefix = "AUT";
+
+/*
+ * Modules and Module Properties have two uses:
+ * 1) To describe ECU discovery results. In this mode, the
+ *     module information is used to convey ECU information, including
+ *     addresses, serial numbers, and DID information.
+ * 2) To describe sub-components on the connected device module itself
+ *    (i.e. module "self-discovery").
+ *
+ * In this second use case, the following sub-component properties will be accepted by the cloud:
+ *       ctDaqVersion          // Deprecated for daqVersion
+ *       ctHubVersion          // Deprecated for hubVersion
+ *       ctBtnVersion          // Deprecated for btnVersion
+ *       ctConfigId            // Deprecated for configurationId
+ *       ctConfigVersion       // Deprecated for configurationVersion
+ *       ctLedVersion          // Deprecated for ledVersion
+ *       ctTimedaemonVersion   // Deprecated for timeDaemonVersion
+ *       kernelVersion         // Deprecated for linuxKernelVersion
+ *       deviceConfig          // Deprecated for deviceConfiguration
+ *       authState             // Deprecated for authorizationState
+ *       daqVersion
+ *       hubVersion
+ *       ledVersion
+ *       btnVersion
+ *       timeDaemonVersion
+ *       sierraModemVersion
+ *       linuxKernelVersion
+ *       legatoVersion
+ *       jabilReleaseVersion
+ *       mmOtaClientVersion
+ *       sierraWpRevision
+ *       aurixFirmwareVersion
+ *       aurixHardwareRevision
+ *       atmelHardwareRevision
+ *       qualcommWifiHardwareRevision
+ *       imsi
+ *       iccid
+ *       configurationId
+ *       wifiEnablement
+ *       apn2Endpoint
+ *       wifiOperationalBand
+ *       authorizationState
+ *       deviceConfiguration
+ *       configurationVersion
+ *       ccpuSoftwareVersion
+ *       vmcuSoftwareVersion
+ *       ccpuSoftwarePartNumber
+ *       vmcuSoftwarePartNumber
+ *       hardwarePartNumber
+ *       assemblyPartNumber
+ *       grpcVersion
+ *       protocolbufVersion
+ *       euiccSoftwareVersion
+ *       fnosVersion
+ *       openCpuApplicationVersion
+ *       openCpuSystemVersion
+ *       mcuApplicationVersion
+ *       mcuBootloaderVersion
+ *       4gFirmwareVersion
+ *       encryptionMethod
+ *       telemetrySettingsState
+ *       rkeState
+ *
+ * All other keys will be ignored.
+ *
+ * For examples of both use cases, see:
+ * src/test/java/com/autonomic/ext/telemetry/ModuleTelemetryExampleAndTest.java
+ */
+
+message ModuleProperty {
+    string key = 1;
+    string value = 2;
+
+    enum property_type {
+        UNKNOWN_PROPERTY_TYPE = 0;
+        DID = 1;
+        SUB_COMPENENT_PROPERTY = 2;
+    }
+
+    property_type type = 3;
+}
+
+// A Module on the vehicle
+message Module {
+    string module_name = 1;
+
+    string address = 3;
+    string serial = 4;
+
+    // properties of this module
+    // (e.g. components, DIDs, etc.)
+    repeated ModuleProperty properties = 5;
+}

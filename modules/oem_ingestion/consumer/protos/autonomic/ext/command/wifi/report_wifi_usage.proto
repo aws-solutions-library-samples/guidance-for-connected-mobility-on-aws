@@ -1,0 +1,101 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2017 - 2018 Autonomic Incorporated - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ *
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ *
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+syntax = "proto3";
+
+package autonomic.ext.command.wifi;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/command/wifi";
+option java_package = "com.autonomic.ext.command.wifi";
+option java_outer_classname = "ReportWifiUsageProto";
+option java_multiple_files = true;
+option cc_enable_arenas = true;
+option objc_class_prefix = "AUT";
+
+import "google/protobuf/timestamp.proto";
+
+// Request to receive the various wifi usage report data. Any extra OEM specific parameters should be sent as part of
+// the CommandTrigger's oem_params. see: test/java/com/autonomic/ext/event/state/ReportWifiUsageStateExamples.java
+message ReportWifiUsageRequest {
+    WifiUsage wifi_usage = 1;
+}
+
+message WifiUsage {
+    DataPlan data_plan = 1;
+    DataPlanUsage data_plan_usage = 2;
+    // Last updated date from carrier in UTC
+    google.protobuf.Timestamp last_updated_date = 3;
+    CarrierAccountInfo carrier_account_info = 4;
+}
+
+message DataPlan {
+    SubscriptionType subscription_type = 1;
+    DataPlanLimit data_plan_limit = 2;
+    PlanStatus plan_status = 3;
+    // Data plan expiry date in UTC
+    google.protobuf.Timestamp expiry_date = 4;
+    // Data plan cycle renewal date in UTC
+    google.protobuf.Timestamp cycle_renewal_date = 5;
+
+
+    enum SubscriptionType {
+        UNKNOWN_SUBSCRIPTION_TYPE = 0;
+        TRIAL = 1;
+        PAID_SESSION = 2;
+        PAID_SHARED = 3;
+    }
+
+    enum PlanStatus {
+        UNKNOWN_PLAN_STATUS = 0;
+        PENDING = 1;
+        ACTIVE = 2;
+        EXPIRED = 3;
+        INACTIVE = 4;
+    }
+}
+
+message DataPlanLimit {
+    bool has_limit = 1;
+    double data_limit = 2;
+    DataPlanUnits data_limit_units = 3;
+}
+
+message DataPlanUsage {
+    double data_used = 1;
+    double data_used_percentage = 2;
+    OverageStatus overage_status = 3;
+    DataPlanUnits data_usage_units = 4;
+
+    enum OverageStatus {
+        UNKNOWN_OVERAGE_STATUS = 0;
+        NOT_OVERAGE = 1;
+        OVERAGE = 2;
+    }
+}
+
+message CarrierAccountInfo {
+    string user_id = 1;
+}
+
+enum DataPlanUnits {
+    UNKNOWN_PLAN_UNITS = 0;
+    KB = 1;
+    MB = 2;
+    GB = 3;
+}

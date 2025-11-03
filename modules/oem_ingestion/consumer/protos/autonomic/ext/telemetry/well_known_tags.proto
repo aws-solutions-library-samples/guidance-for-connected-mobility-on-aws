@@ -1,0 +1,857 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2018 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ *
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ *
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+
+syntax = "proto3";
+
+package autonomic.ext.telemetry.tag;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/telemetry";
+option java_package = "com.autonomic.ext.telemetry.tag";
+option java_outer_classname = "WellKnownTagProto";
+option java_multiple_files = true;
+
+option cc_enable_arenas = true;
+
+option objc_class_prefix = "AUT";
+
+message VehiclePropulsion {
+    enum MotorTag {
+        UNKNOWN_MOTOR = 0;
+        FRONT_LEFT = 1;
+        FRONT_RIGHT = 2;
+        REAR_LEFT = 3;
+        REAR_RIGHT = 4;
+    }
+
+    enum EngineTag {
+        UNKNOWN_ENGINE = 0;
+        PRIMARY_ENGINE = 1;
+    }
+}
+
+message VehicleDoors {
+    enum DoorTag {
+        UNKNOWN_DOOR = 0;
+
+        FRONT_LEFT = 1;
+        FRONT_RIGHT = 2;
+        REAR_LEFT = 3;
+        REAR_RIGHT = 4;
+
+        SLIDING_LEFT = 5;
+        SLIDING_RIGHT = 6;
+        REAR_CARGO_LEFT = 7;
+        REAR_CARGO_RIGHT = 8;
+
+        TAILGATE = 9;
+        INNER_TAILGATE = 10;
+
+        UNSPECIFIED_DOOR = 11;
+        ALL_DOORS = 12;
+        UNSPECIFIED_FRONT = 13;
+        UNSPECIFIED_REAR = 14;
+
+        FRUNK = 15;
+    }
+
+    enum DoorLatchTypeTag {
+        UNKNOWN = 0;
+        MECHANICAL = 1;
+        ELECTRONIC = 2;
+    }
+
+}
+
+message VehicleWindows {
+    enum WindowTag {
+        UNKNOWN_WINDOW = 0;
+
+        FRONT_LEFT = 1;
+        FRONT_RIGHT = 2;
+        REAR_LEFT = 3;
+        REAR_RIGHT = 4;
+
+        UNSPECIFIED_FRONT = 5;
+        UNSPECIFIED_REAR = 6;
+    }
+}
+
+message VehicleWheels {
+    enum WheelTag {
+        UNKNOWN_WHEEL = 0;
+
+        FRONT_LEFT = 1;
+        FRONT_RIGHT = 2;
+        REAR_LEFT = 3;
+        REAR_RIGHT = 4;
+
+        // For vehicles with dually rear end
+        REAR_LEFT_INNER = 5;
+        REAR_LEFT_OUTER = 6;
+        REAR_RIGHT_INNER = 7;
+        REAR_RIGHT_OUTER = 8;
+
+        // used by Tire Pressure Level
+        SYSTEM = 9;
+    }
+
+    // Information presented on each wheel's
+    // placard in the door cavity
+    enum WheelPlacardTag {
+        option deprecated = true;
+
+        UNKNOWN_WHEEL_PLACARD = 0;
+        FRONT_PLACARD = 1;
+        REAR_PLACARD = 2;
+    }
+}
+
+message VehicleSeats {
+
+    // various signals are shifting from using SeatTag to
+    // using distinct POSITION_ROW and POSITION_SEAT
+    // tags, giving row and seat numbers respectively.
+
+    enum SeatTag {
+
+        UNKNOWN_SEAT = 0;
+        
+        FRONT_LEFT = 1;
+        FRONT_CENTER = 2;
+        FRONT_RIGHT = 3;
+
+        // These 3 seat entries are for typical 2 row seating vehicles
+        // like cars and extended cab trucks.
+        REAR_LEFT = 4;
+        REAR_CENTER = 5;
+        REAR_RIGHT = 6;
+
+        // The seat entries below are intended for Ford Transit-like
+        // vehicles with multi-row seating. Some configurations have
+        // seats missing from rows to allow access to other rows. In
+        // such situations, naming remains the same as if a seat were
+        // present. For example, if Row 2 has 3 seats, with the 3rd
+        // position empty, the seats in Row 2 are named ROW2_SEATA,
+        // ROW2_SEATB, and ROW2_SEATD.
+        ROW1_SEATA = 7;
+        ROW1_SEATB = 8;
+        ROW1_SEATC = 9;
+        ROW1_SEATD = 10;
+
+        ROW2_SEATA = 11;
+        ROW2_SEATB = 12;
+        ROW2_SEATC = 13;
+        ROW2_SEATD = 14;
+
+        ROW3_SEATA = 15;
+        ROW3_SEATB = 16;
+        ROW3_SEATC = 17;
+        ROW3_SEATD = 18;
+
+        ROW4_SEATA = 19;
+        ROW4_SEATB = 20;
+        ROW4_SEATC = 21;
+        ROW4_SEATD = 22;
+
+        ROW5_SEATA = 23;
+        ROW5_SEATB = 24;
+        ROW5_SEATC = 25;
+        ROW5_SEATD = 26;
+
+        DRIVER = 27 [deprecated = true]; // replaced by VehicleOccupantRole
+        PASSENGER = 28 [deprecated = true]; // replaced by VehicleOccupantRole
+    }
+}
+
+message VehicleOccupantRole {
+    enum OccupantRoleTag {
+        UNKNOWN = 0;
+        DRIVER = 1;
+        PASSENGER = 2;
+    }
+}
+
+message VehicleSide {
+    enum VehicleSideTag {
+        UNKNOWN = 0;
+        DRIVER = 1;
+        PASSENGER = 2;
+    }
+}
+
+message VehicleGears {
+    option deprecated = true;
+    enum GearTag {
+        UNKNOWN_GEAR = 0;
+        PARK = 1;
+        REVERSE = 2;
+        NEUTRAL = 3;
+        DRIVE = 4;
+        SPORT = 5;
+        LOW = 6;
+        GEAR_1 = 7;
+        GEAR_2 = 8;
+        GEAR_3 = 9;
+        GEAR_4 = 10;
+        GEAR_5 = 11;
+        GEAR_6 = 12;
+        ERROR = 13;
+    }
+}
+
+message VehicleBatteries {
+    enum BatteryTag {
+        UNKNOWN_BATTERY = 0;
+        PRIMARY_BATTERY = 1;
+        ACCESSORY_BATTERY = 2;
+        BACKUP_BATTERY = 3;
+    }
+}
+
+message VehicleIndicatorLights {
+    option deprecated = true;
+
+    enum IndicatorLightTag {
+        UNKNOWN_INDICATOR_LIGHT = 0;
+        ABS = 1;
+        FUEL_FILTER = 2;
+        OIL = 3;
+        CHECK_ENGINE = 4;
+        BRAKE_FLUID = 5;
+        POWERTRAIN = 6;
+        TIRE = 7;
+        SERVICE_REQUIRED = 8;
+        AIRBAG = 9;
+        ANTI_THEFT = 10;
+    }
+
+    enum IndicatorLightState {
+        UNKNOWN_INDICATOR_LIGHT_STATE = 0;
+        NOMINAL = 1;       // now operating normally
+        ILLUMINATED = 2;   // context-dependent
+        BLINKING = 3;      // for components which do not differentiate rate of blink
+        BLINKING_SLOW = 4; // context-dependent
+        BLINKING_FAST = 5; // context-dependent
+        MALFUNCTION = 6;   // Light malfunction or error determining state
+    }
+}
+
+message DeviceAuthorizationStates {
+    enum AuthorizationStatus {
+        UNKNOWN_AUTHORIZATION_STATUS = 0;
+        FACTORY_MODE = 1;
+        UNPROVISIONED = 2;
+        WAITING_FOR_PROVISIONING = 3;
+        WAITING_FOR_HOME_URL = 4;
+        CONNECTING_TO_HOME_URL = 5;
+        WAITING_FOR_AUTH = 6;
+        AUTHORIZED = 7;
+    }
+}
+
+// Result of a VIN Discovery process on a vehicle
+message VehicleVinDiscoveryResults {
+    enum VinDiscoveryResult {
+        UNKNOWN_VIN_DISCOVERY_RESULT = 0;
+        VIN_DISCOVERY_FAILED_NOT_FOUND = 1;
+        VIN_DISCOVERY_FAILED_INVALID_VIN = 2;
+        VIN_DISCOVERY_SUCCEEDED = 3;
+    }
+}
+
+message AssetLocation {
+    enum LocationType {
+        UNKNOWN_LOCATION_TYPE = 0;
+        STARTING_POINT = 1;
+        DESTINATION = 2;
+    }
+}
+
+message EngineType {
+    enum EngineTag {
+        UNKNOWN = 0;
+        DIESEL = 1;
+        GASOLINE = 2;
+        ELECTRIC = 3;
+        HYBRID = 4;
+    }
+}
+
+message EngineAutomaticStopReason {
+    enum ReasonTag {
+        UNKNOWN = 0;
+        EXCESSIVE_IDLE = 1;  // Engine shutdown due to excessive idling.
+        HIGH_EXHAUST_TEMP = 2; // Engine shutdown due to high exhaust temperature.
+    }
+}
+
+message DieselExhaustFilterSystemComponent {
+    enum ComponentTag {
+        UNKNOWN = 0;
+        EXHAUST_FILTER = 1;
+        DIESEL_PARTICULATE_FILTER = 2;
+        OVERBOOST_CODE_REGULATOR = 3;
+        OFF_BOARD_REGENERATION = 4;
+    }
+}
+
+message DieselExhaustFilterCleaning {
+    enum CleaningTag {
+        UNKNOWN = 0;
+        IN_PROGRESS = 1;
+        COMPLETE = 2;
+        INTERRUPTED = 3;
+    }
+}
+
+message AntennaType {
+    enum AntennaTag {
+        UNKNOWN = 0;
+        CELLULAR = 1;
+        GPS = 2;
+    }
+}
+
+message VehicleBrakes {
+    enum ParkingBrakeTypeTag {
+        UNKNOWN = 0;
+        ELECTRIC = 1;
+        MECHANICAL = 2;
+    }
+}
+
+message MonitorCoverage {
+    enum MonitorCoverageTag {
+        UNKNOWN = 0;
+        REGULAR = 1;
+        TRAILER = 2;
+    }
+}
+
+message AntiTheftAlarmSource {
+    enum AntiTheftAlarmSourceTag {
+        UNKNOWN = 0;
+        DOOR = 1;
+        HOOD = 2;
+        DECKLID = 3;
+        IGNITION_TAMPER = 4;
+        INCLINATION = 5;
+        INTRUSION = 6;
+        PANIC = 7;
+        POST_CRASH = 8;
+        SHOCK_SENSOR = 9;
+        TRAILER = 10;
+        DIAGNOSTIC_PORT_TAMPER = 11;
+    }
+}
+
+message SampleRate {
+    enum SampleRateTag {
+        UNKNOWN = 0;
+        UP_TO_1_SECOND = 1;
+        UP_TO_5_SECONDS = 2;
+    }
+}
+
+message BatteryLoadFault {
+    enum BatteryLoadFaultTag {
+        UNKNOWN = 0;
+        NO_OUTPUT = 1;
+        OUTPUT_BELOW_NORMAL_RANGE = 2;
+        OUTPUT_ABOVE_NORMAL_RANGE = 3;
+        SENSOR_FAULT = 4;
+        SERVICING_NEEDED = 5;
+    }
+}
+
+message BatteryPerformanceCause {
+    enum BatteryPerformanceCauseTag {
+        UNKNOWN = 0;
+        LOW_TEMPERATURE = 1;
+        HIGH_TEMPERATURE = 2;
+    }
+}
+
+message TripProgress {
+    enum TripProgressTag {
+        UNKNOWN = 0;
+        TRIP_IN_PROGRESS = 1;
+        TRIP_END = 2;
+    }
+}
+
+message XevChargerPowerType {
+    enum XevChargerPowerTypeTag {
+        UNKNOWN = 0;
+        AC = 1;
+        DC = 2;
+        WIRELESS = 3;
+    }
+}
+
+message XevVehicleConditioningType {
+    enum XevVehicleConditioningTypeTag {
+        UNKNOWN = 0;
+        CABIN_CONDITIONING = 1;
+        BATTERY_CONDITIONING = 2;
+    }
+}
+
+message XevBatteryType {
+    enum XevBatteryTypeTag {
+        UNKNOWN = 0;
+        HIGH_VOLTAGE = 1;
+        LOW_VOLTAGE = 2;
+    }
+}
+
+message XevChargeStatusOrigin {
+    enum XevChargeStatusOriginTag {
+        UNKNOWN = 0;
+        STATION = 1;
+        IN_VEHICLE = 2;
+        REMOTE = 3;
+    }
+}
+
+message XevChargeOriginatorType  {
+    enum XevChargeOriginatorTypeTag {
+        UNKNOWN = 0;
+        USER = 1;
+        GRID = 2;
+    }
+}
+
+message BluetoothPhoneCallType {
+    enum BluetoothPhoneCallTypeTag {
+        UNKNOWN = 0;
+        SINGLE_CALL = 1;
+        CONFERENCE_CALL = 2;
+    }
+}
+
+message BluetoothPhoneCallStatus {
+    enum BluetoothPhoneCallStatusTag {
+        UNKNOWN = 0;
+        DIALING = 1;
+        INCOMING_CALL = 2;
+        CONNECTED = 3;
+        PRIMARY_CALL_ON_HOLD = 4;
+        SECONDARY_CALL_ON_HOLD = 5;
+        RECIPIENT_NOT_REACHABLE = 6;
+        SECONDARY_PARTICIPANT_INCOMING = 7;
+    }
+}
+
+message PreconditionStatus {
+    enum PreconditionStatusTag {
+        UNKNOWN = 0;
+        PASSED = 1;
+        FAILED = 2;
+    }
+}
+
+message TrailerLightCheckPreconditionFailureReason {
+    enum TrailerLightCheckPreconditionFailureReasonTag {
+        UNKNOWN = 0;
+        IGNITION_NOT_ON = 1;
+        TAIL_LIGHTS_ON = 2;
+        INSUFFICIENT_BATTERY = 3;
+        OTHER_LIGHTS_ON = 4;
+        VEHICLE_NOT_STATIONARY = 5;
+        UNKNOWN_ERROR = 6;
+        TRAILER_NOT_CONNECTED = 7;
+    }
+}
+
+message FleetVehicleInhibitionType {
+    enum FleetVehicleInhibitionTypeTag {
+        UNKNOWN = 0;
+        INHIBIT_CRANK = 1;
+        INHIBIT_DRIVING = 2;
+        INHIBIT_NONE = 3;
+    }
+}
+
+message AntiTheftVehicleInhibitionType {
+    enum AntiTheftVehicleInhibitionTypeTag {
+        UNKNOWN = 0;
+        INHIBIT_CRANK = 1;
+        INHIBIT_DRIVING = 2;
+    }
+}
+
+message SeverityLevel{
+    enum SeverityLevelTag {
+        UNKNOWN = 0;
+        WARNING = 1;
+        CRITICAL = 2;
+    }
+}
+
+message DeterminationMethod {
+    enum DeterminationMethodTag {
+        UNKNOWN = 0;
+        ACTUAL = 1;
+        INFERRED = 2;
+    }
+}
+
+message RemoteStartFailureReason {
+    enum RemoteStartFailureReasonTag {
+        UNKNOWN = 0;
+        ENGINE_HOOD_OPEN = 1;
+        REMOTE_START_DISABLED = 2;
+        VEHICLE_NOT_IN_NORMAL_MODE = 3;
+        MAX_STARTS_EXCEEDED = 4;
+        ALARM_TRIGGERED = 5;
+        PCM_NO_START = 6;
+        IGNITION_NOT_OFF = 7;
+        AUTOMATIC_TRANS_NOT_IN_PARK = 8;
+        CRANK_INHIBIT_TIMEOUT = 9;
+        TARGET_AUTHENTICATION_IS_NOT_NON_MOTIVE = 10;
+        ESCL_IS_NOT_LOCKED = 11;
+        VEHICLE_MODE_ARBITRATION_LOST = 12;
+        MANUAL_TRANS_PARK_BRAKE_NOT_ENGAGED = 13;
+        MANUAL_TRANS_NOT_IN_NEUTRAL = 14;
+    }
+}
+
+message RemoteStartEndReason {
+    enum RemoteStartEndReasonTag {
+        UNKNOWN = 0;
+        MANUAL_TRANS_NOT_IN_NEUTRAL = 1;
+        POWER_PACK_NOT_ACTIVE = 2;
+        REMOTE_START_MAX_TIMEOUT_REACHED = 3;
+        REMOTE_START_TIMEOUT_REACHED = 4;
+        PERIMETER_ALARM_ACTIVE = 5;
+        REMOTE_START_CANCELLED = 6;
+        VOLTAGE_NOT_IN_ACCEPTABLE_RANGE = 7;
+        ENGINE_HOOD_NOT_CLOSED = 8;
+        VEHICLE_MODE_ARBITRATION_LOST = 9;
+        CONTINUOUS_IDLE_TIMEOUT_REACHED = 10;
+        ESCL_IS_NOT_UNLOCKED = 11;
+        VEHICLE_SPEED_EXCEEDED_WITH_ESCL_LOCKED = 12;
+        MANUAL_TRANS_PARK_BRAKE_NOT_ENGAGED = 13;
+    }
+}
+
+message PrivacySettingsChangeReason {
+    enum PrivacySettingsChangeReasonTag {
+        UNKNOWN = 0;
+        UPDATE = 1;
+        USER_PROMPT_RESPONSE = 2;
+        SETTINGS_UPDATED = 3;
+        POLICIES_UPDATED = 4;
+        USER_PROMPTED = 5;
+        UPDATE_QUERY = 6;
+    }
+}
+
+enum WellKnownTag {
+    // This should never be used!
+    UNKNOWN_TAG = 0;
+
+    // string
+    //
+    // The unit in which the metric value is reported. It is only applicable
+    // if the value is int64, double, or Distribution. The
+    // supported units are a subset of [The Unified Code for Units of
+    // Measure](http://unitsofmeasure.org/ucum.html) standard:
+    //
+    // **Basic units (UNIT)**
+    //
+    // * `m`     meter
+    // * `rad`   radian
+    // * `deg`   degree (plane angle)
+    // * `T`     tesla
+    // * `V`     volt
+    // * `A`     ampere
+    // * `W`     watt
+    // * `Pa`    pascal
+    // * `N`     newton
+    // * `Cel`   degree (Celsius)
+    // * `l`     liter
+    // * `lx`    lux
+    // * `dB`    decibel (SPL)
+    // * `ppm`   parts per million
+    //
+    // * `bit`   bit
+    // * `By`    byte
+    //
+    // * `s`     second
+    // * `min`   minute
+    // * `h`     hour
+    // * `d`     day
+    //
+    // **Prefixes (PREFIX)**
+    //
+    // * `k`     kilo    (10**3)
+    // * `M`     mega    (10**6)
+    // * `G`     giga    (10**9)
+    // * `T`     tera    (10**12)
+    // * `P`     peta    (10**15)
+    // * `E`     exa     (10**18)
+    // * `Z`     zetta   (10**21)
+    // * `Y`     yotta   (10**24)
+    // * `m`     milli   (10**-3)
+    // * `u`     micro   (10**-6)
+    // * `n`     nano    (10**-9)
+    // * `p`     pico    (10**-12)
+    // * `f`     femto   (10**-15)
+    // * `a`     atto    (10**-18)
+    // * `z`     zepto   (10**-21)
+    // * `y`     yocto   (10**-24)
+    // * `Ki`    kibi    (2**10)
+    // * `Mi`    mebi    (2**20)
+    // * `Gi`    gibi    (2**30)
+    // * `Ti`    tebi    (2**40)
+    //
+    // **Grammar**
+    //
+    // The grammar includes the dimensionless unit `1`, such as `1/s`.
+    //
+    // The grammar also includes these connectors:
+    //
+    // * `/`    division (as an infix operator, e.g. `1/s`).
+    // * `.`    multiplication (as an infix operator, e.g. `GBy.d`)
+    //
+    // The grammar for a unit is as follows:
+    //
+    //     Expression = Component { "." Component } { "/" Component } ;
+    //
+    //     Component = [ PREFIX ] UNIT [ Annotation ]
+    //               | Annotation
+    //               | "1"
+    //               ;
+    //
+    //     Annotation = "{" NAME "}" ;
+    //
+    // Notes:
+    //
+    // * `Annotation` is just a comment if it follows a `UNIT` and is
+    //    equivalent to `1` if it is used alone. For examples,
+    //    `{requests}/s == 1/s`, `By{transmitted}/s == By/s`.
+    // * `NAME` is a sequence of non-blank printable ASCII characters not
+    //    containing '{' or '}'.
+    METRIC_UNITS = 3;
+
+    // DoorTag
+    VEHICLE_DOOR = 5;
+
+    // WindowTag
+    VEHICLE_WINDOW = 6;
+
+    // WheelTag
+    VEHICLE_WHEEL = 7;
+
+    // SeatTag
+    VEHICLE_SEAT = 8;
+
+    // engine, transmission, awd
+    VEHICLE_SUBSYSTEM = 9;
+
+    // boolean
+    //
+    // True indicates that the associated metric value is considered
+    // a fault by the manufacturer. This label should not be present
+    // unless there is a fault.
+    FAULT = 10;
+
+    // boolean
+    //
+    // Mostly for magnetometers to indicate if they are calibrated.
+    SENSOR_CALIBRATED = 11;
+
+    // External proto conflict
+    // Not in internal tags
+    PROPULSION_MOTOR = 12;
+
+    // EngineTag
+    // Not in internal tags
+    PROPULSION_ENGINE = 13;
+
+    // GearTag
+    // Not in internal tags
+    VEHICLE_GEAR = 14 [deprecated = true];
+
+    // BatteryTag
+    // Not in internal tags
+    VEHICLE_BATTERY = 15;
+
+    // Resource URI in the Bytestream Service
+    // Not in internal tags
+    BYTESTREAM_URI = 16;
+
+    // IndicatorLightTag
+    // Not in internal tags
+    VEHICLE_INDICATOR_LIGHT = 17;
+
+    // OccupantRole
+    // Not in internal tags
+    VEHICLE_OCCUPANT_ROLE = 18;
+
+    //External proto end of conflict
+
+    // Position within Vehicle: Row Number
+    POSITION_ROW = 19;
+
+    // Position within Vehicle: Seat within Row
+    POSITION_SEAT = 20;
+
+    // Tire Pressure Placard for Front Pressure
+    WHEEL_PLACARD_FRONT = 21; // value is double precision, kpa
+
+    // Tire Pressure Placard for Rear Pressure
+    WHEEL_PLACARD_REAR = 22; // value is double precision, kpa
+
+    // Attach a name for the Diesel Exhaust Fluid level
+    DEF_LEVEL_NAME = 23; // value is a string?
+
+    // Traction Control Status given by Brake
+    TRACTION_CONTROL_BRAKE = 24;
+
+    // Traction Control Status given by Powertrain
+    TRACTION_CONTROL_POWERTRAIN = 25;
+
+    // Diesel Exhaust Filter Regeneration
+    DIESEL_EXHAUST_FILTER_REGENERATION_ACTIVATION = 26 [deprecated = true];
+
+    // Type of location within a Position (see AssetLocation)
+    LOCATION_TYPE = 27;
+
+    // Engine type should be included in signals related to fuel, exhaust, or vehicle engine
+    ENGINE_TYPE = 28;
+
+    // Contains the reason the engine was automatically shutdown
+    ENGINE_AUTOMATIC_STOP_REASON = 29;
+
+    // Captures the identifier for the digital output that relates to the signal
+    DIGITAL_OUTPUT_ID = 30 [deprecated = true]; // replaced by UPFITTER_PORT_ID
+
+    // Captures the identifier for the upfitter port that relates to the signal
+    UPFITTER_PORT_ID = 31; // value is a string, identifier
+
+    // Cleaning System status for the filter
+    DIESEL_EXHAUST_FILTER_CLEANING = 32;
+
+    // Different components which report status information
+    DIESEL_EXHAUST_FILTER_SYSTEM_COMPONENT = 33;
+
+    // A string signal which allows for additional string context for a warning
+    WARNING_LEVEL = 34;
+
+    // String value which is the TMC UUID of a connectivity device
+    DEVICE_ID = 35;
+
+    // Method of unauthorized access
+    UNAUTHORIZED_ACCESS_METHOD = 36;
+
+    // String value which captures battery ID (e.g. UUID)
+    BATTERY_ID = 37;
+
+    // Captues the type of antenna given enumeration (see Antenna)
+    ANTENNA_TYPE = 38;
+
+    // Parking brake type should be included in parking brake related signals
+    PARKING_BRAKE_TYPE = 39;
+
+    MONITOR_COVERAGE_TYPE = 40;
+
+    // Visual / Audio warning for Hands off wheel signal
+    HANDS_OFF_WHEEL_VISUAL_WARNING = 41;
+    HANDS_OFF_WHEEL_AUDIO_WARNING = 42;
+
+    SAMPLE_RATE = 43;
+
+    // Type of battery load fault
+    BATTERY_LOAD_FAULT = 44;
+
+    // Type of door latch  (e.g. mechanical, electronic)
+    DOOR_LATCH_TYPE = 45;
+
+    // EV Tags 1000 - 2000
+    ELECTRIC_MACHINE_ID = 1029 [deprecated = true]; // value is a string, identifier
+
+    ALARM_SOURCE = 1030;
+
+    BATTERY_PERFORMANCE_CAUSE = 1031;
+
+    VEHICLE_SIDE = 1032;
+
+    TRIP_PROGRESS = 1033;
+
+    // Captures the xEV battery charger power type (e.g. AC, DC)
+    XEV_CHARGER_POWER_TYPE = 1034;
+
+    // Captures which battery in an xEV (e.g. high-voltage, low-voltage)
+    XEV_BATTERY_TYPE = 1035;
+
+    // Captures the originator of the charge status (e.g. station, in-vehicle, remote)
+    XEV_CHARGE_STATUS_ORIGIN = 1036;
+
+    // Captures which part of the vehicle is being conditioned (e.g. cabin, battery)
+    XEV_VEHICLE_CONDITIONING_TYPE = 1037;
+
+    // Captures the phone call type of a bluetooth phone call
+    BLUETOOTH_PHONE_CALL_TYPE = 1038;
+
+    // Captures the phone call status of a bluetooth phone call
+    BLUETOOTH_PHONE_CALL_STATUS = 1039;
+
+    //Indicates the success or failure of a precondition check
+    PRECONDITION_STATUS = 1040;
+
+    //Captures the failure reason for the trailer light check's precondition tests.
+    TRAILER_LIGHT_CHECK_PRECONDITION_FAILURE_REASON = 1041;
+
+    //Captures the type of inhibit that is being placed on a fleet vehicle
+    FLEET_VEHICLE_INHIBITION_TYPE = 1042;
+
+    //Captures the type of inhibit that is being placed on a retail vehicle
+    ANTI_THEFT_VEHICLE_INHIBITION_TYPE = 1043;
+
+    //Captures the GPS module's timestamp
+    GPS_MODULE_TIMESTAMP = 1044;
+
+    //Represents the severity of a given state
+    SEVERITY_LEVEL = 1045;
+
+    //Represents the method used to determine the value of the object (ex., actual, inferred)
+    DETERMINATION_METHOD = 1046;
+
+    //Represents who originated the charging request
+    XEV_CHARGE_ORIGINATOR_TYPE = 1047;
+
+    //Represents my remote start failed
+    REMOTE_START_FAILURE_REASON = 1048 [deprecated = true];
+
+    //Represents my remote start ended but did not fail
+    REMOTE_START_END_REASON = 1049 [deprecated = true];
+
+    // Used to differentiate which FTCP Alert/CommandResponse was emit in PRIVACY_SETTINGS_EVENT
+    PRIVACY_SETTINGS_CHANGE_REASON = 1050;
+
+    // Represents the exact start time of the Charge session
+    CHARGE_START_TIME = 1051;
+
+    // Represents the exact end time of the Charge session
+    CHARGE_END_TIME = 1052;
+}

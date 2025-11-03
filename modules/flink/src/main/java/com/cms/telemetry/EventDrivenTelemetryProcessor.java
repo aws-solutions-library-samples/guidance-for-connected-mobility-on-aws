@@ -65,12 +65,13 @@ public class EventDrivenTelemetryProcessor {
             kafkaProps.setProperty("sasl.jaas.config", saslJaasConfig);
             kafkaProps.setProperty("sasl.client.callback.handler.class", "software.amazon.msk.auth.iam.IAMClientCallbackHandler");
             kafkaProps.setProperty("group.id", groupId);
+            kafkaProps.setProperty("auto.offset.reset", "latest");
 
             KafkaSource<String> source = KafkaSource.<String>builder()
                 .setBootstrapServers(bootstrapServers)
                 .setTopics("cms-telemetry-raw")
                 .setGroupId(groupId)
-                .setStartingOffsets(OffsetsInitializer.earliest())
+                .setStartingOffsets(OffsetsInitializer.latest())
                 .setValueOnlyDeserializer(new SimpleStringSchema())
                 .setProperties(kafkaProps)
                 .build();
@@ -113,15 +114,28 @@ public class EventDrivenTelemetryProcessor {
                 })
                 .name("Timestamp Filter");
 
-            // Add logging to see if any telemetry is received
+            // Initialize enrollment status updater
+            String vehiclesTable = applicationProperties.get("TABLE_NAME", "cms-dev-storage-vehicles");
+            software.amazon.awssdk.services.dynamodb.DynamoDbClient dynamoClient = 
+                software.amazon.awssdk.services.dynamodb.DynamoDbClient.create();
+            EnrollmentStatusUpdater enrollmentUpdater = new EnrollmentStatusUpdater(dynamoClient, vehiclesTable);
+            
+            // Process telemetry with enrollment check and status update
             validTelemetryStream
                 .map(rawData -> {
-                    LOG.error("=== RECEIVED TELEMETRY ===");
-                    LOG.error("Raw data length: " + rawData.length());
-                    LOG.error("First 100 chars: " + rawData.substring(0, Math.min(100, rawData.length())));
-                    return rawData;
+                    String decoded = decodeAndDecompress(rawData);
+                    String vehicleId = extractJsonValue(decoded, "vehicleId");
+                    LOG.info("Processing telemetry for enrollment update, vehicleId: {}", vehicleId);
+                    
+                    if (vehicleId != null) {
+                        // Update enrollment status (PENDING_ACTIVATION/ENROLLED -> ACTIVE)
+                        enrollmentUpdater.updateEnrollmentOnTelemetry(vehicleId);
+                    } else {
+                        LOG.warn("No vehicleId found in telemetry");
+                    }
+                    
+                    return decoded;
                 })
-                .map(rawData -> decodeAndDecompress(rawData))
                 .sinkTo(processedSink)
                 .name("Processed Telemetry Sink");
 
@@ -129,7 +143,7 @@ public class EventDrivenTelemetryProcessor {
                 .map(rawData -> decodeAndDecompress(rawData))
                 .filter(json -> {
                     TelemetryData data = parseJson(json);
-                    return data.tripId != null && data.vehicleId != null;
+                    return data.vehicleId != null;
                 })
                 .sinkTo(tripsSink)
                 .name("Trip Events Sink");

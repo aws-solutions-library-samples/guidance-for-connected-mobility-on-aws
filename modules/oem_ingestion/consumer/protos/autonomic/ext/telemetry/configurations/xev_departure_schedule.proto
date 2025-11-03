@@ -1,0 +1,73 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2017 - 2021 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ *
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ *
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+syntax = "proto3";
+
+package autonomic.ext.telemetry.configurations;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/telemetry/configurations";
+option java_package = "com.autonomic.ext.telemetry.configurations";
+option java_outer_classname = "XevDepartureSchedulesProto";
+option java_multiple_files = true;
+
+option cc_enable_arenas = true;
+
+option objc_class_prefix = "AUT";
+
+import "autonomic/ext/common/schedule.proto";
+import "autonomic/ext/telemetry/enumerations/offon_status.proto";
+import "autonomic/ext/telemetry/enumerations/active_inactive_status.proto";
+import "autonomic/ext/telemetry/climate_control.proto";
+import "autonomic/ext/common/oem_data.proto";
+import "autonomic/ext/common/optional.proto";
+
+message XevDepartureSchedules {
+
+    // Whether the departure schedule feature as a whole is turned on or not by the user
+    autonomic.ext.telemetry.enumerations.offOnStatus.OffOnStatus departure_schedule_feature_status = 1;
+
+    // List of all departure schedules set on a vehicle
+    repeated XevDepartureSchedule departure_schedules = 2 [deprecated = true];
+
+    repeated DepartureLocation departure_locations = 3;
+}
+
+message DepartureLocation {
+    string location_id = 1;
+
+    repeated XevDepartureSchedule departure_schedules = 2;
+}
+
+message XevDepartureSchedule {
+
+    // ID of the schedule (if any). The ID should be unique per vehicle, and is not a global ID.
+    string schedule_id = 1;
+
+    // Whether this schedule is turned on or not by the user
+    autonomic.ext.telemetry.enumerations.offOnStatus.OffOnStatus schedule_status = 2;
+
+    // Details of the schedule
+    autonomic.ext.common.schedule.Schedule schedule = 3;
+
+    // Details about the desired cabin temperature setting, if any are supplied
+    autonomic.ext.telemetry.CabinTemperatureSetting desired_cabin_temperature_setting = 4;
+
+    // Additional information about the schedule (opaque to Au)
+    autonomic.ext.common.oemdata.OemData oem_data = 100;
+}

@@ -1,0 +1,195 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2017 - 2019 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ *
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ *
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+syntax = "proto3";
+
+package autonomic.ext.provisioning;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/provisioning";
+option java_package = "com.autonomic.ext.provisioning";
+option java_outer_classname = "VehicleProvisioningResultProto";
+option java_multiple_files = true;
+option cc_enable_arenas = true;
+option objc_class_prefix = "AUT";
+
+import "google/protobuf/timestamp.proto";
+
+//The result from the provisioning of a vehicle on the TMC platform.
+message VehicleProvisioningResult {
+
+    // REQUIRED: Unique identifier for the event - e.g. aui:result:provisioning:vehicle_provisioning_result:<uuid>
+    string id = 1;
+
+    // REQUIRED: The VIN of the vehicle associated with the VehicleProvisioningResult
+    string vin = 2;
+
+    // OPTIONAL: Present if devices were bound
+    repeated DeviceBindingResult device_binding = 3;
+
+    // Logging stages within the vehicle provisioning workflow
+    repeated VehicleProvisioningEvent stage = 4;
+
+    // REQUIRED: The status of the VehicleProvisioningResult (success/failure)
+    ResultStatus status = 5;
+
+    // OPTIONAL: Present if the status of the VehicleProvisioningResult is success - the home URL assigned
+    // to the device by the vehicle provisioning
+    string home_url = 6;
+
+    // OPTIONAL: Present if the result status is failure
+    VehicleProvisioningFailureReason failure_reason = 7;
+
+    // OPTIONAL: Additional key-value metadata associated with the VehicleProvisioningResult
+    map<string, string> vehicle_metadata = 8;
+
+    // REQUIRED: The timestamp at which this result was generated
+    google.protobuf.Timestamp timestamp = 9;
+
+    // REQUIRED: UUID string unique to every provisioning process on TMC
+    string provisioning_workflow_run_id = 10;
+
+    // REQUIRED: The region code associated with the primary device connecting to TMC
+    string region_code = 11;
+
+    // OPTIONAL: Additional failure information
+    string failure_message = 12;
+	
+    enum VehicleProvisioningFailureReason {
+        UNKNOWN_FAILURE = 0;
+        // The data is corrupted, contains invalid data, is missing mandatory values, etc.
+        INVALID_DATA = 1;
+        // Internal server errors, such as our internal APIs/services returning an error, exceptions encountered in our service, etc. 
+        INTERNAL_SERVER_ERROR = 2;
+        // The provisioning process took too long and the cloud timed out the process
+        TIME_OUT = 3;
+        // The vehicle was unable to execute the command from the cloud
+        COMMAND_EXECUTION_FAILURE = 4;
+        // TMC command expired while attempting to deliver the command to the device
+        COMMAND_DELIVERY_FAILURE = 5;
+        // Failed to regionalize device information to VSDN
+        VSDN_REGIONALIZATION_FAILURE = 6;
+        // TMC never received a message with ProvisioningData from the device
+        PROVISIONING_MESSAGE_NOT_RECEIVED = 7;
+        // Asset not found in TMC for the device serial from the provisioning message
+        ASSET_NOT_FOUND = 8;
+    }
+}
+
+// The binding of a device on a vehicle
+message DeviceBindingResult {
+
+    // REQUIRED: The serial number of the device associated with the DeviceBindingResult
+    string device_serial_number = 1;
+
+    // OPTIONAL: In the event of a device-swap scenario caused by this vehicle provisioning, the serial number of the device previously bound
+    // with this vehicle prior to the swap
+    string pre_swap_device_serial_number = 2;
+
+    // REQUIRED: The type of the connectivity device associated with the DeviceBindingResult
+    string device_type = 3;
+
+    // REQUIRED: The region code associated with the device
+    string region_code = 4;
+
+    // OPTIONAL: The country code associated with the device
+    string country_code = 5;
+
+    // OPTIONAL: Additional key-value metadata associated with the DeviceBindingResult
+    map<string, string> device_metadata = 6;
+
+    // REQUIRED: The timestamp at which the device was bound
+    google.protobuf.Timestamp timestamp = 7;
+
+    // REQUIRED: The result status (success/failure)
+    ResultStatus status = 8;
+    
+    // OPTIONAL: Present if the result status of the DeviceBindingEvent is failure
+    DeviceBindingFailureReason failure_reason = 9;
+
+    enum DeviceBindingFailureReason {
+        UNKNOWN_FAILURE = 0;
+
+        // Insufficient/invalid information was contained in the payload received from
+        // the device requesting provisioning.
+        PARSE_ERROR = 1;
+
+        // The device is missing from TMC. (Note that a device must be defined in TMC
+        // prior to any VehicleProvisioningResult that it is associated with.)
+         DEVICE_NOT_FOUND = 2;
+
+        // An unexpected error was encountered on TMC during the registration process
+        // that resulted in the registration not completing successfully.
+        INTERNAL_SERVICE_ERROR = 3;
+    } 
+}
+
+// A vehicle provisioning action taking place at a single time instant
+message VehicleProvisioningEvent {
+    // REQUIRED: Which event within the vehicle provisioning process
+    VehicleProvisioningEventType event_type = 1;
+
+    // REQUIRED: The time of the event
+    google.protobuf.Timestamp timestamp = 2;
+
+    map<string, string> metadata = 3;
+
+    enum VehicleProvisioningEventType {
+        //A provisioning message was received by the cloud that started this Provisioning Process
+        PROVISIONING_STARTED = 0;
+
+        CONNECTION_STATUS_ALERT_RECEIVED_BY_CLOUD = 1;
+        ECG_PROVISIONING_ALERT_RECEIVED_BY_CLOUD = 2;
+        ECG_PROVISIONING_RESPONSE_SENT_TO_VEHICLE = 3;
+        TCU_PROVISIONING_ALERT_RECEIVED_BY_CLOUD = 4;
+        TCU_PROVISIONING_RESPONSE_SENT_TO_VEHICLE = 5;
+        ECG_PROVISIONING_DATA_REQUEST_SENT_TO_VEHICLE = 6;
+        ECG_PROVISIONING_DATA_RESPONSE_RECEIVED_BY_CLOUD = 7;
+        TCU_PROVISIONING_DATA_REQUEST_SENT_TO_VEHICLE = 8;
+        TCU_PROVISIONING_DATA_RESPONSE_RECEIVED_BY_CLOUD = 9;
+        CHANGE_HOME_URL_SENT_TO_VEHICLE = 10;
+        CHANGE_HOME_URL_RESPONSE_RECEIVED_BY_CLOUD = 11;
+
+        //The cloud received a Disconnect alert after receiving the CHURL Response
+        PROVISIONING_ENDED = 12;
+
+        ECG_PROVISIONING_RESPONSE_DELIVERY_FAILED = 13;
+        TCU_PROVISIONING_RESPONSE_DELIVERY_FAILED = 14;
+        ECG_PROVISIONING_DATA_REQUEST_DELIVERY_FAILED = 15;
+        TCU_PROVISIONING_DATA_REQUEST_DELIVERY_FAILED = 16;
+        CHANGE_HOME_URL_DELIVERY_FAILED = 17;
+
+        REGIONALIZED_ECG_TO_VSDN = 18;
+        REGIONALIZED_TCU_TO_VSDN = 19;
+
+        CHANGE_HOME_URL_DELIVERY_ATTEMPT_STARTED = 20;
+        ECG_PROVISIONING_DATA_REQUEST_DELIVERY_ATTEMPT_STARTED = 21;
+        TCU_PROVISIONING_DATA_REQUEST_DELIVERY_ATTEMPT_STARTED = 22;
+        ECG_PROVISIONING_RESPONSE_DELIVERY_ATTEMPT_STARTED = 23;
+        TCU_PROVISIONING_RESPONSE_DELIVERY_ATTEMPT_STARTED = 24;
+    }
+}
+
+
+
+// An indication of success or failure at the conclusion of a process
+enum ResultStatus {
+    UNKNOWN_STATUS = 0;
+    SUCCESS = 1;
+    FAILURE = 2;
+}

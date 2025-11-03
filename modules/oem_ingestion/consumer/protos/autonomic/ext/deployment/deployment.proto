@@ -1,0 +1,324 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2017 - 2018 Autonomic Incorporated - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ * 
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ * 
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+syntax = "proto3";
+
+package autonomic.ext.deployment;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/deployment";
+option java_package = "com.autonomic.ext.deployment";
+option java_outer_classname = "DeploymentProto";
+option java_multiple_files = true;
+
+option cc_enable_arenas = true;
+
+option objc_class_prefix = "AUT";
+
+import "google/protobuf/timestamp.proto";
+import "autonomic/ext/common/entity.proto";
+
+// This service defines APIs which external services may call into in order to
+// manage the lifecycle of device deployments on the autonomic platform.
+service Deployment {
+    // Creates a ReleaseArtifact
+    rpc CreateReleaseArtifact(CreateReleaseArtifactRequest) returns (CreateReleaseArtifactResponse) {}
+    // Deletes a ReleaseArtifact by UUID
+    rpc DeleteReleaseArtifact(DeleteReleaseArtifactRequest) returns (DeleteReleaseArtifactResponse) {}
+    // Return one or more ReleaseArtifacts by UUID
+    rpc GetReleaseArtifacts(GetReleaseArtifactsRequest) returns (GetReleaseArtifactsResponse) {}
+
+    // Creates a TargetBundle
+    rpc CreateTargetBundle(CreateTargetBundleRequest) returns (CreateTargetBundleResponse) {}
+    // Delete a Release Manifest by UUID
+    rpc DeleteTargetBundle(DeleteTargetBundleRequest) returns (DeleteTargetBundleResponse) {}
+    // Return one or more TargetBundles by UUID
+    rpc GetTargetBundles(GetTargetBundlesRequest) returns (GetTargetBundlesResponse) {}
+
+    // Create a Release
+    rpc CreateRelease(CreateReleaseRequest) returns (CreateReleaseResponse) {}
+    // Delete a Release by UUID
+    rpc DeleteRelease(DeleteReleaseRequest) returns (DeleteReleaseResponse) {}
+    // Get a list of Releases
+    rpc GetReleases(GetReleasesRequest) returns (GetReleasesResponse) {}
+
+    // Initiate a Deployment for a given Release to the appropriate devices
+    rpc DeployRelease(DeployReleaseRequest) returns (DeployReleaseResponse) {}
+
+    // Return one ore more Deploy entities based on UUID
+    rpc GetDeploys(GetDeploysRequest) returns (GetDeploysResponse) {}
+
+    // Returns status of a deployment and all information about vehicle deployment status
+    rpc GetDeployStatus(GetDeployStatusRequest) returns (GetDeployStatusResponse) {}
+}
+
+// A TargetMatcher is used to filter which devices a TargetBundle will be applied to.
+// TargetMatchers are logically ANDed together. A device must match all TargetMatchers
+// in order to be considered a match for a TargetBundle. One example of TargetMatcher
+// would be a simple string comparison: 'esn':'<vehicleEsn>'.
+message TargetMatcher {
+    message FieldMatcher {
+        string name = 1;
+        string value = 2;
+    }
+
+    message TagMatcher {
+        string name = 1;
+        string value = 2;
+    }
+
+    oneof matcher {
+        FieldMatcher field = 1;
+        TagMatcher tag = 2;
+    }
+}
+
+// A ReleaseArtifact represents the complete set of metadata used to acquire a binary component of a
+// TargetBundle.
+message ReleaseArtifact {
+    string id = 1;
+    string tenant_id = 2;
+    bytes etag = 3;
+    string name = 4;
+    string description = 5;
+    autonomic.ext.common.entity.Author author = 6;
+    string uri = 7;
+    uint64 byte_length = 8;
+    bytes checksum = 9;
+    string type = 10;
+    map<string, string> tags = 11;
+    google.protobuf.Timestamp created = 12;
+}
+
+// A TargetBundle represents a set of artifacts logically grouped in order to transition a set of devices
+// to a target state.
+// Precondition: All of the devices identified as a match in a TargetBundle must be in a state where
+// the TargetBundle can be applied successfully.
+// Postcondition: All of the devices to which the TargetBundle was successfully applied are in the same
+// target state.
+message TargetBundle {
+    string id = 1;
+    string tenant_id = 2;
+    bytes etag = 3;
+    string name = 4;
+    string description = 5;
+    autonomic.ext.common.entity.Author  author = 6;
+    repeated ReleaseArtifact artifacts = 7;
+    repeated TargetMatcher matchers = 8;
+    map<string, string> tags = 9;
+    google.protobuf.Timestamp created = 10;
+}
+
+// A Release encapsulates one or more TargetBundles. Each TargetBundle represents a
+// unique set of instructions to bring a subset of devices to a desired state. While the
+// instructions across TargetBundles will differ, two TargetBundles will only reside in
+// the same Release if they share the same goal state of the device.
+message Release {
+    string id = 1;
+    string tenant_id = 2;
+    bytes etag = 3;
+    string name = 4;
+    string description = 5;
+    autonomic.ext.common.entity.Author author = 6;
+    map<string, string> tags = 7;
+    repeated TargetBundle bundle = 8;
+    google.protobuf.Timestamp created = 9;
+}
+
+// Deploy
+// Entity that tracks the delivery of a release to
+// a fleet of vehicles.
+message Deploy {
+    bytes id = 1;
+    bytes tenant_id = 2;
+    bytes etag = 3;
+    string name = 4;
+    string description = 5;
+    string callback_uri = 6;
+    bytes release_id = 7;
+    autonomic.ext.common.entity.Author author = 8;
+    map<string, string> tags = 9;
+    google.protobuf.Timestamp created = 10;
+    google.protobuf.Timestamp expiration = 11;
+}
+
+message CreateReleaseArtifactRequest {
+    string tenant_id = 1;
+    string name = 2;
+    string description = 3;
+    autonomic.ext.common.entity.Author author = 4;
+    string uri = 7;
+    uint64 byte_length = 8;
+    bytes checksum = 9;
+    string type = 10;
+    map<string, string> tags = 11;
+}
+
+message CreateReleaseArtifactResponse {
+    string id = 1;
+    bytes etag = 2;
+}
+
+message DeleteReleaseArtifactRequest {
+    string request_id = 1;
+    repeated string ids = 2;
+}
+
+message DeleteReleaseArtifactResponse {
+    string request_id = 1;
+
+    enum DeleteReleaseArtifactStatus {
+        UNKNOWN = 0;
+        DELETED = 1;
+        NOT_FOUND = 2;
+    }
+
+    // map of artifact id (represented as string) to deletion result
+    map<string, DeleteReleaseArtifactStatus> results = 2;
+}
+
+message GetReleaseArtifactsRequest {
+    repeated string ids = 1;
+    string tenant_id = 2;
+}
+
+message GetReleaseArtifactsResponse {
+    repeated ReleaseArtifact artifacts = 1;
+}
+
+message CreateTargetBundleRequest {
+    string tenant_id = 1;
+    string name = 2;
+    string description = 3;
+    autonomic.ext.common.entity.Author author = 4;
+    repeated string release_artifact_ids = 6;
+    repeated TargetMatcher matchers = 7;
+    map<string, string> tags = 8;
+}
+
+message CreateTargetBundleResponse {
+    string id = 1;
+    bytes etag = 2;
+}
+
+message DeleteTargetBundleRequest {
+    string request_id = 1;
+    repeated string ids = 2;
+}
+
+message DeleteTargetBundleResponse {
+    string request_id = 1;
+
+    enum DeleteTargetBundleStatus {
+        UNKNOWN = 0;
+        DELETED = 1;
+        NOT_FOUND = 2;
+    }
+
+    // map of bundle id (represented as string) to deletion result
+    map<string, DeleteTargetBundleStatus> results = 2;
+}
+
+message GetTargetBundlesRequest {
+    repeated string ids = 1;
+    string tenant_id = 2;
+}
+
+message GetTargetBundlesResponse {
+    repeated TargetBundle bundles = 1;
+}
+
+message CreateReleaseRequest {
+    string tenant_id = 1;
+    string name = 2;
+    string description = 3;
+    autonomic.ext.common.entity.Author author = 4;
+    map<string, string> tags = 5;
+    repeated string target_bundle_ids = 6;
+}
+
+message CreateReleaseResponse {
+    string id = 1;
+    bytes etag = 2;
+}
+
+message DeleteReleaseRequest {
+    string request_id = 1;
+    repeated string ids = 2;
+
+}
+
+message DeleteReleaseResponse {
+    string request_id = 1;
+
+    enum DeleteReleaseStatus {
+        UNKNOWN = 0;
+        DELETED = 1;
+        NOT_FOUND = 2;
+    }
+
+    // map of release id (represented as string) to deletion result
+    map<string, DeleteReleaseStatus> results = 2;
+}
+
+message GetReleasesRequest {
+    repeated string ids = 1;
+    string tenant_id = 2;
+}
+
+message GetReleasesResponse {
+    repeated Release releases = 1;
+}
+
+message DeployReleaseRequest {
+    string tenant_id = 1;
+    string name = 2;
+    string description = 3;
+    string release_id = 4;
+    autonomic.ext.common.entity.Author author = 5;
+    string callback_uri = 6;
+    map<string, string> tags = 7;
+}
+
+message DeployReleaseResponse {
+    string id = 1;
+    bytes etag = 2;
+}
+
+message GetDeploysRequest {
+    repeated bytes ids = 1;
+    bytes tenant_id = 2;
+}
+
+message GetDeploysResponse {
+    repeated Deploy deploys = 1;
+}
+
+message GetDeployStatusRequest {
+    bytes tenant_id = 1;
+    bytes deploy_id = 2;
+}
+
+message GetDeployStatusResponse {
+    Deploy deploy = 1;
+    string status = 2;  // current status of the deployment
+    // A map of string states with the number of vehicles in that state
+    // not all states will necessarily be populated
+    map<string, string> vehicle_status = 3;
+}
+

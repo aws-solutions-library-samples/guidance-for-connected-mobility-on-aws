@@ -1,0 +1,212 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2018 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ *
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ *
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+
+syntax = "proto3";
+
+package autonomic.ext.telemetry;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/telemetry";
+option java_package = "com.autonomic.ext.telemetry";
+option java_outer_classname = "PositionProto";
+option java_multiple_files = true;
+
+option cc_enable_arenas = true;
+
+option objc_class_prefix = "AUT";
+
+import "autonomic/ext/telemetry/dynamics.proto";
+import "autonomic/ext/telemetry/enumerations/inferred_vs_actual.proto";
+import "autonomic/ext/telemetry/enumerations/offon_status.proto";
+
+import "google/protobuf/timestamp.proto";
+
+// Derived from ETSI TS 123 032 V10.0.0 (2011-03) and
+// Vehicle Sensor Data Cloud Ingestion Interface Specification (v2.0.2)
+
+// The "ellipsoid point with uncertainty circle" is characterised by the
+// co-ordinates of an ellipsoid point (the origin) and a distance r. It
+// describes formally the set of points on the ellipsoid which are at a
+// distance from the origin less than or equal to r, the distance being the
+// geodesic distance over the ellipsoid, i.e., the minimum length of a path
+// staying on the ellipsoid and joining the two points.
+//
+// As for the ellipsoid point, this can be used to indicate points on the
+// Earth's surface, or near the Earth's surface, of same latitude and
+// longitude.
+//
+// The typical use of this shape is to indicate a point when its position
+// is known only with a limited accuracy.
+message Point {
+    double latitude = 1;
+    double longitude = 2;
+    double r = 3; // radius of uncertainty in meters
+}
+
+// The "ellipsoid point with altitude and uncertainty ellipsoid" is
+// characterised by the co-ordinates of an ellipsoid point with altitude,
+// distances r1 (the "semi-major uncertainty"), r2 (the "semi-minor
+// uncertainty") and r3 (the "vertical uncertainty") and an angle of
+// orientation A (the "angle of the major axis"). It describes formally
+// the set of points which fall within or on the surface of a general
+// (three dimensional) ellipsoid centred on an ellipsoid point with
+// altitude whose real semi-major, semi-mean and semi-minor axis are some
+// permutation of r1, r2, r3 with r1 ≥ r2. The r3 axis is aligned
+// vertically, while the r1 axis, which is the semi-major axis of the
+// ellipse in a horizontal plane that bisects the ellipsoid, is oriented
+// at an angle A (0° to 180°) measured clockwise from north.
+//
+// The typical use of this shape is to indicate a point when its
+// horizontal position and altitude are known only with a limited
+// accuracy, but the geometrical contributions to uncertainty can be
+// quantified. The confidence with which the position of a target entity
+// is included within the shape is also included.
+message ThreeDPoint {
+    double latitude = 1;
+    double longitude = 2;
+    double altitude = 3;
+    double r1 = 5; // radius of "semi-major uncertainty" in meters
+    double r2 = 6; // radius of "semi-minor uncertainty" in meters
+    double r3 = 10; // radius of "vertical uncertainty" in meters
+    double a = 7; // in degrees
+    float confidence = 8; // percentage
+}
+
+message Location {
+    oneof location {
+        Point point = 1;
+        ThreeDPoint three_d_point = 2;
+    }
+}
+
+enum GnssConstellationType {
+    CONSTELLATION_UNKNOWN = 0;
+    CONSTELLATION_GPS = 1;
+    CONSTELLATION_SBAS = 2;
+    CONSTELLATION_GLONASS = 3;
+    CONSTELLATION_QZSS = 4;
+    CONSTELLATION_BEIDOU = 5;
+    CONSTELLATION_GALILEO = 6;
+}
+
+message GnssSatelliteState {
+    int32 svid = 1;
+    float elevation = 2; // in degrees
+    float azimuth = 3;   // in degrees
+    float cn0_db_hz = 4;
+    GnssConstellationType constellation_type = 5;
+    bool used_in_fix = 6;
+    bool has_almanac_data = 7;
+    bool has_ephemeris_data = 8;
+}
+
+message GnssEngineStatus {
+    repeated GnssSatelliteState satellites = 1;
+}
+
+// Dilution of precision values are always positive and non-zero.
+// Due to the quirks of proto3, there is no way to check for the
+// presence of a field in a message. Instead, any DOP field with
+// a value of 0 is considered to not be present and should be
+// ignored.
+message GnssDilutionOfPrecision {
+    uint32 pdop = 1;
+    uint32 hdop = 2;
+    uint32 vdop = 3;
+    float gdop = 4;  // in meters
+}
+
+//GNSS stands for Global Navigation Satellite System, and is an umbrella term
+//that encompasses all global satellite positioning systems. This includes
+//constellations of satellites orbiting over the earth’s surface and
+//continuously transmitting signals that enable users to determine their position.
+message GnssState {
+    GnssDilutionOfPrecision gnss_dop_data = 1;
+    GnssSatelliteState gnss_state_data = 3;    // mostly intended for debugging
+
+    autonomic.ext.telemetry.enumerations.inferredVsActual.InferredVsActual gps_coordinate_method = 4;
+    autonomic.ext.telemetry.enumerations.offOnStatus.OffOnStatus gps_fault = 5 [deprecated = true];
+    //The Global Positioning System (GPS) is one component of the
+    //Global Navigation Satellite System. GPS is the most widely used GNSS in
+    //the world. It provides continuous positioning and timing information globally.
+    google.protobuf.Timestamp gps_clock = 6;
+}
+
+message Heading {
+    enum HeadingDetectionType {
+        UNKNOWN = 0;
+        HEADING_RAW_GNSS = 1;
+        HEADING_MAGNETIC_SENSOR = 2;
+        HEADING_MULTI_SENSOR_FUSION = 3;
+        HEADING_BY_MAP = 4;
+    }
+    float heading = 1;     // in degrees
+    float uncertainty = 2; // in degrees
+    HeadingDetectionType detection_type = 3;
+}
+
+message Speed {
+    enum SpeedDetectionType {
+        UNKNOWN = 0;
+        SPEED_RAW_GNSS = 1;
+        SPEED_WHEEL_TICKS = 2;
+        SPEED_RADAR_SONAR = 3;
+    }
+    float speed = 1;       // in meters/second
+    float uncertainty = 2; // in meters/second
+    SpeedDetectionType detection_type = 3;
+}
+
+message Position {
+    enum GpsDimension {
+        UNKNOWN = 0;
+        NONE = 1;
+        DIM_2D = 2;
+        DIM_3D = 3;
+    }
+
+    // more details: https://en.wikipedia.org/wiki/Restrictions_on_geographic_data_in_China
+    enum GpsDatum {
+      GPS_DATUM_UNKNOWN = 0;
+      WGS84 = 1; // world geographic datum version 1984 which is unshifted
+      BD09 = 2; // geographic datum used by Chinese Baidu Maps version 2009
+      GCJ02 = 3; // geodetic datum formulated by the Chinese State Bureau of Surveying and Mapping version 2002
+    }
+
+    // We expect only one location per position.
+    // Support for multiple locations has been deprecated.
+    repeated Location location = 1;
+
+    // HEADING is broken out to a separate WKS.
+    // The entry is maintained here, so that code can
+    // detect this data in OLD messages.
+    repeated Heading heading = 2 [deprecated = true];
+
+    // SPEED is broken out to a separate WKS.
+    // The entry is maintained here, so that code can
+    // detect this data in OLD messages.
+    repeated Speed speed = 3 [deprecated = true];
+
+    GnssState gnss_data = 4;
+    Orientation orientation = 5;
+    repeated ThreeAxisSensorState orientation_sensors = 6;
+    GpsDimension gpsDimension = 7;
+    GpsDatum gps_datum = 8;
+
+}

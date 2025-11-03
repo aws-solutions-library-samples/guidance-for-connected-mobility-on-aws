@@ -1,0 +1,92 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2018 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ *
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ *
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+syntax = "proto3";
+
+package autonomic.ext.event.state.bootstrap;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/event/state";
+option java_package = "com.autonomic.ext.event.state.bootstrap";
+option java_outer_classname = "WellKnownBootstrapStateProto";
+option java_multiple_files = true;
+
+option cc_enable_arenas = true;
+
+option objc_class_prefix = "AUT";
+
+// Well-known Bootstrap states.  All state transitions for this fsm are emitted by the cloud.
+enum WellKnownBootstrapState {
+    UNKNOWN_STATE = 0;
+
+    // A device has requested a signed certificate from the bootstrap service.
+    // triggered by: BOOTSTRAP_REQUEST_RECEIVED
+    REQUESTED = 1;
+
+    // The cloud received an encrypted bootstrap request that it failed to decrypt
+    // trigged by: REQUEST_DECRYPTION_FAILED
+    REQUEST_DECRYPTION_FAILURE = 2;
+
+    // The cloud received a bootstrap request that was invalid due to missing or malformed fields
+    // triggered by: REQUEST_VALIDATION_FAILED
+    INVALID_REQUEST_FAILURE = 3;
+
+    // The cloud received a bootstrap request that contained an invalid CSR
+    // triggered by: CSR_VALIDATION_FAILED
+    INVALID_CSR_FAILURE = 4;
+
+    // The pre-shared key parsed from the request was invalid
+    // triggered by: PRESHARED_KEY_VALIDATION_FAILED
+    PRESHARED_KEY_VALIDATION_FAILURE = 5;
+
+    // The cloud failed to identify a unique device associated with the received request
+    // triggered by: DEVICE_LOOKUP_FAILED
+    UNKNOWN_DEVICE_FAILURE = 6;
+
+    // The cloud failed to bootstrap the device with an internal error.  When a request fails in
+    // this manner, the device may retry the request.
+    // triggered by: INTERNAL_ERROR_OCCURRED
+    TRANSIENT_BOOTSTRAP_FAILURE = 7;
+
+    // The bootstrap attempt did not complete due to the device not specifying an adequate gRPC
+    // deadline.  The deadline for the bootstrap RPC must be set appropriately per the guidelines
+    // in the TMC developer portal.  The device may retry the request, albeit with an appropriate
+    // deadline.
+    // triggered by: DEVICE_DEADLINE_EXCEEDED
+    CANCELLED_BY_DEVICE = 9;
+
+    // The bootstrap request succeeded for the device
+    // triggered by SIGNED_CERTIFICATE_GENERATED
+    SUCCESS = 8;
+}
+
+// Bootstrap state transition triggers. See WellKnownBootstrapState enum
+// for documentation on when these triggers occur.
+enum WellKnownBootstrapTransitionTrigger {
+    UNKNOWN_TRANSITION_TRIGGER = 0;
+
+    BOOTSTRAP_REQUEST_RECEIVED = 1;
+    REQUEST_DECRYPTION_FAILED = 2;
+    REQUEST_VALIDATION_FAILED = 3;
+    CSR_VALIDATION_FAILED = 4;
+    PRESHARED_KEY_VALIDATION_FAILED = 5;
+    DEVICE_LOOKUP_FAILED = 6;
+    INTERNAL_ERROR_OCCURRED = 7;
+    SIGNED_CERTIFICATE_GENERATED = 8;
+    DEVICE_DEADLINE_EXCEEDED = 9;
+}

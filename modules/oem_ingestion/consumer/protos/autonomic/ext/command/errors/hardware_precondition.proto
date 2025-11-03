@@ -1,0 +1,135 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2017 - 2019 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ * 
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ * 
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+syntax = "proto3";
+
+package autonomic.ext.command.errors;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/command/errors";
+option java_package = "com.autonomic.ext.command.errors";
+option java_outer_classname = "ComponentPreconditionErrorProto";
+option java_multiple_files = true;
+option cc_enable_arenas = true;
+option objc_class_prefix = "AUT";
+
+import "autonomic/ext/command/errors/hardware_state.proto";
+import "autonomic/ext/telemetry/enumerations/alarm_status.proto";
+import "autonomic/ext/telemetry/enumerations/door_status.proto";
+import "autonomic/ext/telemetry/enumerations/door_lock_status.proto";
+import "autonomic/ext/telemetry/enumerations/engine_status.proto";
+import "autonomic/ext/telemetry/enumerations/gear_position.proto";
+
+// Note: this file is imported directly by the parent file command_error_data.proto.
+message HardwareStateViolation {
+
+    oneof type {
+        AlarmStateViolation alarm_state_violation = 1;
+        DoorLockStateViolation door_lock_state_violation = 2;
+        DoorStateViolation door_state_violation = 3;
+        DoorHandleStateViolation door_handle_state_violation = 4;
+        EngineStateViolation engine_state_violation = 5;
+        MotorControlButtonViolation motor_control_button_violation = 6;
+        VehicleMotionViolation vehicle_motion_violation = 7;
+        KeyFobViolation key_fob_violation = 8;
+        HoodStateViolation hood_state_violation = 9;
+        GearPositionViolation gear_position_violation = 10;
+    }
+}
+
+// Contextual information about the door handle which caused a precondition failure for the command.
+message DoorHandleStateViolation {
+    DoorHandleState door_handle_state = 1;
+}
+
+// A precondition violation which is the result of the state of the motor control button
+// (i.e. vehicle start / stop button), at the time the command was received
+message MotorControlButtonViolation {
+    enum MotorControlButtonState {
+        UNKNOWN_MOTOR_CONTROL_BUTTON_STATE = 0;
+        // Motor control button was depressed when the command was received
+        MOTOR_CONTROL_BUTTON_DEPRESSED = 1;
+        // Motor control button was released when command was received
+        MOTOR_CONTROL_BUTTON_RELEASED = 2;
+    }
+
+    MotorControlButtonState motor_control_button_state = 1;
+}
+
+// A precondition violation which is the result of the movement of the vehicle, at the time the
+// command was received.
+message VehicleMotionViolation {
+    enum VehicleMotionState {
+        UNKNOWN_VEHICLE_MOTION_STATE = 0;
+        // Vehicle was in motion when command was received
+        VEHICLE_IN_MOTION = 1;
+        // Vehicle was stationary when command was received
+        VEHICLE_STATIONARY = 2;
+    }
+
+    VehicleMotionState vehicle_motion_state = 1;
+}
+
+// A precondition violation which is the result of the location of the key fob, relative to the
+// vehicle, at the time the command was received.
+message KeyFobViolation {
+    enum KeyFobProximityState {
+        UNKNOWN_KEYFOB_PROXIMITY_STATE = 0;
+        // Key fob was in the vehicle when the command was received
+        KEY_FOB_IN_VEHICLE = 1;
+        // Key fob was in the vehicle proximity when the command was received
+        KEY_FOB_IN_VEHICLE_PROXIMITY = 2;
+        // Key fob was not in the vehicle proximity when the command was received
+        KEY_FOB_NOT_IN_VEHICLE_PROXIMITY = 3;
+    }
+
+    KeyFobProximityState proximity_state = 1;
+}
+
+// A precondition violation which is the result of the hood state at the time the command
+// was received
+message HoodStateViolation {
+    HoodPositionState hood_position_state = 1;
+}
+
+message EngineStateViolation {
+    // The engine state at the time the command was received,
+    // which represents a violating precondition to the execution of the received command
+    autonomic.ext.telemetry.enumerations.engineStatus.EngineStatus engine_status = 1;
+}
+
+message AlarmStateViolation {
+    // The current alarm state, which represents a violating precondition to this command's execution
+    autonomic.ext.telemetry.enumerations.alarmStatus.AlarmStatus alarm_status = 1;
+}
+
+message DoorStateViolation {
+    // The current door state, which represents a violating precondition to this command's execution
+    autonomic.ext.telemetry.enumerations.doorStatus.DoorStatus door_status = 1;
+}
+
+message DoorLockStateViolation {
+    // The current door lock state, which represents a violating precondition to this command's execution
+    autonomic.ext.telemetry.enumerations.doorLockStatus.DoorLockStatus door_lock_status = 1;
+}
+
+message GearPositionViolation {
+    // The gear position at the time the command was received,
+    // which represents a violating precondition to the execution of the received command
+    autonomic.ext.telemetry.enumerations.gearPosition.GearPosition gear_position = 1;
+}

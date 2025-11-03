@@ -2,6 +2,7 @@ package com.cms.telemetry;
 
 import com.amazonaws.services.kinesisanalytics.runtime.KinesisAnalyticsRuntime;
 import com.cms.telemetry.sink.CloudWatchMetricsSink;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.java.utils.ParameterTool;
@@ -175,10 +176,23 @@ public class TripProcessor {
                 
                 // Handle complete trip lifecycle with better logic
                 if ("ENGINE_START".equals(data.engineEvent) || (data.ignitionOn != null && data.ignitionOn)) {
+                    // Generate tripId if not present (for OEM data without tripId)
+                    if (data.tripId == null && data.vehicleId != null) {
+                        data.tripId = data.vehicleId + "-" + data.timestamp + "-" + 
+                            Integer.toHexString((int)(Math.random() * 0xFFFFFF));
+                        LOG.info("🆕 GENERATED TRIP ID: {} for vehicle: {}", data.tripId, data.vehicleId);
+                    }
                     LOG.info("🚗 CREATING/UPDATING TRIP - tripId: {}, engineEvent: {}, ignitionOn: {}", 
                         data.tripId, data.engineEvent, data.ignitionOn);
                     createOrUpdateTrip(data, existingTrip);
                 } else if ("ENGINE_STOP".equals(data.engineEvent) || (data.ignitionOn != null && !data.ignitionOn)) {
+                    // For ignition OFF, find active trip for this vehicle
+                    if (data.tripId == null && data.vehicleId != null) {
+                        existingTrip = getActiveTripForVehicle(data.vehicleId);
+                        if (existingTrip != null) {
+                            data.tripId = existingTrip.get("tripId").s();
+                        }
+                    }
                     LOG.info("🏁 COMPLETING TRIP - tripId: {}, engineEvent: {}, ignitionOn: {}", 
                         data.tripId, data.engineEvent, data.ignitionOn);
                     completeTrip(data, existingTrip);
@@ -186,6 +200,16 @@ public class TripProcessor {
                     // Only update route if trip exists and we're not starting/stopping
                     LOG.info("📍 UPDATING TRIP ROUTE - tripId: {}, ignitionOn: {}", data.tripId, data.ignitionOn);
                     updateTripRoute(data, existingTrip);
+                } else if (data.tripId == null && data.vehicleId != null && (data.lat != null || data.lng != null)) {
+                    // No tripId but has GPS data - find active trip for this vehicle and update route
+                    existingTrip = getActiveTripForVehicle(data.vehicleId);
+                    if (existingTrip != null) {
+                        data.tripId = existingTrip.get("tripId").s();
+                        LOG.info("📍 FOUND ACTIVE TRIP FOR VEHICLE - tripId: {}, vehicleId: {}", data.tripId, data.vehicleId);
+                        updateTripRoute(data, existingTrip);
+                    } else {
+                        LOG.debug("No active trip found for vehicle: {}", data.vehicleId);
+                    }
                 } else {
                     LOG.warn("⚠️ UNHANDLED TELEMETRY EVENT - tripId: {}, engineEvent: {}, ignitionOn: {}, existingTrip: {}", 
                         data.tripId, data.engineEvent, data.ignitionOn, existingTrip != null ? "exists" : "null");
@@ -212,6 +236,35 @@ public class TripProcessor {
                 return queryResponse.items().isEmpty() ? null : queryResponse.items().get(0);
             } catch (Exception e) {
                 LOG.error("FAILED TO GET EXISTING TRIP - tripId: {}, error: {}", tripId, e.getMessage());
+                return null;
+            }
+        }
+        
+        private Map<String, AttributeValue> getActiveTripForVehicle(String vehicleId) {
+            if (vehicleId == null) return null;
+            
+            try {
+                // Query GSI to find active trip for this vehicle
+                software.amazon.awssdk.services.dynamodb.model.QueryRequest queryRequest = 
+                    software.amazon.awssdk.services.dynamodb.model.QueryRequest.builder()
+                        .tableName(tripsTable)
+                        .indexName("vehicleId-index")
+                        .keyConditionExpression("vehicleId = :vehicleId")
+                        .filterExpression("#status = :status")
+                        .expressionAttributeNames(Map.of("#status", "status"))
+                        .expressionAttributeValues(Map.of(
+                            ":vehicleId", AttributeValue.builder().s(vehicleId).build(),
+                            ":status", AttributeValue.builder().s("ACTIVE").build()
+                        ))
+                        .scanIndexForward(false)
+                        .limit(1)
+                        .build();
+                
+                software.amazon.awssdk.services.dynamodb.model.QueryResponse queryResponse = dynamoDbClient.query(queryRequest);
+                
+                return queryResponse.items().isEmpty() ? null : queryResponse.items().get(0);
+            } catch (Exception e) {
+                LOG.error("FAILED TO GET ACTIVE TRIP FOR VEHICLE - vehicleId: {}, error: {}", vehicleId, e.getMessage());
                 return null;
             }
         }
@@ -666,8 +719,11 @@ public class TripProcessor {
             data.engineEvent = extractJsonValue(json, "engineEvent");
             data.rawJson = json; // Store raw JSON for field extraction
             
-            // Extract additional fields
+            // Extract additional fields - check both ignitionOn and ignition_on
             String ignitionStr = extractJsonValue(json, "ignitionOn");
+            if (ignitionStr == null) {
+                ignitionStr = extractJsonValue(json, "ignition_on");
+            }
             if (ignitionStr != null) {
                 data.ignitionOn = "true".equals(ignitionStr);
             }
@@ -693,6 +749,9 @@ public class TripProcessor {
             }
             
             String lngStr = extractJsonValue(json, "lng");
+            if (lngStr == null) {
+                lngStr = extractJsonValue(json, "lon");
+            }
             if (lngStr != null) {
                 try {
                     data.lng = Double.parseDouble(lngStr);
@@ -746,6 +805,7 @@ public class TripProcessor {
         
         private String extractJsonValue(String json, String key) {
             try {
+                // Try string pattern
                 String pattern = "\"" + key + "\"\\s*:\\s*\"([^\"]+)\"";
                 java.util.regex.Pattern p = java.util.regex.Pattern.compile(pattern);
                 java.util.regex.Matcher m = p.matcher(json);
@@ -755,6 +815,14 @@ public class TripProcessor {
                 
                 // Try numeric pattern (including negative numbers)
                 pattern = "\"" + key + "\"\\s*:\\s*([-0-9.]+)";
+                p = java.util.regex.Pattern.compile(pattern);
+                m = p.matcher(json);
+                if (m.find()) {
+                    return m.group(1);
+                }
+                
+                // Try boolean pattern
+                pattern = "\"" + key + "\"\\s*:\\s*(true|false)";
                 p = java.util.regex.Pattern.compile(pattern);
                 m = p.matcher(json);
                 if (m.find()) {
@@ -805,6 +873,7 @@ public class TripProcessor {
         String driverId;
         String engineEvent;
         String rawJson; // Store raw JSON for comprehensive field extraction
+        @JsonProperty("ignition_on")
         Boolean ignitionOn;
         Long timestamp;
         Double lat;

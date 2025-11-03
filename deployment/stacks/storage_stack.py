@@ -57,71 +57,85 @@ class StorageStack(Stack):
             )
         )
         
-        # Service History Table - NEW
-        self.tables['service_history'] = dynamodb.Table(
-            self, "ServiceHistoryTable",
-            table_name=f"{construct_id}-service-history",
-            partition_key=dynamodb.Attribute(
-                name="vehicleId",
-                type=dynamodb.AttributeType.STRING
-            ),
-            sort_key=dynamodb.Attribute(
-                name="serviceDate",
-                type=dynamodb.AttributeType.STRING
-            ),
-            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
-            removal_policy=RemovalPolicy.RETAIN,
-            point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(point_in_time_recovery_enabled=True),
-            stream=dynamodb.StreamViewType.NEW_AND_OLD_IMAGES,
-            encryption=dynamodb.TableEncryption.AWS_MANAGED
-        )
-        
-        # GSI for service type queries
-        self.tables['service_history'].add_global_secondary_index(
-            index_name="ServiceTypeIndex",
-            partition_key=dynamodb.Attribute(
-                name="serviceType",
-                type=dynamodb.AttributeType.STRING
-            ),
-            sort_key=dynamodb.Attribute(
-                name="serviceDate",
-                type=dynamodb.AttributeType.STRING
+        # Service History Table - Import if exists, create if not
+        try:
+            # Try to import existing table
+            self.tables['service_history'] = dynamodb.Table.from_table_name(
+                self, "ServiceHistoryTable",
+                table_name=f"{construct_id}-service-history"
             )
-        )
-        
-        # GSI for dealer queries
-        self.tables['service_history'].add_global_secondary_index(
-            index_name="DealerIndex",
-            partition_key=dynamodb.Attribute(
-                name="dealerId",
-                type=dynamodb.AttributeType.STRING
-            ),
-            sort_key=dynamodb.Attribute(
-                name="serviceDate",
-                type=dynamodb.AttributeType.STRING
+        except:
+            # Create new table if doesn't exist
+            self.tables['service_history'] = dynamodb.Table(
+                self, "ServiceHistoryTable",
+                table_name=f"{construct_id}-service-history",
+                partition_key=dynamodb.Attribute(
+                    name="vehicleId",
+                    type=dynamodb.AttributeType.STRING
+                ),
+                sort_key=dynamodb.Attribute(
+                    name="serviceDate",
+                    type=dynamodb.AttributeType.STRING
+                ),
+                billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+                removal_policy=RemovalPolicy.RETAIN,
+                point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(point_in_time_recovery_enabled=True),
+                stream=dynamodb.StreamViewType.NEW_AND_OLD_IMAGES,
+                encryption=dynamodb.TableEncryption.AWS_MANAGED
             )
-        )
-        
-        # S3 bucket for service invoices
-        self.invoice_bucket = s3.Bucket(
-            self, "ServiceInvoiceBucket",
-            bucket_name=f"{construct_id}-service-invoices",
-            encryption=s3.BucketEncryption.S3_MANAGED,
-            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-            versioned=True,
-            lifecycle_rules=[
-                s3.LifecycleRule(
-                    id="ArchiveOldInvoices",
-                    transitions=[
-                        s3.Transition(
-                            storage_class=s3.StorageClass.GLACIER,
-                            transition_after=Duration.days(365)
-                        )
-                    ]
+            
+            # GSI for service type queries
+            self.tables['service_history'].add_global_secondary_index(
+                index_name="ServiceTypeIndex",
+                partition_key=dynamodb.Attribute(
+                    name="serviceType",
+                    type=dynamodb.AttributeType.STRING
+                ),
+                sort_key=dynamodb.Attribute(
+                    name="serviceDate",
+                    type=dynamodb.AttributeType.STRING
                 )
-            ],
-            removal_policy=RemovalPolicy.RETAIN
-        )
+            )
+            
+            # GSI for dealer queries
+            self.tables['service_history'].add_global_secondary_index(
+                index_name="DealerIndex",
+                partition_key=dynamodb.Attribute(
+                    name="dealerId",
+                    type=dynamodb.AttributeType.STRING
+                ),
+                sort_key=dynamodb.Attribute(
+                    name="serviceDate",
+                    type=dynamodb.AttributeType.STRING
+                )
+            )
+        
+        # S3 bucket for service invoices - Import if exists
+        try:
+            self.invoice_bucket = s3.Bucket.from_bucket_name(
+                self, "ServiceInvoiceBucket",
+                bucket_name=f"{construct_id}-service-invoices"
+            )
+        except:
+            self.invoice_bucket = s3.Bucket(
+                self, "ServiceInvoiceBucket",
+                bucket_name=f"{construct_id}-service-invoices",
+                encryption=s3.BucketEncryption.S3_MANAGED,
+                block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+                versioned=True,
+                lifecycle_rules=[
+                    s3.LifecycleRule(
+                        id="ArchiveOldInvoices",
+                        transitions=[
+                            s3.Transition(
+                                storage_class=s3.StorageClass.GLACIER,
+                                transition_after=Duration.days(365)
+                            )
+                        ]
+                    )
+                ],
+                removal_policy=RemovalPolicy.RETAIN
+            )
         
         # Outputs
         # ServiceHistoryTableName output removed - generated automatically in loop below
@@ -203,6 +217,9 @@ class StorageStack(Stack):
             )
         )
         
+        # Event Catalog GSIs created manually via AWS CLI
+        # See: /Users/givenand/connected-mobility-guidance-on-aws/create-gsis.sh
+        
         # Maintenance Events Table - Enhanced Schema with Repair Instructions
         # Core: alertId, vehicleId, timestamp, alertType, severity, message, status
         # Management: createdDate, lastUpdated, daysOpen, dueDate, priority, category
@@ -248,6 +265,9 @@ class StorageStack(Stack):
             )
         )
         
+        # Event Catalog GSIs created manually via AWS CLI
+        # See: /Users/givenand/connected-mobility-guidance-on-aws/create-gsis.sh
+        
         # Fleet Management Table - matches cms-631ca2-591631-fleets
         self.tables['fleets'] = dynamodb.Table(
             self, "FleetsTable",
@@ -263,6 +283,14 @@ class StorageStack(Stack):
         )
         
         # Vehicles Table - matches cms-631ca2-591631-vehicles
+        # Schema includes:
+        # - vehicleId (PK): VIN or unique identifier
+        # - enrollmentStatus: NOT_ENROLLED | PENDING_ACTIVATION | ENROLLED | ACTIVE | INACTIVE
+        # - enrolledAt: ISO timestamp when certificate issued
+        # - activatedAt: ISO timestamp when first telemetry received
+        # - lastSeenAt: ISO timestamp of most recent telemetry
+        # - vehicleStatus: UNKNOWN | PARKED | DRIVING | IDLE | CHARGING | MAINTENANCE | OFFLINE
+        # - make, model, year, vin, etc.
         self.tables['vehicles'] = dynamodb.Table(
             self, "VehiclesTable",
             table_name=f"{construct_id}-vehicles",

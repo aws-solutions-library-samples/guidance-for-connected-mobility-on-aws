@@ -85,9 +85,15 @@ public class UniversalProcessor {
                 MaintenanceProcessor.main(args);
                 break;
                 
+            case "OEMTelemetryProcessor":
+                LOG.info("🔧 Routing to OEMTelemetryProcessor...");
+                System.out.println("🔧 Routing to OEMTelemetryProcessor...");
+                OEMTelemetryProcessor.main(args);
+                break;
+                
             default:
                 String errorMsg = "❌ Unknown processor type: " + processorType + 
-                    ". Valid types: EventDrivenTelemetryProcessor, TelemetryDataProcessor, TripProcessor, SafetyProcessor, MaintenanceProcessor";
+                    ". Valid types: EventDrivenTelemetryProcessor, TelemetryDataProcessor, TripProcessor, SafetyProcessor, MaintenanceProcessor, OEMTelemetryProcessor";
                 LOG.error(errorMsg);
                 System.err.println(errorMsg);
                 throw new IllegalArgumentException(errorMsg);

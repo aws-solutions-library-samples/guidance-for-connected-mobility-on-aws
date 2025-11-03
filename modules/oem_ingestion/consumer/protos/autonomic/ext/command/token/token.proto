@@ -1,0 +1,44 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2017 - 2018 Autonomic Incorporated - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ *
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ *
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+syntax = "proto3";
+
+package autonomic.ext.command.token;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/command/token";
+option java_package = "com.autonomic.ext.command.token";
+option java_outer_classname = "TokenProto";
+option java_multiple_files = true;
+option cc_enable_arenas = true;
+option objc_class_prefix = "AUT";
+
+// Refresh a token on the device. The token purpose is opaque
+// to the cloud.
+message TokenRefreshRequest {
+  string access_token = 1;
+  google.protobuf.Timestamp expiration = 2;
+  string token_type = 3;
+  string refresh_token = 4;
+  string id = 5;
+  repeated string scopes = 6;
+  string redirect_url = 7;
+  google.protobuf.Timestamp refresh_expiration = 8;
+}

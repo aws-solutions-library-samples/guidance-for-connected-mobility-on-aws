@@ -1,0 +1,303 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2019 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ *
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ *
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+
+// Copyright 2016 Google Inc.
+// Copyright 2017 Autonomic Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package autonomic.ext.telemetry;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/telemetry";
+option java_package = "com.autonomic.ext.telemetry";
+option java_outer_classname = "MetricProto";
+option java_multiple_files = true;
+
+option cc_enable_arenas = true;
+
+option objc_class_prefix = "AUT";
+
+import "autonomic/ext/telemetry/climate_control.proto";
+import "autonomic/ext/telemetry/configuration.proto";
+import "autonomic/ext/telemetry/distribution.proto";
+import "autonomic/ext/telemetry/dtc.proto";
+import "autonomic/ext/telemetry/dynamics.proto";
+import "autonomic/ext/telemetry/ev.proto";
+import "autonomic/ext/telemetry/indicator.proto";
+import "autonomic/ext/telemetry/position.proto";
+import "autonomic/ext/telemetry/signal.proto";
+import "autonomic/ext/telemetry/tag.proto";
+
+import "autonomic/ext/common/oem_data.proto";
+import "autonomic/ext/common/range.proto";
+
+import "google/protobuf/timestamp.proto";
+
+import "autonomic/ext/telemetry/enumerations/error.proto";
+import "autonomic/ext/telemetry/enumerations/alarm_status.proto";
+import "autonomic/ext/telemetry/enumerations/compass_direction_status.proto";
+import "autonomic/ext/telemetry/enumerations/door_lock_status.proto";
+import "autonomic/ext/telemetry/enumerations/door_presence_status.proto";
+import "autonomic/ext/telemetry/enumerations/door_status.proto";
+import "autonomic/ext/telemetry/enumerations/gear_position.proto";
+import "autonomic/ext/telemetry/enumerations/ignition_status.proto";
+import "autonomic/ext/telemetry/enumerations/impact_status.proto";
+import "autonomic/ext/telemetry/enumerations/measurement_system_status.proto";
+import "autonomic/ext/telemetry/enumerations/occupancy_status.proto";
+import "autonomic/ext/telemetry/enumerations/offon_status.proto";
+import "autonomic/ext/telemetry/enumerations/power_take_off_status.proto";
+import "autonomic/ext/telemetry/enumerations/seatbelt_status.proto";
+import "autonomic/ext/telemetry/enumerations/tire_pressure_status.proto";
+import "autonomic/ext/telemetry/enumerations/tire_pressure_system_status.proto";
+import "autonomic/ext/telemetry/enumerations/diesel_exhaust_filter.proto";
+import "autonomic/ext/telemetry/enumerations/diesel_exhaust_filter_regeneration.proto";
+import "autonomic/ext/telemetry/enumerations/engine_status.proto";
+import "autonomic/ext/telemetry/enumerations/electric_machine_status.proto";
+import "autonomic/ext/telemetry/enumerations/ev_battery_charge_display_status.proto";
+import "autonomic/ext/telemetry/enumerations/ev_battery_charge_status.proto";
+import "autonomic/ext/telemetry/enumerations/ev_dc_power_source_status.proto";
+import "autonomic/ext/telemetry/enumerations/ev_operation_mode.proto";
+import "autonomic/ext/telemetry/enumerations/ev_plug_charger_status.proto";
+import "autonomic/ext/telemetry/enumerations/hybrid_vehicle_mode_status.proto";
+import "autonomic/ext/telemetry/enumerations/water_in_fuel_status.proto";
+import "autonomic/ext/telemetry/enumerations/diesel_exhaust_fluid_system_status.proto";
+import "autonomic/ext/telemetry/enumerations/accelerator_pedal_status.proto";
+import "autonomic/ext/telemetry/enumerations/diesel_exhaust_fluid_quality_status.proto";
+import "autonomic/ext/telemetry/enumerations/diesel_exhaust_fluid_level_status.proto";
+import "autonomic/ext/telemetry/enumerations/diesel_exhaust_fluid_ultrasonic_sensor_status.proto";
+import "autonomic/ext/telemetry/enumerations/fuel_pressure_status.proto";
+import "autonomic/ext/telemetry/enumerations/diesel_exhaust_filter_automatic_clean_status.proto";
+import "autonomic/ext/telemetry/enumerations/diesel_exhaust_filter_manual_regeneration_status.proto";
+import "autonomic/ext/telemetry/enumerations/antenna_source.proto";
+import "autonomic/ext/telemetry/enumerations/battery_power_source.proto";
+import "autonomic/ext/telemetry/enumerations/battery_status.proto";
+import "autonomic/ext/telemetry/enumerations/engine_automatic_shutdown_status.proto";
+import "autonomic/ext/telemetry/enumerations/vehicle_audio_source.proto";
+import "autonomic/ext/telemetry/enumerations/active_inactive_status.proto";
+import "autonomic/ext/telemetry/enumerations/mitigation_brake_status.proto";
+import "autonomic/ext/telemetry/enumerations/vehicle_life_cycle_mode.proto";
+import "autonomic/ext/telemetry/enumerations/xev_plug_charger_status.proto";
+import "autonomic/ext/telemetry/enumerations/battery_load_status.proto";
+import "autonomic/ext/telemetry/enumerations/battery_performance_status.proto";
+import "autonomic/ext/telemetry/enumerations/remote_start_device_status.proto";
+import "autonomic/ext/telemetry/enumerations/xev_charge_station_communication_status.proto";
+import "autonomic/ext/telemetry/enumerations/xev_charge_station_power_type.proto";
+import "autonomic/ext/telemetry/enumerations/xev_battery_charge_display_status.proto";
+import "autonomic/ext/telemetry/enumerations/bluetooth_phone_system_status.proto";
+import "autonomic/ext/telemetry/enumerations/xev_battery_charge_transfer_reason.proto";
+import "autonomic/ext/telemetry/enumerations/trailer_light_check_status.proto";
+
+
+// Represents a single metric value.
+message Metric {
+    reserved 26;
+
+    autonomic.ext.telemetry.signal.Signal signal = 1;
+
+    repeated autonomic.ext.telemetry.tag.Tag tags = 3;
+
+    // The start of the time period over which this metric value's measurement
+    // applies. The time period has different semantics for different metric
+    // kinds (cumulative, delta, and gauge).
+    google.protobuf.Timestamp start_time = 4;
+
+    // The end of the time period over which this metric value's measurement
+    // applies.
+    google.protobuf.Timestamp end_time = 5;
+
+    // The kind of measurement. It describes how the data is reported.
+    enum MetricKind {
+        // Do not use this default value.
+        METRIC_KIND_UNSPECIFIED = 0;
+
+        // An instantaneous measurement of a value.
+        GAUGE = 1;
+
+        // The change in a value during a time interval.
+        DELTA = 2;
+
+        // A value accumulated over a time interval.  Cumulative
+        // measurements in a time series should have the same start time
+        // and increasing end times, until an event resets the cumulative
+        // value to zero and sets a new start time for the following
+        // points.
+        CUMULATIVE = 3;
+    }
+
+    // Whether the metric records instantaneous values, changes to a value, etc.
+    MetricKind metric_kind = 6;
+
+    // The value. The type of value used in the request must
+    // agree with the metric definition in the service configuration, otherwise
+    // the MetricValue is rejected.
+    oneof value {
+        // A boolean value.
+        bool bool_value = 7;
+
+        // A signed 64-bit integer value.
+        int64 int64_value = 8;
+
+        // A double precision floating point value.
+        double double_value = 9;
+
+        // A text string value.
+        string string_value = 10;
+
+        Position position_value = 12;
+
+        // A distribution value.
+        Distribution distribution_value = 11;
+
+        // A DTC value.
+        DiagnosticTroubleCode dtc_value = 13;
+
+        // XXX - CT can do triggered snapshots of vehicle data on DTCs (up to 4KB) to be sent
+        //       along with the DTC. DTCs better modeled as events rather than telemetry?
+        //       Othere triggerened events can have "extra data" as well. Good candidate for
+        //       generic event structure.
+
+        // An enumerated value
+        Enumeration enum_value = 14;
+
+        // Heading, including uncertainty and detection type.
+        Heading heading_value = 15;
+
+        // Speed, including uncertainty and detection type.
+        Speed speed_value = 16;
+
+        // Three Axis Sensor State
+        ThreeAxisSensorState three_axis_value = 17;
+
+        // Indicator
+        Indicator indicator_value = 18;
+
+        // Ev Battery subcomponent values
+        EvBatteryPackageStatus ev_battery_package_status = 22 [deprecated = true];
+        EvBatteryCellStatus ev_battery_cell_status = 23 [deprecated = true];
+        EvBatteryProbeStatus ev_battery_probe_status = 24 [deprecated = true];
+
+        // A electric machine state value
+        ElectricMachineState electric_machine_state = 25 [deprecated = true];
+
+        // Capture Error type and source metric
+        ErrorMetric error_value = 27;
+
+        // A range value.
+        autonomic.ext.common.entity.Range range = 28;
+
+        // Climate control values
+        ClimateControl climate_control_value = 29;
+
+        Configuration configuration_value = 30;
+    }
+
+    // The metrics in this set.
+    repeated Metric metrics = 2;
+
+    // Additional information about the metric (opaque to Au)
+    autonomic.ext.common.oemdata.OemData oem_data = 100;
+
+    // Unique identifier set by the customer(opaque to Au)
+    string oem_correlation_id = 101;
+}
+
+message ErrorMetric {
+
+    autonomic.ext.telemetry.enumerations.error.Error wk_error_name = 1;
+
+    // Custom message to expand on Error
+    string message = 2;
+
+    // See: ErrorSource enum
+    autonomic.ext.telemetry.enumerations.error.ErrorSource source = 3;
+
+    // Capture (if available) the original metric value
+    Metric source_metric = 4;
+}
+
+message Enumeration {
+    oneof value {
+        autonomic.ext.telemetry.enumerations.error.Error error = 1 [deprecated = true]; // See: ErrorMetric
+        autonomic.ext.telemetry.enumerations.gearPosition.GearPosition gear_position = 2;
+        autonomic.ext.telemetry.enumerations.impactStatus.ImpactStatus impact_status = 3; //Does this make sense as a metric? Perhaps this should only be an event.
+        autonomic.ext.telemetry.enumerations.occupancyStatus.OccupancyStatus occupancy_status = 4;
+        autonomic.ext.telemetry.enumerations.seatbeltStatus.SeatbeltStatus seatbelt_status = 5;
+        autonomic.ext.telemetry.enumerations.ignitionStatus.IgnitionStatus ignition_status = 6;
+        autonomic.ext.telemetry.enumerations.offOnStatus.OffOnStatus off_on_status = 7; // used by several metrics
+        autonomic.ext.telemetry.enumerations.compassDirectionStatus.CompassDirectionStatus compass_direction_status = 8;
+        autonomic.ext.telemetry.enumerations.powerTakeOffStatus.PowerTakeOffStatus power_take_off_status = 9;
+        autonomic.ext.telemetry.enumerations.measurementSystemStatus.MeasurementSystemStatus measurement_system_status = 10;
+        autonomic.ext.telemetry.enumerations.alarmStatus.AlarmStatus alarm_status = 11;
+        autonomic.ext.telemetry.enumerations.tirePressureStatus.TirePressureStatus tire_pressure_status = 12;
+        autonomic.ext.telemetry.enumerations.doorStatus.DoorStatus door_status = 13;
+        autonomic.ext.telemetry.enumerations.doorLockStatus.DoorLockStatus door_lock_status = 14;
+        autonomic.ext.telemetry.enumerations.dieselExhaustFilter.DieselExhaustFilter diesel_exhaust_filter = 15;
+        autonomic.ext.telemetry.enumerations.dieselExhaustFilterRegeneration.DieselExhaustFilterRegeneration diesel_exhaust_filter_regeneration = 16 [deprecated = true];
+        autonomic.ext.telemetry.enumerations.engineStatus.EngineStatus engine_status = 17;
+        autonomic.ext.telemetry.enumerations.electricMachineStatus.ElectricMachineStatus electric_machine_status = 18 [deprecated = true];
+        autonomic.ext.telemetry.enumerations.evBatteryChargeDisplayStatus.EvBatteryChargeDisplayStatus ev_battery_charge_display_status = 19;
+        autonomic.ext.telemetry.enumerations.evBatteryChargeStatus.EvBatteryChargeStatus ev_battery_charge_status = 20 [deprecated = true];
+        autonomic.ext.telemetry.enumerations.evDcPowerSourceStatus.EvDcPowerSourceStatus ev_dc_power_source_status = 21 [deprecated = true];
+        autonomic.ext.telemetry.enumerations.evOperationMode.EvOperationMode ev_operation_mode = 22 [deprecated = true];
+        autonomic.ext.telemetry.enumerations.evPlugChargerStatus.EvPlugChargerStatus ev_plug_charger_status = 23 [deprecated = true];
+        autonomic.ext.telemetry.enumerations.hybridVehicleModeStatus.HybridVehicleModeStatus hybrid_vehicle_mode_status = 24;
+        autonomic.ext.telemetry.enumerations.waterInFuelStatus.WaterInFuelStatus water_in_fuel_status = 25;
+        autonomic.ext.telemetry.enumerations.dieselExhaustFluidQualityStatus.DieselExhaustFluidQualityStatus diesel_exhaust_fluid_quality_status = 26;
+        autonomic.ext.telemetry.enumerations.acceleratorPedalStatus.AcceleratorPedalStatus accelerator_pedal_status = 27;
+        autonomic.ext.telemetry.enumerations.dieselExhaustFluidLevelStatus.DieselExhaustFluidLevelStatus diesel_exhaust_fluid_level_status = 28;
+        autonomic.ext.telemetry.enumerations.dieselExhaustFluidUltrasonicSensorStatus.DieselExhaustFluidUltrasonicSensorStatus diesel_exhaust_fluid_ultrasonic_sensor_status = 29 [deprecated = true];
+        autonomic.ext.telemetry.enumerations.fuelPressureStatus.FuelPressureStatus fuel_pressure_status = 30;
+        autonomic.ext.telemetry.enumerations.dieselExhaustFluidSystemStatus.DieselExhaustFluidSystemStatus diesel_exhaust_fluid_system_status = 31;
+        autonomic.ext.telemetry.enumerations.dieselExhaustFilterAutomaticCleanStatus.DieselExhaustFilterAutomaticCleanStatus diesel_exhaust_filter_automatic_clean_status = 32;
+        autonomic.ext.telemetry.enumerations.dieselExhaustFilterManualRegenerationStatus.DieselExhaustFilterManualRegenerationStatus diesel_exhaust_filter_manual_regeneration_status = 33;
+        autonomic.ext.telemetry.enumerations.antennaSource.AntennaSource antenna_source = 34;
+        autonomic.ext.telemetry.enumerations.batteryPowerSource.BatteryPowerSource power_source = 35;
+        autonomic.ext.telemetry.enumerations.batteryStatus.BatteryStatus battery_status = 36;
+        autonomic.ext.telemetry.enumerations.engineAutomaticShutdownStatus.EngineAutomaticShutdownStatus engine_automatic_shutdown_status = 37;
+        autonomic.ext.telemetry.enumerations.vehicleAudioSource.VehicleAudioSource vehicle_audio_source = 38;
+        autonomic.ext.telemetry.enumerations.mitigationBrakeStatus.MitigationBrakeStatus mitigation_brake_status = 39;
+        autonomic.ext.telemetry.enumerations.activeInactiveStatus.ActiveInactiveStatus active_inactive_status = 40;
+        autonomic.ext.telemetry.enumerations.vehicleLifeCycleMode.VehicleLifeCycleMode vehicle_life_cycle_mode = 41;
+        autonomic.ext.telemetry.enumerations.xevPlugChargerStatus.XevPlugChargerStatus xev_plug_charger_status = 42;
+        autonomic.ext.telemetry.enumerations.batteryLoadStatus.BatteryLoadStatus battery_load_status = 43;
+        autonomic.ext.telemetry.enumerations.batteryPerformanceStatus.BatteryPerformanceStatus battery_performance_status = 44;
+        autonomic.ext.telemetry.enumerations.remoteStartDeviceStatus.RemoteStartDeviceStatus remote_start_device_status = 45;
+        autonomic.ext.telemetry.enumerations.xevBatteryChargeDisplayStatus.XevBatteryChargeDisplayStatus xev_battery_charge_display_status = 46;
+        autonomic.ext.telemetry.enumerations.xevChargeStationPowerType.XevChargeStationPowerType xev_charge_station_power_type = 47;
+        autonomic.ext.telemetry.enumerations.xevChargeStationCommunicationStatus.XevChargeStationCommunicationStatus xev_charge_station_communication_status = 48;
+        autonomic.ext.telemetry.enumerations.bluetoothPhoneSystemStatus.BluetoothPhoneSystemStatus bluetooth_phone_system_status = 49;
+        autonomic.ext.telemetry.enumerations.doorPresenceStatus.DoorPresenceStatus door_presence_status = 50;
+        autonomic.ext.telemetry.enumerations.xevBatteryChargeTransferReason.XevBatteryChargeTransferReason xev_battery_charge_transfer_reason = 51;
+        autonomic.ext.telemetry.enumerations.trailerLightCheckStatus.TrailerLightCheckStatus trailer_light_check_status = 52;
+        autonomic.ext.telemetry.enumerations.tirePressureSystemStatus.TirePressureSystemStatus tire_pressure_system_status = 53;
+    }
+}

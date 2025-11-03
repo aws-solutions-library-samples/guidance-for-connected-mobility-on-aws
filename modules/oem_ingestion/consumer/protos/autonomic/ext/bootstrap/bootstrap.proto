@@ -1,0 +1,180 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2017 - 2018 Autonomic Incorporated - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ * 
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ * 
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+syntax = "proto3";
+
+package autonomic.ext.bootstrap;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/bootstrap";
+option java_package = "com.autonomic.ext.bootstrap";
+option java_outer_classname = "BootstrapProto";
+option java_multiple_files = true;
+option cc_enable_arenas = true;
+option objc_class_prefix = "AUT";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+import "autonomic/ext/event/state/bootstrap.proto";
+import "autonomic/ext/event/state/binding.proto";
+
+service Bootstrap {
+    rpc Bootstrap(BootstrapRequestEnvelope) returns (BootstrapResponseEnvelope) {};
+}
+
+message BootstrapRequestEnvelope {
+    oneof request {
+        BootstrapRequest bootstrap_request = 1;
+        // An encrypted BootstrapRequest
+        bytes encrypted_request = 2;
+    }
+}
+
+message BootstrapRequest {
+    // device-generated timestamp for the request
+    google.protobuf.Timestamp timestamp = 1;
+
+    // deprecated: device id specified as serial number.
+    // Use the oneof device_identifier instead.
+    string device_id = 2 [deprecated = true];
+
+    // bootstrap (shared secret) key
+    bytes key = 3;
+
+    // device certificate signing request, which must include
+    // the device_identifier as the common name; pkcs#10 encoded. If the device_identifier
+    // is a composite identifier, all identifiers in the composite value shall be concatenated,
+    // using colon as delimiter.
+    // e.g.: composite device_identifier = ($oem,$serial_number)
+    //       therefore csr common name   = ${oem}:${serial_number}
+    // e.g.: unique device_identifier  = $iccid
+    //       therefore csr common name = $iccid
+    bytes csr = 4;
+
+    // When a device has identified the vehicle in which it is located, it
+    // must present the VIN of the vehicle. If a device is unable to identify the VIN,
+    // or an invalid VIN is presented, the device shall present 17 F's in this field,
+    // to convey to the cloud that there is no vehicle relationship.
+    //
+    // After connecting to the edge service, the device may emit the Vin Discovery state transitions
+    // that describe detailed information about the vin discovery process.
+    //
+    // The device must either present a valid VIN, or all F's. If this field is empty, the device bootstrap
+    // request will be rejected.
+    string vin = 5;
+
+    oneof device_identifier {
+        string imei = 6;  // imei is globally unique
+        string iccid = 7; // iccid is globally unique
+        // A composition of device characteristics that uniquely identifies
+        // the device to the cloud
+        CompositeDeviceId composite_device_id = 8;
+        // Some devices may be provisioned with their unique autonomic asset id for purposes of authentication.
+        string asset_id = 9;
+    }
+}
+
+// A composite message that acts to uniquely identify this device across all
+// possible devices in the cloud.
+message CompositeDeviceId {
+    // The cloud shall support additional types of composite identifiers in the future.
+    oneof id {
+        OemDeviceId oem_device_id = 1;
+    }
+}
+
+message OemDeviceId {
+    // the name of the oem
+    string oem_name = 1;
+
+    // a serial number that is unique for an OEM
+    string serial_number = 2;
+}
+
+message BootstrapInformation {
+    // signed device client certificate; pkcs#7 1.5 encoded
+    bytes certificate = 1;
+
+    // operational endpoint to which the device should now connect
+    string endpoint = 2;
+
+    // Well-known state enum representing the result of the binding operation performed during the
+    // bootstrap (if applicable).  If no device-vehicle binding assertion was processed when
+    // handling this bootstrap, then the value of this field will contain the initial state enum
+    // value for the binding assertion FSM - BOOTSTRAP_REQUESTED.
+    autonomic.ext.event.state.binding.WellKnownBindingAssertionState binding_assertion_result_state = 7;
+}
+
+message BootstrapResponseEnvelope {
+
+    oneof response {
+        BootstrapResponse bootstrap_response = 1;
+        // An encrypted BootstrapResponse
+        bytes encrypted_response = 2;
+    }
+}
+
+message BootstrapResponse {
+
+    enum ErrorStatus {
+        UNDEFINED_ERROR_STATUS = 0;
+        TRANSIENT_FAILURE = 1; // request can be tried again
+        PERMANENT_FAILURE = 2; // request should not be tried again
+    }
+
+    google.protobuf.Timestamp timestamp = 1;
+
+    oneof bootstrap_result {
+        ErrorStatus error = 2;
+        BootstrapInformation bootstrap_information = 3;
+    }
+}
+
+message BootstrapSummaryEvent {
+    // Au service generating the event - aui:service:bootstrap-service etc.
+    string source = 1;
+
+    // The unique identifier that the device provided in the BootstrapRequest that was submitted.
+    oneof device_identifier {
+        string imei = 2;
+        string iccid = 3;
+        CompositeDeviceId composite_device_id = 4;
+        string asset_id = 5;
+    }
+    // Well-known state enum representing the result of the bootstrap operation.
+    autonomic.ext.event.state.bootstrap.WellKnownBootstrapState bootstrap_result_state = 6;
+
+    // Well-known state enum representing the result of the binding operation performed during the
+    // bootstrap (if applicable).  If no device-vehicle binding assertion was processed when
+    // handling this bootstrap, then the value of this field will contain the default enum value,
+    // UNKNOWN_STATE.
+    autonomic.ext.event.state.binding.WellKnownBindingAssertionState binding_assertion_result_state = 7;
+
+    // The time at which this request was received.
+    google.protobuf.Timestamp start_timestamp = 8;
+
+    // The time at which the processing of this request completed.
+    google.protobuf.Timestamp end_timestamp = 9;
+
+    // Additional oem-specific information about the bootstrap request
+    oneof oem_data {
+        string string_data = 10;
+        bytes bytes_data = 11;
+        google.protobuf.Any typed_data = 12;
+    }
+}

@@ -1,0 +1,404 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2018 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ *
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ *
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+
+syntax = "proto3";
+
+package autonomic.ext.event;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/event";
+option java_package = "com.autonomic.ext.event";
+option java_outer_classname = "EventProto";
+option java_multiple_files = true;
+option cc_enable_arenas = true;
+option objc_class_prefix = "AUT";
+
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
+
+import "autonomic/ext/common/oem_data.proto";
+import "autonomic/ext/telemetry/metric.proto";
+import "autonomic/ext/telemetry/position.proto";
+import "autonomic/ext/telemetry/tag.proto";
+import "autonomic/ext/event/well_known_conditions.proto";
+import "autonomic/ext/event/well_known_events.proto";
+import "autonomic/ext/event/well_known_states.proto";
+import "autonomic/ext/event/state/deployment.proto";
+import "autonomic/ext/event/state/key_rotation.proto";
+import "autonomic/ext/event/state/device_wakeup.proto";
+import "autonomic/ext/event/state/vin_discovery.proto";
+import "autonomic/ext/event/state/module_discovery.proto";
+import "autonomic/ext/event/state/device_config_reset.proto";
+import "autonomic/ext/event/state/device_diagnostic.proto";
+import "autonomic/ext/event/state/actuation.proto";
+import "autonomic/ext/event/state/anti_theft.proto";
+import "autonomic/ext/event/state/change_config_profile.proto";
+import "autonomic/ext/event/state/command_cancellation.proto";
+import "autonomic/ext/event/state/command_preclusion_state.proto";
+import "autonomic/ext/event/state/configure_telemetry_emission.proto";
+import "autonomic/ext/event/state/configuration_update.proto";
+import "autonomic/ext/event/state/execute_pending_updates.proto";
+import "autonomic/ext/event/state/hmi_display.proto";
+import "autonomic/ext/event/state/hmi_application.proto";
+import "autonomic/ext/event/state/on_demand_status_update.proto";
+import "autonomic/ext/event/state/opaque.proto";
+import "autonomic/ext/event/state/report_wifi_usage.proto";
+import "autonomic/ext/event/state/retrieve_device_pairing_code.proto";
+import "autonomic/ext/event/state/token_refresh.proto";
+import "autonomic/ext/event/state/user_auth_confirmation.proto";
+import "autonomic/ext/event/state/vehicle_claim_validation.proto";
+import "autonomic/ext/event/state/wifi_config.proto";
+import "autonomic/ext/event/state/wifi_status.proto";
+import "autonomic/ext/event/geofence.proto";
+import "autonomic/ext/event/error.proto";
+import "autonomic/ext/command/errors/command_error_data.proto";
+import "autonomic/ext/command/wifi/wifi.proto";
+import "autonomic/ext/command/devicepairing/device_pairing_code.proto";
+import "autonomic/ext/event/state/well_known_command_states.proto";
+
+message Event {
+     // Unique identifier for the event - i.e. aui:edge:vehicle:event:<identifier>
+     string id = 1;
+
+     // The correlation id is a 128-bit v4 UUID.
+     //
+     // The correlation id allows related messages to be connected.
+     // The meaning of the correlation id is specific to the scenario of
+     // event: for deployments, it is the deployment id; for control it
+     // is the command id.
+     //
+     // When a device receives a command trigger from the cloud, it shall
+     // parse the correlationId from the command and set the field
+     // below as part of any events emitted in response to the handling
+     // of the command.
+     //
+     // Events for scenarios that do not require correlation must not set
+     // the correlation id and services should ignore the correlation id
+     // on such events.
+     string correlation_id = 2;
+
+     // Au service generating the information - aui:mqs, aui:gfs, aui:feed,
+     // aui:deploy, aui:bytestream, aui:edge:vehicle:<vin>, etc
+     string source = 3;
+
+     google.protobuf.Timestamp timestamp = 4;
+
+     // Type-specific event attributes or declare an Error (understood by Au)
+     google.protobuf.Any payload = 5;
+
+     // Additional information about the event (opaque to Au).
+     oneof additional_data {
+
+         string string_data = 6;
+
+         bytes bytes_data = 7;
+
+         google.protobuf.Any typed_data = 8;
+     }
+
+     // Unique identifier set by the customer(opaque to Au)
+     string oem_correlation_id = 9;
+
+     // Should be used sparingly to include additional context about an event
+     repeated autonomic.ext.telemetry.tag.Tag tags = 10;
+
+     // Additional information about the event (opaque to Au)
+     autonomic.ext.common.oemdata.OemData oem_data = 11;
+
+     // Contains any and all cloud-specific contextual information that may be needed for simple
+     // observability or command tracking purposes (understood by Au).
+     map<string, string> metadata_tags = 12;
+}
+
+// The ErrorEvent allows assigning a type of Well Known Event Error (see autonomic.ext.event.error.Error),
+// the source of the Error, and attach the original event payload if available or possible to include.
+message ErrorEvent {
+
+    // Well known error name
+    Error wk_error_name = 1;
+
+    // Custom message to expand on Error
+    string message = 2;
+
+    // Capture the source of the event (see: ErrorSource enum.)
+    ErrorSource source = 3;
+
+    // // Capture (if available) the original event payload
+    google.protobuf.Any payload = 5;
+}
+
+message CommandStateTransition {
+    // Name of the FSM emitting the transition
+    autonomic.ext.event.state.commandstates.WellKnownCommandFiniteStateMachine fsm = 1;
+
+    // The prior state of the command.
+    autonomic.ext.event.state.commandstates.WellKnownCommandState from_state = 2;
+
+    // The current state of the command.
+    autonomic.ext.event.state.commandstates.WellKnownCommandState to_state = 3;
+}
+
+message StateTransition {
+    // name of the FSM emitting the transition.  When a StateTransition is constructed as part of
+    // the lifecycle of a device command, then this field shall not be set, and instead callers
+    // should specify the FSM within the command_state_transition field.
+    oneof fsm_name {
+        string string_fsm_name = 1 [deprecated = true];
+        WellKnownFiniteStateMachine wk_fsm_name = 7;
+    }
+
+    // FSM state before transition.
+    oneof from_state {
+        autonomic.ext.event.state.vindiscovery.WellKnownVinDiscoveryState vin_discovery_from_state = 11;
+        autonomic.ext.event.state.devicewakeup.WellKnownDeviceWakeupState device_wakeup_from_state = 14;
+        autonomic.ext.event.state.commandpreclusionstate.WellKnownCommandPreclusionState command_preclusion_from_state = 92;
+        autonomic.ext.event.state.commandpreclusionstate.WellKnownFirmwareUpgradeCommandPreclusionState firmware_upgrade_command_preclusion_from_state = 95;
+        autonomic.ext.event.state.commandpreclusionstate.WellKnownDeepSleepCommandPreclusionState deep_sleep_command_preclusion_from_state = 98;
+        autonomic.ext.event.state.commandpreclusionstate.WellKnownCarrierRegistrationCommandPreclusionState carrier_registration_command_preclusion_from_state = 101;
+        autonomic.ext.event.state.commandpreclusionstate.WellKnownTemperatureThresholdCommandPreclusionState temperature_threshold_command_preclusion_from_state = 104;
+        autonomic.ext.event.state.commandpreclusionstate.WellKnownRegulatoryCommandPreclusionState regulatory_command_preclusion_from_state = 122;
+        autonomic.ext.event.state.deployment.WellKnownDeploymentState deployment_from_state = 29;
+        autonomic.ext.event.state.keyrotation.WellKnownKeyRotationState key_rotation_from_state = 26;
+
+        // The following to_state fields are deprecated because they are command-specific, and therefore
+        // have been replaced by the new command_state_transition field.
+        string string_from_state = 2 [deprecated = true];
+        WellKnownDeploymentState deprecated_deployment_from_state = 8 [deprecated = true];
+        autonomic.ext.event.state.modulediscovery.WellKnownModuleDiscoveryState module_discovery_from_state = 17 [deprecated = true];
+        autonomic.ext.event.state.deviceconfigreset.WellKnownDeviceConfigResetState device_config_reset_from_state = 20 [deprecated = true];
+        autonomic.ext.event.state.devicediagnostic.WellKnownDeviceDiagnosticState device_diagnostic_from_state = 23 [deprecated = true];
+        autonomic.ext.event.state.configurationupdate.WellKnownConfigurationUpdateState configuration_update_from_state = 44 [deprecated = true];
+        autonomic.ext.event.state.hmidisplay.WellKnownHMIDisplayState hmi_display_from_state = 47 [deprecated = true];
+        autonomic.ext.event.state.tokenrefresh.WellKnownTokenRefreshState token_refresh_from_state = 50 [deprecated = true];
+        autonomic.ext.event.state.executependingupdates.WellKnownExecutePendingUpdatesState execute_pending_updates_from_state = 53 [deprecated = true];
+        autonomic.ext.event.state.wificonfig.WellKnownWifiConfigState wifi_config_from_state = 56 [deprecated = true];
+        autonomic.ext.event.state.ondemandstatusupdate.WellKnownOnDemandStatusUpdateState on_demand_status_update_from_state = 59 [deprecated = true];
+        autonomic.ext.event.state.wifistatus.WellKnownWifiStatusState wifi_status_from_state = 62 [deprecated = true];
+        autonomic.ext.event.state.reportwifiusage.WellKnownReportWifiUsageState report_wifi_usage_from_state = 65 [deprecated = true];
+        autonomic.ext.event.state.cancellation.WellKnownCommandCancellationState command_cancellation_from_state = 68 [deprecated = true];
+        autonomic.ext.event.state.vehicleclaimvalidation.WellKnownVehicleClaimValidationState vehicle_claim_validation_from_state = 71 [deprecated = true];
+        autonomic.ext.event.state.retrievedevicepairingcode.WellKnownRetrieveDevicePairingCodeState retrieve_device_pairing_code_from_state = 74 [deprecated = true];
+        autonomic.ext.event.state.changeconfigprofile.WellKnownChangeConfigProfileState change_config_profile_from_state = 77 [deprecated = true];
+        autonomic.ext.event.state.configuretelemetryemission.WellKnownConfigureTelemetryEmissionState configure_telemetry_emission_from_state = 80 [deprecated = true];
+        autonomic.ext.event.state.userauthconfirmation.WellKnownUserAuthConfirmationState user_auth_confirmation_from_state = 83 [deprecated = true];
+        autonomic.ext.event.state.antitheft.WellKnownAntiTheftState anti_theft_from_state = 86 [deprecated = true];
+        autonomic.ext.event.state.hmiapplicationmessage.WellKnownHMIApplicationMessageState hmi_application_message_from_state = 89 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationState actuation_from_state = 119 [deprecated = true];
+        autonomic.ext.event.state.opaque.WellKnownOpaqueCommandState opaque_command_from_state = 998 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationState lock_from_state = 32 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationState unlock_from_state = 35 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationState remote_start_from_state = 38 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationState cancel_remote_start_from_state = 41 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationState start_telemetry_collection_from_state = 107 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationState cancel_telemetry_collection_from_state = 110 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationState vehicle_cue_from_state = 113 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationState panic_cue_from_state = 116 [deprecated = true];
+    }
+
+    // FSM state after transition
+    oneof to_state {
+        autonomic.ext.event.state.vindiscovery.WellKnownVinDiscoveryState vin_discovery_to_state = 12;
+        autonomic.ext.event.state.devicewakeup.WellKnownDeviceWakeupState device_wakeup_to_state = 15;
+        autonomic.ext.event.state.commandpreclusionstate.WellKnownCommandPreclusionState command_preclusion_to_state = 93;
+        autonomic.ext.event.state.commandpreclusionstate.WellKnownFirmwareUpgradeCommandPreclusionState firmware_upgrade_command_preclusion_to_state = 96;
+        autonomic.ext.event.state.commandpreclusionstate.WellKnownDeepSleepCommandPreclusionState deep_sleep_command_preclusion_to_state = 99;
+        autonomic.ext.event.state.commandpreclusionstate.WellKnownCarrierRegistrationCommandPreclusionState carrier_registration_command_preclusion_to_state = 102;
+        autonomic.ext.event.state.commandpreclusionstate.WellKnownTemperatureThresholdCommandPreclusionState temperature_threshold_command_preclusion_to_state = 105;
+        autonomic.ext.event.state.commandpreclusionstate.WellKnownRegulatoryCommandPreclusionState regulatory_command_preclusion_to_state = 123;
+        autonomic.ext.event.state.deployment.WellKnownDeploymentState deployment_to_state = 30;
+        autonomic.ext.event.state.keyrotation.WellKnownKeyRotationState key_rotation_to_state = 27;
+
+        // The following to_state fields are deprecated because they are command-specific, and therefore
+        // have been replaced by the new command_state_transition field.
+        string string_to_state = 3 [deprecated = true];
+        WellKnownDeploymentState deprecated_deployment_to_state = 9 [deprecated = true];
+        autonomic.ext.event.state.modulediscovery.WellKnownModuleDiscoveryState module_discovery_to_state = 18 [deprecated = true];
+        autonomic.ext.event.state.deviceconfigreset.WellKnownDeviceConfigResetState device_config_reset_to_state = 21 [deprecated = true];
+        autonomic.ext.event.state.devicediagnostic.WellKnownDeviceDiagnosticState device_diagnostic_to_state = 24 [deprecated = true];
+        autonomic.ext.event.state.configurationupdate.WellKnownConfigurationUpdateState configuration_update_to_state = 45 [deprecated = true];
+        autonomic.ext.event.state.hmidisplay.WellKnownHMIDisplayState hmi_display_to_state = 48 [deprecated = true];
+        autonomic.ext.event.state.tokenrefresh.WellKnownTokenRefreshState token_refresh_to_state = 51 [deprecated = true];
+        autonomic.ext.event.state.executependingupdates.WellKnownExecutePendingUpdatesState execute_pending_updates_to_state = 54 [deprecated = true];
+        autonomic.ext.event.state.wificonfig.WellKnownWifiConfigState wifi_config_to_state = 57 [deprecated = true];
+        autonomic.ext.event.state.ondemandstatusupdate.WellKnownOnDemandStatusUpdateState on_demand_status_update_to_state = 60 [deprecated = true];
+        autonomic.ext.event.state.wifistatus.WellKnownWifiStatusState wifi_status_to_state = 63 [deprecated = true];
+        autonomic.ext.event.state.reportwifiusage.WellKnownReportWifiUsageState report_wifi_usage_to_state = 66 [deprecated = true];
+        autonomic.ext.event.state.cancellation.WellKnownCommandCancellationState command_cancellation_to_state = 69 [deprecated = true];
+        autonomic.ext.event.state.vehicleclaimvalidation.WellKnownVehicleClaimValidationState vehicle_claim_validation_to_state = 72 [deprecated = true];
+        autonomic.ext.event.state.retrievedevicepairingcode.WellKnownRetrieveDevicePairingCodeState retrieve_device_pairing_code_to_state = 75 [deprecated = true];
+        autonomic.ext.event.state.changeconfigprofile.WellKnownChangeConfigProfileState change_config_profile_to_state = 78 [deprecated = true];
+        autonomic.ext.event.state.configuretelemetryemission.WellKnownConfigureTelemetryEmissionState configure_telemetry_emission_to_state = 81 [deprecated = true];
+        autonomic.ext.event.state.userauthconfirmation.WellKnownUserAuthConfirmationState user_auth_confirmation_to_state = 84 [deprecated = true];
+        autonomic.ext.event.state.antitheft.WellKnownAntiTheftState anti_theft_to_state = 87 [deprecated = true];
+        autonomic.ext.event.state.hmiapplicationmessage.WellKnownHMIApplicationMessageState hmi_application_message_to_state = 90 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationState actuation_to_state = 120 [deprecated = true];
+        autonomic.ext.event.state.opaque.WellKnownOpaqueCommandState opaque_command_to_state = 999 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationState lock_to_state = 33 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationState unlock_to_state = 36 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationState remote_start_to_state = 39 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationState cancel_remote_start_to_state = 42 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationState start_telemetry_collection_to_state = 108 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationState cancel_telemetry_collection_to_state = 111 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationState vehicle_cue_to_state = 114 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationState panic_cue_to_state = 117 [deprecated = true];
+    }
+
+    // triggers are now deprecated.  This is because there can be only one valid trigger for a
+    // given "to" state.  Because of this, it is actually less confusing to prevent callers from
+    // setting this field.
+    oneof trigger {
+        // DEPRECATED
+        string string_trigger = 4 [deprecated = true];
+        WellKnownDeploymentTransitionTrigger deprecated_deployment_trigger = 10 [deprecated = true];
+        autonomic.ext.event.state.vindiscovery.WellKnownVinDiscoveryTransitionTrigger vin_discovery_trigger = 13 [deprecated = true];
+        autonomic.ext.event.state.devicewakeup.WellKnownDeviceWakeupTransitionTrigger device_wakeup_trigger = 16 [deprecated = true];
+        autonomic.ext.event.state.modulediscovery.WellKnownModuleDiscoveryTransitionTrigger module_discovery_trigger = 19 [deprecated = true];
+        autonomic.ext.event.state.deviceconfigreset.WellKnownDeviceConfigResetTransitionTrigger device_config_reset_trigger = 22 [deprecated = true];
+        autonomic.ext.event.state.devicediagnostic.WellKnownDeviceDiagnosticTransitionTrigger device_diagnostic_trigger = 25 [deprecated = true];
+        autonomic.ext.event.state.keyrotation.WellKnownKeyRotationTransitionTrigger key_rotation_trigger = 28 [deprecated = true];
+        autonomic.ext.event.state.deployment.WellKnownDeploymentTransitionTrigger deployment_trigger = 31 [deprecated = true];
+        autonomic.ext.event.state.configurationupdate.WellKnownConfigurationUpdateTransitionTrigger configuration_update_trigger = 46 [deprecated = true];
+        autonomic.ext.event.state.hmidisplay.WellKnownHMIDisplayTransitionTrigger hmi_display_trigger = 49 [deprecated = true];
+        autonomic.ext.event.state.tokenrefresh.WellKnownTokenRefreshTransitionTrigger token_refresh_trigger = 52 [deprecated = true];
+        autonomic.ext.event.state.executependingupdates.WellKnownExecutePendingUpdatesTransitionTrigger execute_pending_updates_trigger = 55 [deprecated = true];
+        autonomic.ext.event.state.wificonfig.WellKnownWifiConfigTransitionTrigger wifi_config_trigger = 58 [deprecated = true];
+        autonomic.ext.event.state.ondemandstatusupdate.WellKnownOnDemandStatusUpdateTransitionTrigger on_demand_status_update_trigger = 61 [deprecated = true];
+        autonomic.ext.event.state.wifistatus.WellKnownWifiStatusTransitionTrigger wifi_status_trigger = 64 [deprecated = true];
+        autonomic.ext.event.state.reportwifiusage.WellKnownReportWifiUsageTransitionTrigger report_wifi_usage_trigger = 67 [deprecated = true];
+        autonomic.ext.event.state.cancellation.WellKnownCommandCancellationTransitionTrigger command_cancellation_trigger = 70 [deprecated = true];
+        autonomic.ext.event.state.vehicleclaimvalidation.WellKnownVehicleClaimValidationTransitionTrigger vehicle_claim_validation_trigger = 73 [deprecated = true];
+        autonomic.ext.event.state.retrievedevicepairingcode.WellKnownRetrieveDevicePairingCodeTransitionTrigger retrieve_device_pairing_code_trigger = 76 [deprecated = true];
+        autonomic.ext.event.state.changeconfigprofile.WellKnownChangeConfigProfileTransitionTrigger change_config_profile_trigger = 79 [deprecated = true];
+        autonomic.ext.event.state.configuretelemetryemission.WellKnownConfigureTelemetryEmissionTrigger configure_telemetry_emission_trigger = 82 [deprecated = true];
+        autonomic.ext.event.state.userauthconfirmation.WellKnownUserAuthConfirmationTrigger user_auth_confirmation_trigger = 85 [deprecated = true];
+        autonomic.ext.event.state.antitheft.WellKnownAntiTheftTransitionTrigger anti_theft_trigger = 88 [deprecated = true];
+        autonomic.ext.event.state.hmiapplicationmessage.WellKnownHMIApplicationMessageTransitionTrigger hmi_application_message_trigger = 91 [deprecated = true];
+        autonomic.ext.event.state.commandpreclusionstate.WellKnownCommandPreclusionStateTransitionTrigger command_preclusion_trigger = 94 [deprecated = true];
+        autonomic.ext.event.state.commandpreclusionstate.WellKnownFirmwareUpgradeCommandPreclusionStateTransitionTrigger firmware_upgrade_command_preclusion_trigger = 97 [deprecated = true];
+        autonomic.ext.event.state.commandpreclusionstate.WellKnownDeepSleepCommandPreclusionStateTransitionTrigger deep_sleep_command_preclusion_trigger = 100 [deprecated = true];
+        autonomic.ext.event.state.commandpreclusionstate.WellKnownCarrierRegistrationCommandPreclusionStateTransitionTrigger carrier_registration_command_preclusion_trigger = 103 [deprecated = true];
+        autonomic.ext.event.state.commandpreclusionstate.WellKnownTemperatureThresholdCommandPreclusionStateTransitionTrigger temperature_threshold_command_preclusion_trigger = 106 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationTransitionTrigger actuation_trigger = 121 [deprecated = true];
+        autonomic.ext.event.state.opaque.WellKnownOpaqueCommandTransitionTrigger opaque_command_trigger = 1000 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationTransitionTrigger lock_trigger = 34 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationTransitionTrigger unlock_trigger = 37 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationTransitionTrigger remote_start_trigger = 40 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationTransitionTrigger cancel_remote_start_trigger = 43 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationTransitionTrigger start_telemetry_collection_trigger = 109 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationTransitionTrigger cancel_telemetry_collection_trigger = 112 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationTransitionTrigger vehicle_cue_trigger = 115 [deprecated = true];
+        autonomic.ext.event.state.actuation.WellKnownActuationTransitionTrigger panic_cue_trigger = 118 [deprecated = true];
+    }
+
+    // Represents the context necessary to determine the transition of a command, or any other
+    // lifecycle that leverages a finite state machine, from one state to another.
+    oneof transition {
+        // The state transition context for a device command.
+        CommandStateTransition command_state_transition = 2000;
+
+        // The long term the migration/update plan is to move all existing FSMs into groups
+        // similar to what has been done for CommandStateTransition and have classes for
+        // those grouping added here instead of the above to_state/from_state/wk_fsm_name
+    }
+
+    StateTransitionData data = 1001;
+
+    // Optional descriptive information about the transition
+    string message = 5;
+
+    // Metrics associated with the state transition. For example, this is
+    // where information on download progress for a deployment artifact
+    // would be communicated.
+    repeated autonomic.ext.telemetry.Metric metrics = 6;
+
+    // The user tags represent generic, opaque metadata that is provided by the client when invoking
+    // the command API that results in the creation of command. This metadata is attached to the
+    // originating request, and all subsequent state transitions that are processed during the
+    // life cycle of this command.
+    map<string, string> user_tags = 1002;
+
+    // Unique identifier set by the customer(opaque to Au)
+    string oem_correlation_id = 1003 [deprecated = true];
+}
+
+// The execution of an individual event trigger
+message EventCondition {
+    // The specific trigger that has been executed
+    oneof condition_name {
+        WellKnownEventCondition condition = 1;
+        string string_label = 3;
+    }
+
+    // This field contains the _required_ metric or metrics that trigger the event condition.
+    autonomic.ext.telemetry.Metric metric = 2 [deprecated = true];
+    repeated autonomic.ext.telemetry.Metric required_metrics = 4;
+}
+
+// An on-vehicle event which occurred due to the execution of one or more conditions
+message TriggeredEvent {
+    // One or more conditions which resulted in this event
+    repeated EventCondition conditions = 1;
+
+    oneof label {
+        WellKnownEvent well_known_label = 2;
+        string string_label = 3;
+    }
+
+    // Supplementary metrics that are not required, but are specified by the OEM
+    // to the device manufacturer as contextually relevant.
+    // Metrics that directly trigger the event should not be set here,
+    // as they belong in the `required_metrics` field on the EventCondition.
+    repeated autonomic.ext.telemetry.Metric metrics = 4;
+}
+
+message GeofenceEvent {
+
+    Geofence geofence = 1;
+
+    autonomic.ext.telemetry.Position position = 2;
+
+    Type type = 3;
+
+    enum Type {
+        UNSET = 0;
+        ENTER = 1;
+        EXIT = 2;
+    }
+
+    TriggerType triggered_by = 4;
+
+    enum TriggerType {
+        UNSET_TRIGGER_TYPE = 0;
+        GEOFENCE_OPERATION = 1;
+        VEHICLE_MOVEMENT = 2;
+    }
+
+    autonomic.ext.common.oemdata.OemData oem_data = 5;
+}
+
+message StateTransitionData  {
+
+    oneof data {
+        autonomic.ext.command.wifi.AccessPointSettings ap_settings = 1 [deprecated=true];
+        autonomic.ext.command.devicepairing.PairingCodeSetting pairing_code_setting  = 2;
+        autonomic.ext.command.wifi.WifiStatusSettings wifi_status_settings = 3;
+        autonomic.ext.command.errors.CommandErrorData command_error_data = 4;
+        autonomic.ext.event.state.commandpreclusionstate.CommandPreclusionData command_preclusion_causes = 5;
+    }
+}

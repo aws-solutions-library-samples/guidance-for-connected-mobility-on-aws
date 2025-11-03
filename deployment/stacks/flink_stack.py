@@ -273,6 +273,12 @@ class FlinkStack(Stack):
             removal_policy=RemovalPolicy.RETAIN
         )
         
+        self.oem_telemetry_log_group = logs.LogGroup(
+            self, "OEMTelemetryProcessorLogGroup",
+            log_group_name=f"/aws/kinesis-analytics/{construct_id}-oem-telemetry-processor",
+            removal_policy=RemovalPolicy.RETAIN
+        )
+        
         self.telemetry_enhanced_log_group = logs.LogGroup(
             self, "TelemetryEnhancedLogGroup",
             log_group_name=f"/aws/kinesis-analytics/{construct_id}-telemetry-enhanced-final",
@@ -298,7 +304,8 @@ class FlinkStack(Stack):
         )
         
         # Create log streams for each log group
-        for log_group in [self.event_driven_telemetry_log_group, self.telemetry_enhanced_log_group, 
+        for log_group in [self.event_driven_telemetry_log_group, self.oem_telemetry_log_group,
+                         self.telemetry_enhanced_log_group, 
                          self.trip_log_group, self.safety_log_group, self.maintenance_log_group]:
             logs.LogStream(
                 self, f"{log_group.node.id}Stream",
@@ -563,6 +570,34 @@ def lambda_handler(event, context):
             application_name=self.event_driven_telemetry_processor.ref,
             cloud_watch_logging_option=kinesisanalytics.CfnApplicationCloudWatchLoggingOption.CloudWatchLoggingOptionProperty(
                 log_stream_arn=f"arn:aws:logs:{self.region}:{self.account}:log-group:{self.event_driven_telemetry_log_group.log_group_name}:log-stream:kinesis-analytics-log-stream"
+            )
+        )
+        
+        # 1b. OEM Telemetry Processor (transforms OEM data to CMS format)
+        oem_app_config = create_flink_app_config(
+            "OEMTelemetryProcessor",
+            {
+                "group.id": "oem-telemetry-processor",
+                "KAFKA_TOPIC": "cms-telemetry-oem",
+                "S3_MANIFEST_BUCKET": f"{construct_id.replace('-flink', '')}-oem-manifests"
+            }
+        )
+        
+        self.oem_telemetry_processor = kinesisanalytics.CfnApplication(
+            self, "OEMTelemetryProcessor",
+            application_name=f"{construct_id}-oem-telemetry-processor",
+            runtime_environment="FLINK-1_18",
+            service_execution_role=self.flink_role.role_arn,
+            application_configuration=oem_app_config,
+            application_description="OEM telemetry transformer (Ford/GM/Stellantis to CMS format)"
+        )
+        
+        # Add CloudWatch logging to OEM telemetry processor
+        kinesisanalytics.CfnApplicationCloudWatchLoggingOption(
+            self, "OEMTelemetryLogging",
+            application_name=self.oem_telemetry_processor.ref,
+            cloud_watch_logging_option=kinesisanalytics.CfnApplicationCloudWatchLoggingOption.CloudWatchLoggingOptionProperty(
+                log_stream_arn=f"arn:aws:logs:{self.region}:{self.account}:log-group:{self.oem_telemetry_log_group.log_group_name}:log-stream:kinesis-analytics-log-stream"
             )
         )
         
