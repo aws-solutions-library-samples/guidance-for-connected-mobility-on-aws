@@ -128,7 +128,7 @@ export function Content() {
             setLocationVehicle(vehicle);
           }
         } catch (error) {
-          console.warn(`Vehicle not found in fleet management system: ${locationVehicleId}`, error);
+          console.warn('Vehicle not found in fleet management system:', locationVehicleId, error);
           // Clear the hash if vehicle not found
           window.location.hash = '';
         }
