@@ -32,7 +32,7 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
   const [oemName, setOemName] = useState('');
   const [connectionType, setConnectionType] = useState({ label: 'REST API (Polling)', value: 'rest' });
   const [encodingType, setEncodingType] = useState({ label: 'JSON', value: 'json' });
-  const [schemaFiles, setSchemaFiles] = useState<FileList | null>(null);
+  const [schemaContent, setSchemaContent] = useState('');
   const [apiEndpoint, setApiEndpoint] = useState('');
   
   // OAuth 2.0 fields
@@ -282,34 +282,30 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
 
             {encodingType.value === 'protobuf' && (
               <FormField 
-                key="proto-files" 
-                label="Protocol Buffer Files" 
-                description="Upload all .proto files (maintains directory structure)"
+                key="proto-content" 
+                label="Protocol Buffer Schema" 
+                description="Paste your .proto file content (main message definition)"
               >
-                <input 
-                  type="file" 
-                  multiple 
-                  accept=".proto"
-                  onChange={e => setSchemaFiles(e.target.files)}
-                  style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', width: '100%' }}
+                <Textarea
+                  value={schemaContent}
+                  onChange={e => setSchemaContent(e.detail.value)}
+                  placeholder={`syntax = "proto3";\n\nmessage Metric {\n  string vehicleId = 1;\n  double speed = 2;\n  Location location = 3;\n}\n\nmessage Location {\n  double latitude = 1;\n  double longitude = 2;\n}`}
+                  rows={12}
                 />
-                {schemaFiles && <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
-                  {schemaFiles.length} file(s) selected
-                </div>}
               </FormField>
             )}
 
             {encodingType.value === 'json' && (
               <FormField 
                 key="json-schema" 
-                label="JSON Schema" 
-                description="Upload JSON Schema file for validation (optional)"
+                label="JSON Schema (Optional)" 
+                description="Paste JSON Schema for validation"
               >
-                <input 
-                  type="file" 
-                  accept=".json"
-                  onChange={e => setSchemaFiles(e.target.files)}
-                  style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', width: '100%' }}
+                <Textarea
+                  value={schemaContent}
+                  onChange={e => setSchemaContent(e.detail.value)}
+                  placeholder={`{\n  "$schema": "http://json-schema.org/draft-07/schema#",\n  "type": "object",\n  "properties": {\n    "vehicleId": { "type": "string" },\n    "speed": { "type": "number" }\n  }\n}`}
+                  rows={8}
                 />
               </FormField>
             )}
@@ -318,13 +314,13 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
               <FormField 
                 key="avro-schema" 
                 label="Avro Schema" 
-                description="Upload .avsc schema file"
+                description="Paste Avro schema (.avsc content)"
               >
-                <input 
-                  type="file" 
-                  accept=".avsc"
-                  onChange={e => setSchemaFiles(e.target.files)}
-                  style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', width: '100%' }}
+                <Textarea
+                  value={schemaContent}
+                  onChange={e => setSchemaContent(e.detail.value)}
+                  placeholder={`{\n  "type": "record",\n  "name": "Telemetry",\n  "fields": [\n    {"name": "vehicleId", "type": "string"},\n    {"name": "speed", "type": "double"}\n  ]\n}`}
+                  rows={8}
                 />
               </FormField>
             )}
