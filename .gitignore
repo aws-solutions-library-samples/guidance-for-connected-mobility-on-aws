@@ -536,3 +536,4 @@ modules/predictive_agent
 # OEM Proto files (customer-specific, never commit)
 *.proto
 modules/oem_processor/schemas/
+*signal-catalog.json
