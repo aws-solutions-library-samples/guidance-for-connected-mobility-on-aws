@@ -355,6 +355,19 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
               key="sample-telemetry"
               label="1. Sample Telemetry (Required)" 
               description="Upload a JSON file with sample vehicle telemetry data"
+              info={
+                <span>
+                  Example: A single telemetry message showing vehicle signals like speed, fuel level, GPS coordinates, etc.
+                  <br/><br/>
+                  <strong>Should include:</strong>
+                  <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
+                    <li>Vehicle ID or VIN</li>
+                    <li>Timestamp</li>
+                    <li>At least 3-5 different signals (speed, fuel, location, etc.)</li>
+                    <li>Actual field names from your OEM's API</li>
+                  </ul>
+                </span>
+              }
             >
               <input 
                 type="file" 
@@ -362,14 +375,19 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (file) {
-                    const text = await file.text();
-                    setSampleData(text);
+                    try {
+                      const text = await file.text();
+                      JSON.parse(text); // Validate JSON
+                      setSampleData(text);
+                    } catch (err) {
+                      setError('Invalid JSON in sample telemetry file');
+                    }
                   }
                 }}
                 style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', width: '100%' }}
               />
               {sampleData && <div style={{ marginTop: '8px', fontSize: '12px', color: '#16ab39' }}>
-                ✓ File loaded ({(sampleData.length / 1024).toFixed(1)} KB)
+                ✓ Valid JSON loaded ({(sampleData.length / 1024).toFixed(1)} KB)
               </div>}
             </FormField>
             
@@ -377,6 +395,19 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
               key="sample-event"
               label="2. Sample Event (Required)" 
               description="Upload a JSON file with sample event data"
+              info={
+                <span>
+                  Example: A single event message like harsh braking, DTC code, geofence entry, etc.
+                  <br/><br/>
+                  <strong>Should include:</strong>
+                  <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
+                    <li>Event type or name</li>
+                    <li>Vehicle ID or VIN</li>
+                    <li>Timestamp</li>
+                    <li>Event-specific data (severity, location, etc.)</li>
+                  </ul>
+                </span>
+              }
             >
               <input 
                 type="file" 
@@ -384,14 +415,19 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (file) {
-                    const text = await file.text();
-                    setSampleEvent(text);
+                    try {
+                      const text = await file.text();
+                      JSON.parse(text); // Validate JSON
+                      setSampleEvent(text);
+                    } catch (err) {
+                      setError('Invalid JSON in sample event file');
+                    }
                   }
                 }}
                 style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', width: '100%' }}
               />
               {sampleEvent && <div style={{ marginTop: '8px', fontSize: '12px', color: '#16ab39' }}>
-                ✓ File loaded ({(sampleEvent.length / 1024).toFixed(1)} KB)
+                ✓ Valid JSON loaded ({(sampleEvent.length / 1024).toFixed(1)} KB)
               </div>}
             </FormField>
 
@@ -400,6 +436,19 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
                 key="proto-schema"
                 label="3. Protobuf Schema (Required for Protobuf)" 
                 description="Upload a single .proto file with all message definitions"
+                info={
+                  <span>
+                    A self-contained Protocol Buffer schema file that defines both Metric and Event messages.
+                    <br/><br/>
+                    <strong>Requirements:</strong>
+                    <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
+                      <li>Must start with: syntax = "proto3";</li>
+                      <li>Include all message definitions (no external imports)</li>
+                      <li>Define both telemetry and event message types</li>
+                      <li>Include nested types inline</li>
+                    </ul>
+                  </span>
+                }
               >
                 <input 
                   type="file" 
@@ -407,14 +456,22 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      const text = await file.text();
-                      setProtoSchema(text);
+                      try {
+                        const text = await file.text();
+                        if (!text.includes('syntax = "proto3"') && !text.includes("syntax = 'proto3'")) {
+                          setError('Proto file must specify syntax = "proto3"');
+                          return;
+                        }
+                        setProtoSchema(text);
+                      } catch (err) {
+                        setError('Failed to read proto file');
+                      }
                     }
                   }}
                   style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', width: '100%' }}
                 />
                 {protoSchema && <div style={{ marginTop: '8px', fontSize: '12px', color: '#16ab39' }}>
-                  ✓ File loaded ({(protoSchema.length / 1024).toFixed(1)} KB)
+                  ✓ Proto file loaded ({(protoSchema.length / 1024).toFixed(1)} KB)
                 </div>}
               </FormField>
             )}
@@ -423,6 +480,22 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
               key="data-dictionary"
               label={encodingType.value === 'protobuf' ? "4. Data Dictionary (Required)" : "3. Data Dictionary (Required)"}
               description="Upload the OEM's complete signal and event catalog (JSON)"
+              info={
+                <span>
+                  A comprehensive catalog of all signals and events from your OEM.
+                  <br/><br/>
+                  <strong>Should include:</strong>
+                  <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
+                    <li>Signal names and descriptions</li>
+                    <li>Data types (string, double, enum, etc.)</li>
+                    <li>Units of measurement</li>
+                    <li>Field paths in the OEM's data structure</li>
+                    <li>Event types and their fields</li>
+                  </ul>
+                  <br/>
+                  This is typically provided by the OEM as part of their API documentation.
+                </span>
+              }
             >
               <input 
                 type="file" 
@@ -430,14 +503,23 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (file) {
-                    const text = await file.text();
-                    setDataDictionary(text);
+                    try {
+                      const text = await file.text();
+                      const parsed = JSON.parse(text); // Validate JSON
+                      if (!parsed.signals && !parsed.events) {
+                        setError('Data dictionary must contain "signals" or "events" field');
+                        return;
+                      }
+                      setDataDictionary(text);
+                    } catch (err) {
+                      setError('Invalid JSON in data dictionary file');
+                    }
                   }
                 }}
                 style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', width: '100%' }}
               />
               {dataDictionary && <div style={{ marginTop: '8px', fontSize: '12px', color: '#16ab39' }}>
-                ✓ File loaded ({(dataDictionary.length / 1024).toFixed(1)} KB)
+                ✓ Valid JSON loaded ({(dataDictionary.length / 1024).toFixed(1)} KB)
               </div>}
             </FormField>
           </SpaceBetween>
