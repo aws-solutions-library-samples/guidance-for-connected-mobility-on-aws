@@ -144,6 +144,27 @@ class SimulationManager:
         """Start a new simulation with account validation"""
         simulation_id = str(uuid.uuid4())[:8]
         
+        # Sanitize string inputs to prevent command injection
+        def sanitize_string(value: str, allowed_chars: str = 'a-zA-Z0-9_-') -> str:
+            """Remove potentially dangerous characters from string inputs"""
+            import re
+            if not isinstance(value, str):
+                return str(value)
+            # Only allow alphanumeric, underscore, and hyphen
+            return re.sub(f'[^{allowed_chars}]', '', value)
+        
+        # Sanitize config string values
+        if 'city' in config:
+            config['city'] = sanitize_string(config['city'])
+        if 'driver_selection' in config:
+            config['driver_selection'] = sanitize_string(config['driver_selection'])
+        if 'driver_id' in config:
+            config['driver_id'] = sanitize_string(config['driver_id'])
+        if 'force_safety_event' in config:
+            config['force_safety_event'] = sanitize_string(config['force_safety_event'])
+        if 'certificates_table_name' in config:
+            config['certificates_table_name'] = sanitize_string(config['certificates_table_name'])
+        
         # Validate account if UI account is provided
         if config.get('ui_account'):
             try:
