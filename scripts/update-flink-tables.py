@@ -50,7 +50,8 @@ def update_flink_deployment(environment="prod"):
             content[end_idx:]
         )
         
-        # Write updated script
+        # Write updated deployment configuration (not sensitive credentials)
+        # Actual credentials are sourced from environment variables at runtime
         with open(deploy_script, 'w') as f:
             f.write(new_content)
         
