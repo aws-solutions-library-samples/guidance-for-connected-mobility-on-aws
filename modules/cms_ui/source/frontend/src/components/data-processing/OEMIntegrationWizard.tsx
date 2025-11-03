@@ -348,78 +348,97 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
         {step === 3 && (
           <SpaceBetween size="m">
             <Alert key="info-alert" type="info">
-              All three fields are required for complete OEM integration.
+              Upload sample files from your OEM. These will be used to generate the transform manifest.
             </Alert>
             
             <FormField 
               key="sample-telemetry"
-              label="1. Sample Telemetry JSON (Required)" 
-              description="Paste sample telemetry data with vehicle signals (speed, fuel, location, etc.)"
+              label="1. Sample Telemetry (Required)" 
+              description="Upload a JSON file with sample vehicle telemetry data"
             >
-              <Textarea
-                value={sampleData}
-                onChange={e => setSampleData(e.detail.value)}
-                rows={10}
-                placeholder={'{\n  "vin": "1FTABCDEFG1000001",\n  "timestamp": "2025-10-24T12:00:00Z",\n  "speed": 50.5,\n  "fuel_level": 75.2,\n  "latitude": 42.326215,\n  "longitude": -83.211655,\n  "odometer": 12345.6\n}'}
+              <input 
+                type="file" 
+                accept=".json"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const text = await file.text();
+                    setSampleData(text);
+                  }
+                }}
+                style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', width: '100%' }}
               />
+              {sampleData && <div style={{ marginTop: '8px', fontSize: '12px', color: '#16ab39' }}>
+                ✓ File loaded ({(sampleData.length / 1024).toFixed(1)} KB)
+              </div>}
+            </FormField>
+            
+            <FormField 
+              key="sample-event"
+              label="2. Sample Event (Required)" 
+              description="Upload a JSON file with sample event data"
+            >
+              <input 
+                type="file" 
+                accept=".json"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const text = await file.text();
+                    setSampleEvent(text);
+                  }
+                }}
+                style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', width: '100%' }}
+              />
+              {sampleEvent && <div style={{ marginTop: '8px', fontSize: '12px', color: '#16ab39' }}>
+                ✓ File loaded ({(sampleEvent.length / 1024).toFixed(1)} KB)
+              </div>}
             </FormField>
 
             {encodingType.value === 'protobuf' && (
               <FormField 
                 key="proto-schema"
-                label="Protobuf Schema (Required for Protobuf)" 
-                description="Paste or upload a single .proto file with all message definitions"
+                label="3. Protobuf Schema (Required for Protobuf)" 
+                description="Upload a single .proto file with all message definitions"
               >
-                <SpaceBetween size="s">
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <input 
-                      type="file" 
-                      accept=".proto"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const text = await file.text();
-                          setProtoSchema(text);
-                        }
-                      }}
-                      style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
-                    />
-                    <span style={{ fontSize: '12px', color: '#666' }}>or paste below</span>
-                  </div>
-                  <Textarea
-                    value={protoSchema}
-                    onChange={e => setProtoSchema(e.detail.value)}
-                    rows={15}
-                    placeholder={'syntax = "proto3";\n\npackage oem;\n\nmessage Metric {\n  string vehicleId = 1;\n  string timestamp = 2;\n  Signal signal = 3;\n  oneof value {\n    double doubleValue = 4;\n    SpeedValue speedValue = 5;\n  }\n  Location location = 6;\n}\n\nmessage Event {\n  string vehicleId = 1;\n  string eventType = 2;\n  Location location = 3;\n}\n\nmessage Signal { string wksSignal = 1; }\nmessage SpeedValue { double speed = 1; }\nmessage Location { double latitude = 1; double longitude = 2; }'}
-                  />
-                </SpaceBetween>
+                <input 
+                  type="file" 
+                  accept=".proto"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const text = await file.text();
+                      setProtoSchema(text);
+                    }
+                  }}
+                  style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', width: '100%' }}
+                />
+                {protoSchema && <div style={{ marginTop: '8px', fontSize: '12px', color: '#16ab39' }}>
+                  ✓ File loaded ({(protoSchema.length / 1024).toFixed(1)} KB)
+                </div>}
               </FormField>
             )}
             
             <FormField 
-              key="sample-event"
-              label="2. Sample Event JSON (Required)" 
-              description="Paste sample event data (safety events, maintenance alerts, driver behavior, etc.)"
-            >
-              <Textarea
-                value={sampleEvent}
-                onChange={e => setSampleEvent(e.detail.value)}
-                rows={10}
-                placeholder={'{\n  "event_type": "harsh_braking",\n  "vin": "1FTABCDEFG1000001",\n  "timestamp": "2025-10-24T12:00:00Z",\n  "severity": "high",\n  "deceleration": -0.85,\n  "location": {\n    "lat": 42.326215,\n    "lon": -83.211655\n  }\n}'}
-              />
-            </FormField>
-            
-            <FormField 
               key="data-dictionary"
-              label="3. Data Dictionary (Required)" 
-              description="Paste the OEM's complete signal and event catalog"
+              label={encodingType.value === 'protobuf' ? "4. Data Dictionary (Required)" : "3. Data Dictionary (Required)"}
+              description="Upload the OEM's complete signal and event catalog (JSON)"
             >
-              <Textarea
-                value={dataDictionary}
-                onChange={e => setDataDictionary(e.detail.value)}
-                rows={10}
-                placeholder={'{\n  "signals": {\n    "SPEED": {\n      "valueField": "speed",\n      "unit": "m/s",\n      "valueType": "Double"\n    }\n  },\n  "events": {\n    "HARSH_BRAKING": {\n      "event_type": "harsh_braking",\n      "severity_field": "severity"\n    }\n  }\n}'}
+              <input 
+                type="file" 
+                accept=".json"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const text = await file.text();
+                    setDataDictionary(text);
+                  }
+                }}
+                style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', width: '100%' }}
               />
+              {dataDictionary && <div style={{ marginTop: '8px', fontSize: '12px', color: '#16ab39' }}>
+                ✓ File loaded ({(dataDictionary.length / 1024).toFixed(1)} KB)
+              </div>}
             </FormField>
           </SpaceBetween>
         )}
