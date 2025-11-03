@@ -292,7 +292,7 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
             {connectionType.value === 'streaming' && (
               <>
                 <FormField key="grpc-endpoint" label="gRPC Endpoint" description="gRPC service endpoint">
-                  <Input value={apiEndpoint} onChange={e => setApiEndpoint(e.detail.value)} placeholder="https://api.autonomic.ai:443" />
+                  <Input value={apiEndpoint} onChange={e => setApiEndpoint(e.detail.value)} placeholder="grpc.oem-api.example.com:443" />
                 </FormField>
                 <FormField key="flow-name" label="Flow Name" description="Feed flow identifier (e.g., aui:flow:feed/vendor/region)">
                   <Input value={flowName} onChange={e => setFlowName(e.detail.value)} placeholder="aui:flow:feed/oem/region" />
