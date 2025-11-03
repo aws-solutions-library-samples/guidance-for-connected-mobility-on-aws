@@ -10,7 +10,9 @@ import {
   Button,
   Table,
   StatusIndicator,
-  Alert
+  Alert,
+  Link,
+  Popover
 } from '@cloudscape-design/components';
 
 interface OEMIntegrationWizardProps {
@@ -356,17 +358,34 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
               label="1. Sample Telemetry (Required)" 
               description="Upload a JSON file with sample vehicle telemetry data"
               info={
-                <span>
-                  Example: A single telemetry message showing vehicle signals like speed, fuel level, GPS coordinates, etc.
-                  <br/><br/>
-                  <strong>Should include:</strong>
-                  <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
-                    <li>Vehicle ID or VIN</li>
-                    <li>Timestamp</li>
-                    <li>At least 3-5 different signals (speed, fuel, location, etc.)</li>
-                    <li>Actual field names from your OEM's API</li>
-                  </ul>
-                </span>
+                <Link variant="info">Info</Link>
+              }
+              constraintText={
+                <Popover
+                  dismissButton={false}
+                  position="top"
+                  size="large"
+                  triggerType="custom"
+                  content={
+                    <div style={{ padding: '8px' }}>
+                      <strong>Example structure:</strong>
+                      <pre style={{ fontSize: '11px', marginTop: '8px', background: '#f4f4f4', padding: '8px', borderRadius: '4px' }}>
+{`{
+  "vehicleId": "VIN123",
+  "timestamp": "2025-11-03T12:00:00Z",
+  "speed": 65.5,
+  "fuelLevel": 75.2,
+  "location": {
+    "latitude": 42.3,
+    "longitude": -83.2
+  }
+}`}
+                      </pre>
+                    </div>
+                  }
+                >
+                  <Link variant="info">View example</Link>
+                </Popover>
               }
             >
               <input 
@@ -395,18 +414,33 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
               key="sample-event"
               label="2. Sample Event (Required)" 
               description="Upload a JSON file with sample event data"
-              info={
-                <span>
-                  Example: A single event message like harsh braking, DTC code, geofence entry, etc.
-                  <br/><br/>
-                  <strong>Should include:</strong>
-                  <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
-                    <li>Event type or name</li>
-                    <li>Vehicle ID or VIN</li>
-                    <li>Timestamp</li>
-                    <li>Event-specific data (severity, location, etc.)</li>
-                  </ul>
-                </span>
+              constraintText={
+                <Popover
+                  dismissButton={false}
+                  position="top"
+                  size="large"
+                  triggerType="custom"
+                  content={
+                    <div style={{ padding: '8px' }}>
+                      <strong>Example structure:</strong>
+                      <pre style={{ fontSize: '11px', marginTop: '8px', background: '#f4f4f4', padding: '8px', borderRadius: '4px' }}>
+{`{
+  "eventType": "harsh_braking",
+  "vehicleId": "VIN123",
+  "timestamp": "2025-11-03T12:00:00Z",
+  "severity": "high",
+  "deceleration": -0.85,
+  "location": {
+    "latitude": 42.3,
+    "longitude": -83.2
+  }
+}`}
+                      </pre>
+                    </div>
+                  }
+                >
+                  <Link variant="info">View example</Link>
+                </Popover>
               }
             >
               <input 
@@ -436,18 +470,39 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
                 key="proto-schema"
                 label="3. Protobuf Schema (Required for Protobuf)" 
                 description="Upload a single .proto file with all message definitions"
-                info={
-                  <span>
-                    A self-contained Protocol Buffer schema file that defines both Metric and Event messages.
-                    <br/><br/>
-                    <strong>Requirements:</strong>
-                    <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
-                      <li>Must start with: syntax = "proto3";</li>
-                      <li>Include all message definitions (no external imports)</li>
-                      <li>Define both telemetry and event message types</li>
-                      <li>Include nested types inline</li>
-                    </ul>
-                  </span>
+                constraintText={
+                  <Popover
+                    dismissButton={false}
+                    position="top"
+                    size="large"
+                    triggerType="custom"
+                    content={
+                      <div style={{ padding: '8px' }}>
+                        <strong>Example structure:</strong>
+                        <pre style={{ fontSize: '11px', marginTop: '8px', background: '#f4f4f4', padding: '8px', borderRadius: '4px' }}>
+{`syntax = "proto3";
+
+message Metric {
+  string vehicleId = 1;
+  double speed = 2;
+  Location location = 3;
+}
+
+message Event {
+  string eventType = 1;
+  string vehicleId = 2;
+}
+
+message Location {
+  double latitude = 1;
+  double longitude = 2;
+}`}
+                        </pre>
+                      </div>
+                    }
+                  >
+                    <Link variant="info">View example</Link>
+                  </Popover>
                 }
               >
                 <input 
@@ -480,21 +535,44 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
               key="data-dictionary"
               label={encodingType.value === 'protobuf' ? "4. Data Dictionary (Required)" : "3. Data Dictionary (Required)"}
               description="Upload the OEM's complete signal and event catalog (JSON)"
-              info={
-                <span>
-                  A comprehensive catalog of all signals and events from your OEM.
-                  <br/><br/>
-                  <strong>Should include:</strong>
-                  <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
-                    <li>Signal names and descriptions</li>
-                    <li>Data types (string, double, enum, etc.)</li>
-                    <li>Units of measurement</li>
-                    <li>Field paths in the OEM's data structure</li>
-                    <li>Event types and their fields</li>
-                  </ul>
-                  <br/>
-                  This is typically provided by the OEM as part of their API documentation.
-                </span>
+              constraintText={
+                <Popover
+                  dismissButton={false}
+                  position="top"
+                  size="large"
+                  triggerType="custom"
+                  content={
+                    <div style={{ padding: '8px' }}>
+                      <strong>Example structure:</strong>
+                      <pre style={{ fontSize: '11px', marginTop: '8px', background: '#f4f4f4', padding: '8px', borderRadius: '4px' }}>
+{`{
+  "signals": {
+    "SPEED": {
+      "description": "Vehicle speed",
+      "unit": "km/h",
+      "valueType": "Double",
+      "valueField": "speed"
+    },
+    "FUEL_LEVEL": {
+      "description": "Fuel level",
+      "unit": "%",
+      "valueType": "Double",
+      "valueField": "fuelLevel"
+    }
+  },
+  "events": {
+    "HARSH_BRAKING": {
+      "description": "Harsh braking event",
+      "eventType": "harsh_braking"
+    }
+  }
+}`}
+                      </pre>
+                    </div>
+                  }
+                >
+                  <Link variant="info">View example</Link>
+                </Popover>
               }
             >
               <input 
