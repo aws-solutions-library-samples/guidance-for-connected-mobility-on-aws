@@ -29,6 +29,7 @@ s3://{MANIFEST_BUCKET}/manifests/{oem_name}/connection.json
 {
   "oem_name": "example-oem",
   "connection_type": "grpc|rest|websocket",
+  "encoding": "protobuf|json|avro|raw",
   "connection": {
     "endpoint": "https://api.example.com",
     "flow_name": "aui:flow:feed/oem/region",
@@ -44,6 +45,33 @@ s3://{MANIFEST_BUCKET}/manifests/{oem_name}/connection.json
   "batch_size": 100
 }
 ```
+
+### Schema Files
+
+Upload schema files to S3 based on encoding type:
+
+**Protobuf (gRPC):**
+```
+s3://{bucket}/manifests/{oem_name}/schemas/*.proto
+```
+- Upload all .proto files maintaining directory structure
+- Lambda will compile them at runtime using protoc
+
+**JSON Schema:**
+```
+s3://{bucket}/manifests/{oem_name}/schemas/schema.json
+```
+- Single JSON Schema file for validation
+
+**Avro:**
+```
+s3://{bucket}/manifests/{oem_name}/schemas/schema.avsc
+```
+- Single Avro schema file
+
+**Raw:**
+- No schema files needed
+- Data passed through without validation
 
 ## Supported Connection Types
 
