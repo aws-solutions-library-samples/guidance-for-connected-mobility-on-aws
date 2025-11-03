@@ -31,6 +31,8 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
   const [step, setStep] = useState(1);
   const [oemName, setOemName] = useState('');
   const [connectionType, setConnectionType] = useState({ label: 'REST API (Polling)', value: 'rest' });
+  const [encodingType, setEncodingType] = useState({ label: 'JSON', value: 'json' });
+  const [schemaFiles, setSchemaFiles] = useState<FileList | null>(null);
   const [apiEndpoint, setApiEndpoint] = useState('');
   
   // OAuth 2.0 fields
@@ -264,6 +266,74 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
                 ]}
               />
             </FormField>
+
+            <FormField key="encoding-type" label="Data Encoding" description="Message format used by the OEM">
+              <Select
+                selectedOption={encodingType}
+                onChange={e => setEncodingType(e.detail.selectedOption as any)}
+                options={[
+                  { label: 'JSON', value: 'json' },
+                  { label: 'Protocol Buffers (Protobuf)', value: 'protobuf' },
+                  { label: 'Apache Avro', value: 'avro' },
+                  { label: 'Raw/Custom', value: 'raw' }
+                ]}
+              />
+            </FormField>
+
+            {encodingType.value === 'protobuf' && (
+              <FormField 
+                key="proto-files" 
+                label="Protocol Buffer Files" 
+                description="Upload all .proto files (maintains directory structure)"
+              >
+                <input 
+                  type="file" 
+                  multiple 
+                  accept=".proto"
+                  onChange={e => setSchemaFiles(e.target.files)}
+                  style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', width: '100%' }}
+                />
+                {schemaFiles && <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
+                  {schemaFiles.length} file(s) selected
+                </div>}
+              </FormField>
+            )}
+
+            {encodingType.value === 'json' && (
+              <FormField 
+                key="json-schema" 
+                label="JSON Schema" 
+                description="Upload JSON Schema file for validation (optional)"
+              >
+                <input 
+                  type="file" 
+                  accept=".json"
+                  onChange={e => setSchemaFiles(e.target.files)}
+                  style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', width: '100%' }}
+                />
+              </FormField>
+            )}
+
+            {encodingType.value === 'avro' && (
+              <FormField 
+                key="avro-schema" 
+                label="Avro Schema" 
+                description="Upload .avsc schema file"
+              >
+                <input 
+                  type="file" 
+                  accept=".avsc"
+                  onChange={e => setSchemaFiles(e.target.files)}
+                  style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px', width: '100%' }}
+                />
+              </FormField>
+            )}
+
+            {encodingType.value === 'raw' && (
+              <Alert type="info">
+                Raw encoding selected - no schema validation will be performed. Data will be passed through as-is.
+              </Alert>
+            )}
             
             {connectionType.value === 'rest' && (
               <FormField key="rest-endpoint" label="Data API Endpoint" description="REST endpoint for fetching vehicle telemetry">
