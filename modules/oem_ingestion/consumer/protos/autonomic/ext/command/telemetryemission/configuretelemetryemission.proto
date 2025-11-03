@@ -1,0 +1,43 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2017 - 2019 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ * 
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ * 
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+syntax = "proto3";
+
+package autonomic.ext.command.telemetryemission;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/command/telemetryemission";
+option java_package = "com.autonomic.ext.command.telemetryemission";
+option java_outer_classname = "ConfigureTelemetryEmissionRequestProto";
+option java_multiple_files = true;
+option cc_enable_arenas = true;
+option objc_class_prefix = "AUT";
+
+// Opt-in/Opt-out of Telemetry and Location data emission
+message ConfigureTelemetryEmissionRequest {
+    enum TelemetryEmissionSetting {
+        // Emits no data
+        DISABLE = 0;
+        // Emits all data (including location)
+        ENABLE = 1;
+        // Emits all data except location
+        ENABLE_SANS_LOCATION = 2;
+    }
+
+    TelemetryEmissionSetting telemetryEmissionSetting = 1;
+}

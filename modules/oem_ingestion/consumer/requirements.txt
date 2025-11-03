@@ -1,0 +1,9 @@
+boto3>=1.28.0
+kafka-python>=2.0.2
+aws-msk-iam-sasl-signer-python>=1.0.0
+grpcio>=1.59.0
+grpcio-tools>=1.59.0
+protobuf>=4.24.0
+requests>=2.31.0
+aiohttp>=3.9.0
+python-dotenv>=1.0.0

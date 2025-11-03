@@ -1,0 +1,135 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2018 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ *
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ *
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+
+syntax = "proto3";
+
+package autonomic.ext.telemetry;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/telemetry";
+option java_package = "com.autonomic.ext.telemetry";
+option java_outer_classname = "DtcProto";
+option java_multiple_files = true;
+
+option cc_enable_arenas = true;
+
+option objc_class_prefix = "AUT";
+
+import "autonomic/ext/common/oem_data.proto";
+
+message oem_data {
+    string key = 1;
+
+    oneof data {
+        int64 int_data = 2;
+        string string_data = 3;
+        double double_data = 4;
+    }
+}
+
+// OBD-II diagnostic trouble codes (DTCs) are strings of the form
+// [System][Type][Subsystem][Fault]-[Failure Type], where:
+//   - System is a single character indicating which major vehicle
+//     system is generating the fault
+//   - Type is a single digit, with 0 meaning SAE standard and 1
+//     meaning a manufacturer-specific fault
+//   - Subsystem is a single digit indicating which subsystem in
+//     the vehicle is generating the fault
+//     - Subsystem used to have a standard, fixed and known definition
+//       prior to 2016. Since then, this digit has been essentially converted to
+//       be an additional digit of the Fault code, so we will represent
+//       it as either a parsed enum (if we know it well) or a raw value
+//   - Fault is a 2 digit number giving the specific fault
+//   - Failure Type is a 2 digit hex number giving the specific type of failure
+//     (over/under/invalid/etc.)
+
+message DiagnosticTroubleCode {
+
+    enum System {
+        BODY = 0;       // B
+        CHASSIS = 1;    // C
+        POWERTRAIN = 2; // P
+        NETWORK = 3;    // N
+
+        UNKNOWN_SYSTEM = 4; // Ideally, this is 0, as our other enums' UNKNOWNs.
+                            // However, changing the numerical is a breaking change
+                            // so we are using 4 (the next numerical value available).
+    }
+
+    // Deprecated unless we plan to identify and support vehicles that
+    // are using the pre-2016 SAE standard
+    enum Subsystem {
+        option deprecated = true;
+
+        FUEL_AND_AIR_AUX = 0;
+        FUEL_AND_AIR = 1;
+        FUEL_AND_AIR_INJECTOR = 2;
+        IGNITION = 3;
+        AUX_EMISSIONS = 4;
+        SPEED_AND_IDLE = 5;
+        COMPUTER_OUTPUT = 6;
+        TRANSMISSION = 7;
+        TRANSMISSION_X = 8;
+
+        UNKNOWN_SUBSYSTEM = 9;  // Ideally, this is 0, as our other enums' UNKNOWNs.
+                                // However, changing the numerical is a breaking change
+                                // so we are using 9 (the next numerical value available).
+    }
+
+    enum KnownFault {
+
+        UNKNOWN_FAULT = 0;
+        // Autonomic Known Faults
+        // reserved 1 - 3000
+
+    }
+
+    System system = 1;
+
+    // Subsystem byte, provided as parsed enum (if we are certain of its accuracy), or raw otherwise
+    oneof subsystem_byte {
+        Subsystem subsystem = 2 [deprecated=true]; // deprecated per comment about Subsystem enum
+    }
+
+    bool sae = 3;            // true if an SAE standard code
+                             // false if a manufacturer-specific code
+    oneof fault {
+        int32 int_fault = 4;
+        KnownFault known_fault = 5;
+    }
+
+    // XXX - add Status byte - OEM specific, deprecated in favour of oem_data field
+    int32 status = 6 [deprecated=true];
+
+    // XXX - ECU reporting DTC - OEM specific identifier, deprecated in favour of oem_data field
+    string reporting_ecu = 7 [deprecated=true];
+
+    // DTC Failure Type - SAE standard
+    int32 subfault_failure_type = 8;
+
+    // DTC Raw Code Value
+    string raw_value = 9;
+
+    int32 int_subsystem = 10;
+
+    // oem specific data, opaque to au
+    // An OEM Documentation Addendum is provided for information on how to populate these fields.
+    repeated oem_data oem_data = 11;
+    autonomic.ext.common.oemdata.OemData oem_values = 12;
+}

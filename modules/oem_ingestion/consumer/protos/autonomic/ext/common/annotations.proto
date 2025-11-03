@@ -1,0 +1,126 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2017 - 2024 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ *
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ *
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+syntax = "proto3";
+
+package autonomic.ext.common.annotations;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/common";
+option java_package = "com.autonomic.ext.common.annotations";
+option java_outer_classname = "AnnotationsProto";
+option java_multiple_files = false;
+
+import "google/protobuf/descriptor.proto";
+import "google/protobuf/timestamp.proto";
+import "ford/protobuf/uuid.proto";
+
+// Read or update an AnnotationMap using ford.tmc.annotations.AnnotationBuddy to ensure data is valid.
+message AnnotationMap {
+  // Entry keys MUST be ordinal values of an AnnotationKey enum. This prevents conflicts and enables automated validation.
+  map<int32, AnnotationValue> entries = 1;
+}
+
+enum AnnotationKey {
+  VEHICLE_ID = 0 [(type) = {scalar: UUID}];
+  DEVICE_ID = 1 [(type) = {scalar: UUID}];
+  VIN = 2 [(type) = {scalar: STRING, max_length: 17}];
+  ESN = 3 [(type) = {scalar: STRING}];
+  REGION_CODE = 4 [(type) = {enum: "autonomic.ext.connectivity.enumerations.connectivityRegion.ConnectivityRegion"}];
+  COUNTRY_CODE = 5 [(type) = {scalar: STRING, max_length: 2}];
+  INGEST_MESSAGE_ID = 6 [(type) = {scalar: UUID}]; // The unique ID of the originating payload envelope
+  RUBY_SNOW_PROCESSING_CATEGORY = 7 [(type) = {enum: "autonomic.ext.connectivity.enumerations.rawProcessingCategory.RawProcessingCategory"}];
+  GROUP_ID_LIST = 8 [(type) = {scalar: UUID, cardinality: LIST_OF_VALUES}];
+  CONSENTED_POU_ID_LIST = 9 [(type) = {scalar: INTEGER, cardinality: LIST_OF_VALUES}];
+  INFERRED_LIFECYCLE_STATUS = 10 [(type) = {enum: "autonomic.ext.asset.enumerations.vehicleLifecycleStatus.VehicleLifecycleStatus"}];
+  TMC_TEST_VEHICLE = 11 [(type) = {scalar: BOOL, cardinality: SINGLE_VALUE}];
+  ABACUS_ROLLOUT_PERCENTAGE = 12 [(type) = {scalar: DOUBLE, cardinality: SINGLE_VALUE}];
+  PROCESSED_VIA_ABACUS = 13 [(type) = {scalar: BOOL, cardinality: SINGLE_VALUE}];
+  INVENTORY_TAGS_LIST = 14 [(type) = {scalar: STRING, cardinality: LIST_OF_VALUES}];
+  SESSION_START_TIME = 15 [(type) = {scalar: TIMESTAMP}];
+  MODEL_YEAR = 16 [(type) = {scalar: INTEGER}];
+  FUEL_TYPE_LIST = 17 [(type) = {cardinality: LIST_OF_VALUES, enum: "autonomic.ext.asset.enumerations.fuelType.FuelType"}];
+  FTCP_MESSAGE_NAME = 18 [(type) = {scalar: STRING}];
+}
+
+extend google.protobuf.EnumValueOptions {
+  TypeInfo type = 981050;
+}
+
+message TypeInfo {
+  Cardinality cardinality = 1; // Indicates whether this key can have only one value, or a list of values
+  oneof type {
+    DataType scalar = 2; // A plain value using one of the supported data types
+    string enum = 3; // Full name of a protobuf enum descriptor to interpret and validate integer ordinals
+  }
+  uint32 max_length = 4; // Maximum length of value, applicable for STRING types
+
+  enum Cardinality {
+    SINGLE_VALUE = 0; // The key may only have a single value
+    LIST_OF_VALUES = 1; // The key may have a list of values
+  }
+
+  enum DataType {
+    INTEGER = 0;
+    BOOL = 1;
+    STRING = 2;
+    DOUBLE = 3;
+    UUID = 4;
+    TIMESTAMP = 5;
+  }
+}
+
+message AnnotationValue {
+  oneof value {
+    int64 integer_value = 1;
+    IntegerList integer_list = 2;
+
+    bool bool_value = 3;
+    BoolList bool_list = 4;
+
+    string string_value = 5;
+    StringList string_list = 6;
+
+    double double_value = 7;
+    DoubleList double_list = 8;
+
+    ford.protobuf.UUID uuid_value = 9;
+    UUIDList uuid_list = 10;
+
+    google.protobuf.Timestamp timestamp_value = 11;
+    TimestampList timestamp_list = 12;
+  }
+  message IntegerList {
+    repeated int64 values = 1 [packed = true];
+  }
+  message BoolList {
+    repeated bool values = 1 [packed = true];
+  }
+  message StringList {
+    repeated string values = 1;
+  }
+  message DoubleList {
+    repeated double values = 1 [packed = true];
+  }
+  message UUIDList {
+    repeated ford.protobuf.UUID values = 1;
+  }
+  message TimestampList {
+    repeated google.protobuf.Timestamp values = 1;
+  }
+}

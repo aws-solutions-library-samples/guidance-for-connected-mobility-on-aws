@@ -757,6 +757,30 @@ class EnhancedHistoricalDataInjector:
         """Generate enhanced safety events with realistic patterns"""
         safety_events = []
         
+        # Load Event Catalog dynamically
+        try:
+            from event_catalog_loader import get_catalog_loader
+            catalog_loader = get_catalog_loader(profile_name=self.profile_name, region=self.region)
+            event_catalog = catalog_loader.load_event_catalog()
+            use_dynamic_catalog = True
+            print(f"✅ Using dynamic Event Catalog with {len(event_catalog)} events")
+        except Exception as e:
+            print(f"⚠️  Could not load dynamic Event Catalog: {e}")
+            use_dynamic_catalog = False
+            # Fallback to static mapping
+            EVENT_CATALOG_MAPPING = {
+                'HARD_BRAKING': {'event_id': 'safety.harsh_braking', 'category': 'safety', 'severity': 1},
+                'SPEEDING': {'event_id': 'safety.excessive_speed', 'category': 'safety', 'severity': 2},
+                'LANE_DEPARTURE': {'event_id': 'safety.lane_departure', 'category': 'safety', 'severity': 1},
+                'RAPID_ACCELERATION': {'event_id': 'safety.harsh_acceleration', 'category': 'safety', 'severity': 1},
+                'TAILGATING': {'event_id': 'safety.tailgating', 'category': 'safety', 'severity': 1},
+                'HARSH_CORNERING': {'event_id': 'safety.harsh_cornering', 'category': 'safety', 'severity': 1},
+                'DISTRACTED_DRIVING': {'event_id': 'safety.distracted_driving', 'category': 'safety', 'severity': 2},
+                'FATIGUE_DETECTION': {'event_id': 'safety.fatigue_detected', 'category': 'safety', 'severity': 2},
+                'PHONE_USAGE': {'event_id': 'safety.phone_usage', 'category': 'safety', 'severity': 2},
+                'SEATBELT_VIOLATION': {'event_id': 'safety.seatbelt_unfastened', 'category': 'safety', 'severity': 1}
+            }
+        
         # Enhanced event types with realistic probabilities and severity logic
         event_configs = {
             'HARD_BRAKING': {
@@ -859,6 +883,25 @@ class EnhancedHistoricalDataInjector:
                     # Calculate intelligent severity based on event type and context
                     severity, severity_details = self._calculate_event_severity(trip_context, event_speed)
                     
+                    # Get Event Catalog mapping (dynamic or fallback)
+                    if use_dynamic_catalog:
+                        catalog_entry = catalog_loader.map_simulator_event(event_type)
+                        if not catalog_entry:
+                            catalog_entry = {
+                                'event_id': f'safety.{event_type.lower()}',
+                                'category': 'safety',
+                                'severity': 1
+                            }
+                    else:
+                        catalog_entry = EVENT_CATALOG_MAPPING.get(event_type, {
+                            'event_id': f'safety.{event_type.lower()}',
+                            'category': 'safety',
+                            'severity': 1
+                        })
+                    
+                    # Convert severity string to numeric (0=info, 1=warning, 2=critical)
+                    severity_numeric = {'low': 0, 'medium': 1, 'high': 2}.get(severity, 1)
+                    
                     safety_event = {
                         'eventId': str(uuid.uuid4()),
                         'tripId': trip['tripId'],
@@ -866,13 +909,29 @@ class EnhancedHistoricalDataInjector:
                         'vin': trip['vin'],
                         'fleetId': trip['fleetId'],
                         'driverId': trip['driverId'],
+                        
+                        # Event Catalog fields
+                        'event_id': catalog_entry['event_id'],
+                        'category': catalog_entry.get('category', 'safety'),
+                        'severity': severity_numeric,
+                        
+                        # Signal values (structured data)
+                        'signal_values': {
+                            'speed': float(event_speed),
+                            'deceleration': severity_details.get('deceleration', 0),
+                            'gForce': severity_details.get('gForce', 0)
+                        },
+                        
+                        # Legacy fields (for compatibility during transition)
                         'eventType': event_type,
-                        'severity': severity,
+                        
                         'timestamp': int(event_time.timestamp()),  # Numeric timestamp for DynamoDB
                         'location': {
                             'latitude': Decimal(str(round(event_lat, 6))),
                             'longitude': Decimal(str(round(event_lng, 6)))
                         },
+                        'lat': Decimal(str(round(event_lat, 6))),
+                        'lng': Decimal(str(round(event_lng, 6))),
                         'speed': Decimal(str(event_speed)),
                         'description': f"{event_type.replace('_', ' ').title()} detected during {trip_type} trip",
                         'tripType': trip_type,

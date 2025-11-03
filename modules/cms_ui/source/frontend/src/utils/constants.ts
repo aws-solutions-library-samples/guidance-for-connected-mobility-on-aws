@@ -51,6 +51,9 @@ export const UI_ROUTES = {
   DRIVER_BEHAVIOR: "/driver-behavior",
   GEOFENCE_EVENTS: "/geofence-events",
   TRIP_ANALYTICS: "/trip-analytics",
+  
+  // Data Processing routes
+  DATA_PROCESSING: "/data-processing",
 };
 
 export const ERROR_MESSAGES = {

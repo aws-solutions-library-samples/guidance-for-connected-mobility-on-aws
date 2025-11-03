@@ -1,0 +1,191 @@
+[
+  {
+    "start_time": "2025-10-21T12:48:39.946Z",
+    "end_time": "2025-10-21T12:51:35.614Z",
+    "vin": "aui:asset:vehicle/ec64c899-897c-4e88-801e-12b7995ed05d",
+    "avg_speed": 2.418518407,
+    "max_speed": 7.208333,
+    "distance_km": 1.0,
+    "duration_sec": 175.668
+  },
+  {
+    "start_time": "2025-10-21T13:09:36.260Z",
+    "end_time": "2025-10-21T13:13:16.111Z",
+    "vin": "aui:asset:vehicle/ec64c899-897c-4e88-801e-12b7995ed05d",
+    "avg_speed": 0.0,
+    "max_speed": 0,
+    "distance_km": 1.0,
+    "duration_sec": 219.851
+  },
+  {
+    "start_time": "2025-10-21T17:31:14.559Z",
+    "end_time": "2025-10-21T17:37:34.096Z",
+    "vin": "aui:asset:vehicle/ec64c899-897c-4e88-801e-12b7995ed05d",
+    "avg_speed": 0.0,
+    "max_speed": 0,
+    "distance_km": 2.0,
+    "duration_sec": 379.537
+  },
+  {
+    "start_time": "2025-10-21T18:14:13.626Z",
+    "end_time": "2025-10-21T18:17:56.243Z",
+    "vin": "aui:asset:vehicle/ec64c899-897c-4e88-801e-12b7995ed05d",
+    "avg_speed": 3.5879630000000007,
+    "max_speed": 8.138889,
+    "distance_km": 2.0,
+    "duration_sec": 222.617
+  },
+  {
+    "start_time": "2025-10-22T00:46:09.060Z",
+    "end_time": "2025-10-22T01:15:14.328Z",
+    "vin": "aui:asset:vehicle/ec64c899-897c-4e88-801e-12b7995ed05d",
+    "avg_speed": 2.9055553333333335,
+    "max_speed": 8.716666,
+    "distance_km": 16.0,
+    "duration_sec": 1745.268
+  },
+  {
+    "start_time": "2025-10-22T11:15:40.207Z",
+    "end_time": "2025-10-22T11:32:57.940Z",
+    "vin": "aui:asset:vehicle/ec64c899-897c-4e88-801e-12b7995ed05d",
+    "avg_speed": 0.07037036999999999,
+    "max_speed": 0.21111111,
+    "distance_km": 10.0,
+    "duration_sec": 1037.733
+  },
+  {
+    "start_time": "2025-10-22T11:49:28.825Z",
+    "end_time": "2025-10-22T12:10:32.833Z",
+    "vin": "aui:asset:vehicle/ec64c899-897c-4e88-801e-12b7995ed05d",
+    "avg_speed": 0.0,
+    "max_speed": 0,
+    "distance_km": 10.0,
+    "duration_sec": 1264.008
+  },
+  {
+    "start_time": "2025-10-22T17:27:29.835Z",
+    "end_time": "2025-10-22T17:32:33.444Z",
+    "vin": "aui:asset:vehicle/ec64c899-897c-4e88-801e-12b7995ed05d",
+    "avg_speed": 3.152777692,
+    "max_speed": 5.6055555,
+    "distance_km": 2.0,
+    "duration_sec": 303.609
+  },
+  {
+    "start_time": "2025-10-22T18:11:03.490Z",
+    "end_time": "2025-10-22T18:12:25.560Z",
+    "vin": "aui:asset:vehicle/ec64c899-897c-4e88-801e-12b7995ed05d",
+    "avg_speed": 0.0,
+    "max_speed": 0,
+    "distance_km": 0.0,
+    "duration_sec": 82.07
+  },
+  {
+    "start_time": "2025-10-22T18:16:44.548Z",
+    "end_time": "2025-10-22T18:23:02.157Z",
+    "vin": "aui:asset:vehicle/ec64c899-897c-4e88-801e-12b7995ed05d",
+    "avg_speed": 3.1990741666666667,
+    "max_speed": 5.388889,
+    "distance_km": 3.0,
+    "duration_sec": 377.609
+  },
+  {
+    "start_time": "2025-10-23T00:41:12.437Z",
+    "end_time": "2025-10-23T01:19:37.012Z",
+    "vin": "aui:asset:vehicle/ec64c899-897c-4e88-801e-12b7995ed05d",
+    "avg_speed": 3.79027789975,
+    "max_speed": 11.830556,
+    "distance_km": 21.0,
+    "duration_sec": 2304.575
+  },
+  {
+    "start_time": "2025-10-24T12:39:40.744Z",
+    "end_time": "2025-10-24T12:42:27.255Z",
+    "vin": "aui:asset:vehicle/ec64c899-897c-4e88-801e-12b7995ed05d",
+    "avg_speed": 2.8657408,
+    "max_speed": 6.516667,
+    "distance_km": 1.0,
+    "duration_sec": 166.511
+  },
+  {
+    "start_time": "2025-10-24T12:45:33.282Z",
+    "end_time": "2025-10-24T12:51:34.078Z",
+    "vin": "aui:asset:vehicle/ec64c899-897c-4e88-801e-12b7995ed05d",
+    "avg_speed": 0.0,
+    "max_speed": 0,
+    "distance_km": 3.0,
+    "duration_sec": 360.796
+  },
+  {
+    "start_time": "2025-10-24T13:13:56.124Z",
+    "end_time": "2025-10-24T13:24:54.055Z",
+    "vin": "aui:asset:vehicle/ec64c899-897c-4e88-801e-12b7995ed05d",
+    "avg_speed": 0.0,
+    "max_speed": 0,
+    "distance_km": 4.0,
+    "duration_sec": 657.931
+  },
+  {
+    "start_time": "2025-10-24T17:06:55.906Z",
+    "end_time": "2025-10-24T17:23:22.506Z",
+    "vin": "aui:asset:vehicle/ec64c899-897c-4e88-801e-12b7995ed05d",
+    "avg_speed": 3.2361109999999997,
+    "max_speed": 5.4166665,
+    "distance_km": 10.0,
+    "duration_sec": 986.6
+  },
+  {
+    "start_time": "2025-10-24T18:07:04.955Z",
+    "end_time": "2025-10-24T18:27:26.780Z",
+    "vin": "aui:asset:vehicle/ec64c899-897c-4e88-801e-12b7995ed05d",
+    "avg_speed": 0.811111025,
+    "max_speed": 3.2444441,
+    "distance_km": 10.0,
+    "duration_sec": 1221.825
+  },
+  {
+    "start_time": "2025-10-25T04:16:14.558Z",
+    "end_time": "2025-10-25T04:16:32.418Z",
+    "vin": "aui:asset:vehicle/ec64c899-897c-4e88-801e-12b7995ed05d",
+    "avg_speed": 0.6842592666666667,
+    "max_speed": 1.3305556,
+    "distance_km": 0.0,
+    "duration_sec": 17.86
+  },
+  {
+    "start_time": "2025-10-25T13:55:54.971Z",
+    "end_time": "2025-10-25T14:01:54.708Z",
+    "vin": "aui:asset:vehicle/ec64c899-897c-4e88-801e-12b7995ed05d",
+    "avg_speed": 0.03518518666666667,
+    "max_speed": 0.05277778,
+    "distance_km": 3.0,
+    "duration_sec": 359.737
+  },
+  {
+    "start_time": "2025-10-25T14:11:36.913Z",
+    "end_time": "2025-10-25T14:24:33.248Z",
+    "vin": "aui:asset:vehicle/ec64c899-897c-4e88-801e-12b7995ed05d",
+    "avg_speed": 0.0,
+    "max_speed": 0,
+    "distance_km": 6.0,
+    "duration_sec": 776.335
+  },
+  {
+    "start_time": "2025-10-25T14:39:17.871Z",
+    "end_time": "2025-10-25T14:56:11.784Z",
+    "vin": "aui:asset:vehicle/ec64c899-897c-4e88-801e-12b7995ed05d",
+    "avg_speed": 0.0,
+    "max_speed": 0,
+    "distance_km": 9.0,
+    "duration_sec": 1013.913
+  },
+  {
+    "start_time": "2025-10-25T17:34:50.983Z",
+    "end_time": "2025-10-25T17:49:01.381Z",
+    "vin": "aui:asset:vehicle/ec64c899-897c-4e88-801e-12b7995ed05d",
+    "avg_speed": 0.0,
+    "max_speed": 0,
+    "distance_km": 1.0,
+    "duration_sec": 850.398
+  }
+]

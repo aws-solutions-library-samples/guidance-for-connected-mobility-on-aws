@@ -1,0 +1,1353 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2018 - 2021 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ *
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ *
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+
+syntax = "proto3";
+
+import "google/protobuf/descriptor.proto";
+import "autonomic/ext/telemetry/well_known_tags.proto";
+
+package autonomic.ext.telemetry.signal;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/telemetry";
+option java_package = "com.autonomic.ext.telemetry.signal";
+option java_outer_classname = "WellKnownSignalProto";
+option java_multiple_files = true;
+
+option cc_enable_arenas = true;
+
+option objc_class_prefix = "AUT";
+
+message SignalDefinition {
+    string description = 1; // description of the signal
+    string implementationDetails = 2;
+    string unit = 3; // units used by the signal.  Should generally be in SI
+    oneof valueType {
+        string value = 4; // the value type of the metric
+        string enumValue = 5; // if the value type is enum_value, specify here which enum_value
+    }
+    repeated TagDefinition tagDefinition = 6;
+
+    // The tagsIdentifyingUniqueInstance field is used to convey that some signals may appear more than once at any point in time.
+    // For example, if there are 4 doors in a vehicle, there can be up to 4 DOOR_STATUS well-known signals that can be surfaced with the same timestamp.
+    // This information is also used by the data dictionary to display the Cardinality column. The definition is mapped to SignalCardinalityDefinition Pojo
+    repeated autonomic.ext.telemetry.tag.WellKnownTag  tagsIdentifyingUniqueInstance = 7;
+}
+
+message TagDefinition {
+    autonomic.ext.telemetry.tag.WellKnownTag name = 1;
+    string value = 2;
+}
+
+
+extend google.protobuf.EnumValueOptions {
+    SignalDefinition signalDefinition = 77000;
+}
+
+// comments informally note many data types and units of measure.
+// see the associated value message for compound data layouts,
+// especially where "associated data" is mentioned.
+//
+// lists of enum values are informal and kept brief,
+// see the appropriate proto file for exact spelling, punctuation,
+// and a complete list of values.
+enum WellKnownSignal {
+    UNKNOWN_SIGNAL = 0;
+
+    // OpenXC signals
+    STEERING_WHEEL_ANGLE = 1; // reserved for future use
+    TORQUE_AT_TRANSMISSION = 2 [(signalDefinition) = {
+        description: "The calculated torque currently being delivered to all the axles at wheel level (sum at all wheels) by the propulsion system."
+        unit: "Nm"
+        value: "DOUBLE_VALUE"
+    }];
+    ENGINE_SPEED = 3 [(signalDefinition) = {
+        description: "Engine speed."
+        unit: "RPM"
+        value: "INT64_VALUE"
+    }];
+    reserved 4;
+    ACCELERATOR_PEDAL_POSITION = 5 [(signalDefinition) = {
+        description: "The position of the accelerator pedal."
+        unit: "%"
+        value: "DOUBLE_VALUE"
+    }];
+    PARKING_BRAKE_STATUS = 6 [(signalDefinition) = {
+        description: "Indicates whether the parking brake is on or off. Brake type is specified with the parking brake type tag."
+        enumValue: "OFF_ON_STATUS"
+        tagDefinition {
+            name: PARKING_BRAKE_TYPE
+            value: "PARKING_BRAKE_TYPE"
+        }
+    }];
+    BRAKE_PEDAL_STATUS = 7 [(signalDefinition) = {
+        description: "Indicates whether the brake pedal is on or off."
+        enumValue: "OFF_ON_STATUS"
+    }];
+    TRANSMISSION_GEAR_POSITION = 8 [deprecated = true, (signalDefinition) = {
+        description: "Position of transmission gear."
+        enumValue: "GEAR_POSITION"
+    }];
+    GEAR_LEVER_POSITION = 9 [(signalDefinition) = {
+        description: "Selected gear lever position."
+        enumValue: "GEAR_POSITION"
+    }];
+    ODOMETER = 10 [(signalDefinition) = {
+        description: "Odometer value."
+        unit : "km"
+        value: "DOUBLE_VALUE"
+    }];
+    IGNITION_STATUS = 11 [(signalDefinition) = {
+        description: "Status of the ignition."
+        enumValue: "IGNITION_STATUS"
+    }];
+    FUEL_LEVEL = 12 [(signalDefinition) = {
+        description : "Fuel level percentage."
+        unit : "%"
+        value: "DOUBLE_VALUE"
+    }];
+    FUEL_CONSUMED_SINCE_RESTART = 13 [deprecated = true];
+    DOOR_STATUS = 14 [(signalDefinition) = { // multiple instances of this signal can be reported for a certain point in time because there can be mulitple doors
+        description: "Status of the door (closed, ajar). "
+        implementationDetails: "Can include tags that indicate which door and an occupant role, if applicable."
+        enumValue: "DOOR_STATUS"
+        tagDefinition {
+            name: VEHICLE_DOOR
+            value: "DOOR_TAG_VALUE"
+        }
+        tagDefinition {
+            name: VEHICLE_OCCUPANT_ROLE
+            value: "OCCUPANT_ROLE_VALUE"
+        }
+        tagDefinition {
+            name: VEHICLE_SIDE
+            value: "VEHICLE_SIDE_VALUE"
+        }
+        tagsIdentifyingUniqueInstance: VEHICLE_DOOR
+        tagsIdentifyingUniqueInstance: VEHICLE_OCCUPANT_ROLE
+        tagsIdentifyingUniqueInstance: VEHICLE_SIDE
+    }];
+    HEADLAMP_STATUS = 15; // reserved for future use
+    HIGH_BEAM_STATUS = 16; // reserved for future use
+    WINDSHIELD_WIPER_STATUS = 17; // reserved for future use (see also WINDSHIELD_WIPER_SPEED)
+
+    // OBD-II signals in OpenXC
+    ENGINE_LOAD = 18;
+    ENGINE_COOLANT_TEMP = 19 [(signalDefinition) = {
+        description: "Engine coolant temperature."
+        unit: "Cel"
+        value: "DOUBLE_VALUE"
+    }];
+    BAROMETRIC_PRESSURE = 20; // reserved for future use
+    COMMANDED_THROTTLE_POSITION = 21; // reserved for future use
+    THROTTLE_POSITION = 22; // reserved for future use
+    INTAKE_AIR_TEMPERATURE = 23; // reserved for future use
+    INTAKE_MANIFOLD_PRESSURE = 24; // reserved for future use
+    RUNNING_TIME = 25;
+    FUEL_PRESSURE = 26; // double value, units are psi
+    MASS_AIRFLOW = 27; // reserved for future use
+    ETHANOL_FUEL_PERCENTAGE = 28 [deprecated = true];
+    ENGINE_OIL_TEMP = 29 [(signalDefinition) = {
+        description: "Engine oil temperature."
+        unit: "Cel"
+        value: "DOUBLE_VALUE"
+    }];
+    ENGINE_TORQUE = 30; // How does this compare against TORQUE_AT_TRANSMISSION
+
+    // Other OBD-II signals
+    VIN = 31 [(signalDefinition) = {
+        description: "The vehicle identification number"
+        value: "STRING_VALUE"
+    }];
+
+    // Autonomic signals
+    // reserved 1000-3000
+    POSITION = 1000 [(signalDefinition) = {
+        description: "Current coordinates, heading, and altitude of the vehicle, and related data."
+        unit: "degrees for Latitude/Longitude, m for Altitude"
+        value: "POSITION_VALUE"
+        tagDefinition {
+          name: SAMPLE_RATE
+          value: "SAMPLE_RATE"
+        }
+        tagDefinition {
+          name: GPS_MODULE_TIMESTAMP
+          value: "TIMESTAMP_VALUE"
+        }
+    }];
+    DOOR_STATE = 1001 [deprecated = true]; // see DOOR_STATUS at 14 above.
+    DOOR_LOCK_STATUS = 1002 [(signalDefinition) = { // multiple instances of this signal can be reported for a certain point in time because there can be mulitple doors
+        description: "Status of the door lock (locked, unlocked)."
+        implementationDetails: "Can include tags that indicate which door and occupant role, if applicable."
+        enumValue: "DOOR_LOCK_STATUS"
+        tagDefinition {
+            name: VEHICLE_DOOR
+            value: "DOOR_TAG_VALUE"
+        }
+        tagDefinition {
+            name: VEHICLE_OCCUPANT_ROLE
+            value: "OCCUPANT_ROLE_VALUE"
+        }
+        tagDefinition {
+            name: VEHICLE_SIDE
+            value: "VEHICLE_SIDE_VALUE"
+        }
+        tagDefinition {
+            name: DETERMINATION_METHOD
+            value: "DETERMINATION_METHOD_VALUE"
+        }
+        tagDefinition {
+            name: DOOR_LATCH_TYPE
+            value: "DOOR_LATCH_TYPE_VALUE"
+        }
+        tagsIdentifyingUniqueInstance: VEHICLE_DOOR
+        tagsIdentifyingUniqueInstance: VEHICLE_OCCUPANT_ROLE
+        tagsIdentifyingUniqueInstance: VEHICLE_SIDE
+    }];
+    WINDOW_POSITION = 1003 [deprecated = true, (signalDefinition) = {
+        description: "Deprecated. Use WINDOW_STATUS."
+        unit: "%"
+        value: "DOUBLE_VALUE"
+    }];
+    WINDOW_LOCK_STATE = 1004;
+    ALARM_STATUS = 1005 [(signalDefinition) = {
+        description: "Status of the vehicle alarm (disarmed, armed, etc)."
+        enumValue: "ALARM_STATUS"
+        tagDefinition {
+            name: ALARM_SOURCE
+            value: "ANTI_THEFT_ALARM_SOURCE"
+        }
+        tagDefinition {
+            name: VEHICLE_DOOR
+            value: "DOOR_TAG_VALUE"
+        }
+        tagDefinition {
+            name: VEHICLE_SIDE
+            value: "VEHICLE_SIDE_VALUE"
+        }
+    }];
+    SEAT_BELT_STATUS = 1006 [(signalDefinition) = { // multiple instances of this signal can be reported for a certain point in time because there can be mulitple seats
+        description: "Status of the seat belt for a specific seat."
+        implementationDetails: "Can include tags that indicate which seat and occupant role, if applicable. Rows start from 1 and increase from front to back. Seats also start from 1 and increase from left to right."
+        enumValue: "SEATBELT_STATUS"
+        tagDefinition {
+            name: POSITION_ROW
+            value: "INTEGER_VALUE"
+        }
+        tagDefinition {
+            name: POSITION_SEAT
+            value: "INTEGER_VALUE"
+        }
+        tagDefinition {
+            name: VEHICLE_OCCUPANT_ROLE
+            value: "OCCUPANT_ROLE_VALUE"
+        }
+        tagsIdentifyingUniqueInstance: POSITION_ROW
+        tagsIdentifyingUniqueInstance: POSITION_SEAT
+        tagsIdentifyingUniqueInstance: VEHICLE_OCCUPANT_ROLE
+    }];
+    HEADLIGHT_STATE = 1007;
+    INDICATOR_LIGHT_STATE = 1008 [deprecated = true];
+    BRAKE_LIGHT_STATUS = 1009 [(signalDefinition) = {
+        description: "Indicates whether the brake lights are on or off."
+        enumValue: "OFF_ON_STATUS"
+    }];
+    WHEEL_ROTATION_SPEED = 1010 [(signalDefinition) = { // multiple instances of this signal can be reported for a certain point in time because there can be mulitple wheels
+        description: "Wheel rotation speed. "
+        implementationDetails: "A tag indicates which wheel."
+        unit: "rps"
+        value: "DOUBLE_VALUE"
+        tagDefinition {
+            name: VEHICLE_WHEEL
+            value: "WHEEL_TAG_VALUE"
+        }
+        tagsIdentifyingUniqueInstance: VEHICLE_WHEEL
+    }];
+    WINDSHIELD_WIPER_SPEED = 1011;  // reserved for future use (Contrast with WINDSHIELD_WIPER_STATUS)
+    TIRE_PRESSURE = 1012 [(signalDefinition) = { // multiple instances of this signal can be reported for a certain point in time because there can be mulitple tires
+        description : "Tire pressure."
+        implementationDetails: "A tag indicates which tire. Tags may also be present reporting the recommended front and rear pressures from the placard."
+        unit : "kPa"
+        value : "DOUBLE_VALUE"
+        tagDefinition {
+            name : VEHICLE_WHEEL
+            value : "WHEEL_TAG_VALUE"
+        }
+        tagDefinition {
+            name : WHEEL_PLACARD_FRONT
+            value :"DOUBLE_VALUE"
+        }
+        tagDefinition {
+            name : WHEEL_PLACARD_REAR
+            value : "DOUBLE_VALUE"
+        }
+        tagsIdentifyingUniqueInstance: VEHICLE_WHEEL
+    }];
+    INTERIOR_TEMPERATURE = 1013;
+    AMBIENT_TEMP = 1014 [(signalDefinition) = {
+        description: "Ambient temperature."
+        unit: "Cel"
+        value: "DOUBLE_VALUE"
+    }];
+    INDICATOR_LIGHT = 1015 [(signalDefinition) = {
+        description: "Indicator light status information. Includes a Diagnostic Trouble Code (DTC) if applicable."
+        implementationDetails: "The SEVERITY_LEVEL tag is used by a small subset of native devices."
+        value: "INDICATOR_VALUE"
+        tagDefinition {
+            name : SEVERITY_LEVEL
+            value : "SEVERITY_LEVEL_VALUE"
+        }
+    }];
+    BULB_STATE = 1016 [deprecated = true];
+    ABS_STATUS = 1017 [(signalDefinition) = {
+        description: "Indicates whether ABS is on or off."
+        enumValue: "OFF_ON_STATUS"
+    }];
+    TRACTION_CONTROL_STATUS = 1018 [(signalDefinition) = {
+        description: "Indicates whether the traction control is on or off. "
+        implementationDetails: "Can include tags that indicate whether other traction control systems are on or off."
+        enumValue: "OFF_ON_STATUS"
+        tagDefinition {
+            name: TRACTION_CONTROL_BRAKE
+            value: "TRACTION_CONTROL_BRAKE_STATUS_TAG_VALUE"
+        }
+        tagDefinition {
+            name: TRACTION_CONTROL_POWERTRAIN
+            value: "TRACTION_CONTROL_POWERTRAIN_TAG_VALUE"
+        }
+        tagsIdentifyingUniqueInstance: VEHICLE_WHEEL
+    }];
+    BRAKE_TORQUE = 1019 [(signalDefinition) = {
+        description: "Brake torque."
+        unit: "n.m"
+        value: "DOUBLE_VALUE"
+    }];
+    HOOD_STATUS = 1020 [(signalDefinition) = {
+        description: "Status of the hood (closed, ajar)."
+        enumValue: "DOOR_STATUS"
+    }];
+    ENGINE_OIL_LEVEL = 1021;    // Absolute engine oil level
+    WHEEL_BRAKE_TORQUE = 1022;
+    SEAT_OCCUPANCY_STATUS = 1023 [(signalDefinition) = { // multiple instances of this signal can be reported for a certain point in time because there can be mulitple seats
+        description : "Indicates whether a specific seat is occupied. Can include tags that indicate which seat and occupant role, if applicable."
+        implementationDetails: "Rows start from 1 and increase from front to back. Seats also start from 1 and increase from left to right."
+        enumValue : "OCCUPANCY_STATUS"
+        tagDefinition  {
+            name : POSITION_ROW
+            value : "INTEGER_VALUE"
+        }
+        tagDefinition  {
+            name : POSITION_SEAT
+            value : "INTEGER_VALUE"
+        }
+        tagDefinition  {
+            name : VEHICLE_OCCUPANT_ROLE
+            value : "OCCUPANT_ROLE_VALUE"
+        }
+        tagsIdentifyingUniqueInstance: POSITION_ROW
+        tagsIdentifyingUniqueInstance: POSITION_SEAT
+        tagsIdentifyingUniqueInstance: VEHICLE_OCCUPANT_ROLE
+    }];
+    OIL_LIFE_REMAINING = 1024 [(signalDefinition) = {
+        description: "Remaining oil life percentage."
+        unit: "%"
+        value: "DOUBLE_VALUE"
+    }];
+    PID_SERIAL_NUMBER = 1025;
+
+    CAN_CLOCK_TIME = 1026;
+    PID_CLOCK_TIME = 1027;
+    GPS_CLOCK_TIME = 1028 [deprecated=true];
+
+    DISPLAY_SYSTEM_OF_MEASURE = 1029 [(signalDefinition) = {
+        description: "Indicates which measurement system is used for in-vehicle display (metric, imperial)."
+        enumValue: "MEASUREMENT_SYSTEM_STATUS"
+    }];
+    BATTERY_VOLTAGE = 1030 [(signalDefinition) = {
+        description: "12V vehicle battery voltage."
+        implementationDetails: "Can include a tag indicating whether the battery is the primary, accessory, or backup battery."
+        unit: "V"
+        value: "DOUBLE_VALUE"
+        tagDefinition {
+            name : VEHICLE_BATTERY
+            value : "BATTERY_TAG_VALUE"
+        }
+        tagsIdentifyingUniqueInstance: VEHICLE_BATTERY
+    }];
+    TRANSMISSION_OIL_TEMPERATURE = 1031[(signalDefinition) = {
+        description: "Transmission oil (transmission fluid) temperature."
+        unit: "Cel"
+        value: "DOUBLE_VALUE"
+    }];
+    TOTAL_ENGINE_TIME = 1032 [(signalDefinition) = {
+        description: "Total engine time over the life of the vehicle."
+        unit: "s"
+        value: "DOUBLE_VALUE"
+    }]; // sometimes called ENGINE_HOURS
+    DIESEL_EXHAUST_FLUID_LEVEL = 1033 [(signalDefinition) = {
+        description: "Diesel exhaust fluid percentage."
+        unit: "%"
+        value: "DOUBLE_VALUE"
+    }];
+    DIESEL_EXHAUST_FLUID_LEVEL_RANGE_REMAINING = 1034 [(signalDefinition) = {
+        description: "Estimated distance before the diesel exhaust fluid runs out."
+        unit: "km"
+        value: "DOUBLE_VALUE"
+        tagDefinition {
+            name: DEF_LEVEL_NAME
+            value: "STRING_VALUE"
+        }
+    }];
+    FUEL_VOLUME = 1035 [(signalDefinition) = {
+        description: "Fuel volume level in the fuel tank."
+        unit: "L"
+        value: "DOUBLE_VALUE"
+    }];
+    HEADING = 1036 [(signalDefinition) = {
+        description: "Vehicle heading information. The heading value can also include the uncertainty, and an indication of the source of the heading estimate."
+        unit: "deg"
+        value: "HEADING_VALUE"
+        tagDefinition {
+          name: SAMPLE_RATE
+          value: "SAMPLE_RATE"
+        }
+        tagDefinition {
+          name: GPS_MODULE_TIMESTAMP
+          value: "TIMESTAMP_VALUE"
+        }
+    }];
+    SPEED = 1037 [(signalDefinition) = {
+        description : "Vehicle speed information. The speed value can also include the uncertainty, and an indication of the source of the speed estimate."
+        unit : "m/s"
+        value : "SPEED_VALUE"
+        tagDefinition {
+          name: SAMPLE_RATE
+          value: "SAMPLE_RATE"
+        }
+        tagDefinition {
+          name: GPS_MODULE_TIMESTAMP
+          value: "TIMESTAMP_VALUE"
+        }
+    }];
+    ACCELERATION = 1038 [(signalDefinition) = {
+        description: "Acceleration measured across 3 axes as well as the sensor type."
+        unit: "m/s^2"
+        value: "THREE_AXIS_VALUE"
+        tagDefinition {
+          name: SAMPLE_RATE
+          value: "SAMPLE_RATE"
+        }
+        tagDefinition {
+          name: GPS_MODULE_TIMESTAMP
+          value: "TIMESTAMP_VALUE"
+        }
+    }];
+    COMPASS_DIRECTION = 1039 [(signalDefinition) = {
+        description: "Compass direction (N, NE, E, etc.)"
+        enumValue: "COMPASS_DIRECTION_STATUS"
+        tagDefinition {
+          name: SAMPLE_RATE
+          value: "SAMPLE_RATE"
+        }
+        tagDefinition {
+          name: GPS_MODULE_TIMESTAMP
+          value: "TIMESTAMP_VALUE"
+        }
+    }];
+    POWER_TAKE_OFF_STATUS = 1040 [(signalDefinition) = {
+        description: "Status of the power take off."
+        enumValue: "POWER_TAKE_OFF_STATUS"
+    }];
+    TRAILER_SWAY_STATUS = 1041 [(signalDefinition) = {
+        description: "Indicates whether trailer sway control is on or off. "
+        enumValue: "OFF_ON_STATUS"
+    }];
+    TOTAL_ENGINE_TIME_IDLE = 1042 [(signalDefinition) = {
+        description: "Total engine idle time over the life of the vehicle."
+        unit: "s"
+        value: "DOUBLE_VALUE"
+    }];
+    TRIP_FUEL_CONSUMED = 1043 [(signalDefinition) = {
+        description: "Fuel consumed since the last ignition on."
+        unit: "l"
+        value: "DOUBLE_VALUE"
+        tagDefinition {
+            name: TRIP_PROGRESS
+            value: "TRIP_PROGRESS_VALUE"
+        }
+    }];
+    TRIP_FUEL_CONSUMED_IDLE = 1044 [(signalDefinition) = {
+        description: "Fuel consumed while idle since the last ignition on."
+        unit: "l"
+        value: "DOUBLE_VALUE"
+        tagDefinition {
+            name: TRIP_PROGRESS
+            value: "TRIP_PROGRESS_VALUE"
+        }
+    }];
+    TRIP_MAXIMUM_SPEED = 1045 [(signalDefinition) = {
+        description: "Maximum speed recorded since the last igntion on."
+        unit: "m/s"
+        value: "DOUBLE_VALUE"
+        tagDefinition {
+            name: TRIP_PROGRESS
+            value: "TRIP_PROGRESS_VALUE"
+        }
+    }];
+    TRIP_DISTANCE_ACCUMULATED = 1046 [(signalDefinition) = {
+        description: "Distance traveled since the last ignition on."
+        unit: "km"
+        value: "DOUBLE_VALUE"
+        tagDefinition {
+            name: TRIP_PROGRESS
+            value: "TRIP_PROGRESS_VALUE"
+        }
+    }];
+    DIESEL_EXHAUST_FLUID_RESTART_REMAINING = 1047 [deprecated=true, (signalDefinition) = {
+        description: "Deprecated."
+        value: "INT64_VALUE"
+    }];
+    DIESEL_EXHAUST_FILTER_STATUS = 1048 [(signalDefinition) = {
+        description: "Status of the diesel exhaust filter."
+        implementationDetails: "Can include tags containing the status of related components."
+        enumValue: "DIESEL_EXHAUST_FILTER"
+        tagDefinition {
+            name: DIESEL_EXHAUST_FILTER_SYSTEM_COMPONENT
+            value: "DIESEL_EXHAUST_FILTER_SYSTEM_COMPONENT"
+        }
+        tagDefinition {
+            name: DIESEL_EXHAUST_FILTER_CLEANING
+            value: "DIESEL_EXHAUST_FILTER_CLEANING"
+        }
+    }];
+    WHEEL_TORQUE_STATUS = 1049 [(signalDefinition) = {
+        description: "Indicates whether wheels are getting torque through the powertrain."
+        enumValue: "OFF_ON_STATUS"
+    }];
+    reserved 1050;
+    DIAGNOSTIC_TROUBLE_CODE = 1051 [(signalDefinition) = {
+        description: "Diagnostic Trouble Codes (DTC) are codes that the vehicle's Onboard Diagnostics (OBD) system uses to capture issues on a vehicle. Each code corresponds to a fault detected in the vehicle, and when the vehicle detects an issue, it activates the corresponding trouble code. Each trouble code consists of one letter and four digits, such as P1234."
+        value: "DTC_VALUE"
+    }];
+    WATER_IN_FUEL_STATUS = 1052 [(signalDefinition) = {
+        description: "Indicates whether water has been detected in the fuel tank."
+        enumValue: "WATER_IN_FUEL_STATUS"
+        tagDefinition {
+            name: ENGINE_TYPE
+            value: "ENGINE_TYPE"
+        }
+    }];
+    DIESEL_EXHAUST_FLUID_QUALITY_STATUS = 1053 [(signalDefinition) = {
+        description: "Quality of exhaust fluid."
+        enumValue: "DIESEL_EXHAUST_FLUID_QUALITY_STATUS"
+    }];
+    GEOFENCE = 1054; // See "Geofence" message for details.
+    ACCELERATOR_PEDAL_STATUS = 1055 [(signalDefinition) = {
+        description: "Accelerator pedal status (e.g. without driving force, with driving force)."
+        enumValue: "ACCELERATOR_PEDAL_STATUS"
+    }];
+    DIESEL_EXHAUST_FLUID_LEVEL_STATUS = 1056 [(signalDefinition) = {
+        description: "Warning messages about the exhaust fluid level."
+        enumValue: "DIESEL_EXHAUST_FLUID_LEVEL_STATUS"
+        tagDefinition {
+            name: WARNING_LEVEL
+            value: "STRING_VALUE"
+        }
+    }];
+    DIESEL_EXHAUST_FLUID_LEVEL_SPEED_LIMIT = 1057 [(signalDefinition) = {
+        description: "Max speed limitation due to the exhaust fluid level."
+        unit: "m/s"
+        value: "DOUBLE_VALUE"
+    }];
+    reserved 1058;
+    FUEL_PRESSURE_STATUS = 1059 [deprecated = true]; // Whether or not the fuel pressure is lower than a given threshold
+    DIESEL_EXHAUST_FLUID_SYSTEM_STATUS = 1060 [(signalDefinition) = {
+        description: "Status of the diesel fluid system."
+        enumValue: "DIESEL_EXHAUST_FLUID_SYSTEM_STATUS"
+    }];
+    DIESEL_PARTICULATE_FILTER_SOOT_LEVEL = 1061 [(signalDefinition) = {
+        description: "Diesel particulate filter soot percentage level."
+        unit: "%"
+        value: "DOUBLE_VALUE"
+    }];
+    DIESEL_EXHAUST_FILTER_AUTOMATIC_CLEAN_STATUS = 1062 [(signalDefinition) = {
+        description: "Operation mode of the automatic filter cleaner."
+        enumValue: "DIESEL_EXHAUST_FILTER_AUTOMATIC_CLEAN_STATUS"
+    }];
+    DIESEL_EXHAUST_FILTER_MANUAL_REGENERATION_STATUS = 1063 [(signalDefinition) = {
+        description: "Manual Diesel Particulate Filter (DPF) regeneration status."
+        enumValue: "DIESEL_EXHAUST_FILTER_MANUAL_REGENERATION_STATUS"
+    }];
+    ANONYMITY_STATUS = 1064 [(signalDefinition) = {
+        description: "Indicates anonymity status of vehicle data reported."
+        enumValue: "OFF_ON_STATUS"
+    }];
+    WINDOW_STATUS = 1065 [(signalDefinition) = { // multiple instances of this signal can be reported for a certain point in time because there can be mulitple windows
+        description: "Window open expressed as a percentage range."
+        implementationDetails: "Can include tags that indicate which window and occupant role, if applicable."
+        unit: "%"
+        value: "RANGE"
+        tagDefinition {
+            name: VEHICLE_WINDOW
+            value: "WINDOW_TAG_VALUE"
+        }
+        tagDefinition {
+            name: VEHICLE_OCCUPANT_ROLE
+            value: "OCCUPANT_ROLE_VALUE"
+        }
+        tagDefinition {
+            name: VEHICLE_SIDE
+            value: "VEHICLE_SIDE_VALUE"
+        }
+        tagsIdentifyingUniqueInstance: VEHICLE_WINDOW
+        tagsIdentifyingUniqueInstance: VEHICLE_OCCUPANT_ROLE
+        tagsIdentifyingUniqueInstance: VEHICLE_SIDE
+    }];
+    BATTERY_POWER_SOURCE = 1066 [(signalDefinition) = {
+        description: "Indicates whether the battery power source is the main battery or the backup battery."
+        enumValue: "POWER_SOURCE"
+    }];
+    ANTENNA_SOURCE = 1067 [(signalDefinition) = {
+        description: "Indicates whether the primary or backup antenna is being used."
+         implementationDetails: "Can include a tag that indicates the antenna type."
+        enumValue: "ANTENNA_SOURCE"
+        tagDefinition {
+            name: ANTENNA_TYPE
+            value: "ANTENNA_TYPE_VALUE"
+        }
+    }];
+    BATTERY_STATUS = 1068 [(signalDefinition) = {
+        description: "Status of the battery."
+        implementationDetails: "Can include tags indicating whether the battery is the primary, accessory, or backup battery, as well as the id associated with that battery, if applicable."
+        enumValue: "BATTERY_STATUS"
+        tagDefinition {
+            name: VEHICLE_BATTERY
+            value: "BATTERY_TAG_VALUE"
+        }
+        tagDefinition {
+            name: BATTERY_ID
+            value: "STRING_VALUE"
+        }
+        tagsIdentifyingUniqueInstance: VEHICLE_BATTERY
+        tagsIdentifyingUniqueInstance: BATTERY_ID
+    }];
+    ENGINE_AUTOMATIC_SHUTDOWN_STATUS = 1069 [(signalDefinition) = {
+        description: "The engine's automatic shutdown status."
+        enumValue: "ENGINE_AUTOMATIC_SHUTDOWN_STATUS"
+        tagDefinition {
+           name: ENGINE_TYPE
+           value: "ENGINE_TYPE"
+        }
+        tagDefinition {
+           name: ENGINE_AUTOMATIC_STOP_REASON
+           value: "SHUTDOWN_REASON"
+        }
+    }];
+    ENGINE_EXHAUST_OVERHEAT = 1070 [(signalDefinition) = {
+        description: "Indicates whether the engine exhaust is overheating."
+        enumValue: "OFF_ON_STATUS"
+        tagDefinition {
+          name: ENGINE_TYPE
+          value: "ENGINE_TYPE"
+        }
+        tagDefinition {
+          name: ENGINE_AUTOMATIC_STOP_REASON
+          value: "SHUTDOWN_REASON"
+        }
+    }];
+    DRIVER_ALERTNESS_WARNING_STATUS = 1071 [(signalDefinition) = {
+      description: "Indicates if the driver alertness warning is active or inactive."
+      enumValue: "ACTIVE_INACTIVE_STATUS"
+    }];
+    YAW_RATE = 1072 [(signalDefinition) = {
+      description: "Yaw velocity."
+      unit: "deg/s"
+      value: "DOUBLE_VALUE"
+      tagDefinition {
+          name: GPS_MODULE_TIMESTAMP
+          value: "TIMESTAMP_VALUE"
+        }
+
+    }];
+    STOP_START_MODE_STATUS = 1073 [(signalDefinition) = {
+        description : "Indicates whether stop start mode is on or off."
+        enumValue : "OFF_ON_STATUS"
+    }];
+    ELECTRONIC_STABILITY_CONTROL_STATUS = 1074 [(signalDefinition) = {
+      description: "Indicates whether the electronic stability control is on or off."
+      enumValue: "OFF_ON_STATUS"
+    }];
+    LOW_SPEED_COLLISION_MITIGATION_STATUS = 1075 [(signalDefinition) = {
+            description: "Indicates whether the vehicle is automatically attempting to mitigate collision by breaking."
+            enumValue: "OFF_ON_STATUS"
+    }];
+    LOW_SPEED_COLLISION_MITIGATION_SYSTEM_STATUS = 1076 [(signalDefinition) = {
+            description: "Indicates whether the low speed collision mitigation system is active or inactive."
+            enumValue: "ACTIVE_INACTIVE_STATUS"
+    }];
+    FORWARD_COLLISION_AUDIO_WARNING_STATUS = 1077 [(signalDefinition) = {
+      description: "Indicates whether the forward collision audio warning is on or off."
+      enumValue : "OFF_ON_STATUS"
+    }];
+    FORWARD_COLLISION_WARNING_SYSTEM_STATUS = 1078 [(signalDefinition) = {
+      description: "Indicates whether the forward collision warning system is active or inactive."
+      enumValue : "ACTIVE_INACTIVE_STATUS"
+    }];
+    OUTSIDE_TEMPERATURE = 1079 [(signalDefinition) = {
+           description: "Outside temperature reported by the vehicle."
+            unit: "Cel"
+            value: "DOUBLE_VALUE"
+    }];
+    BATTERY_STATE_OF_CHARGE = 1080 [(signalDefinition) = {
+        description: "The state of charge of the 12V battery."
+        implementationDetails: "Can include a tag indicating whether the battery is the primary, accessory, or backup battery."
+        unit: "%"
+        value: "DOUBLE_VALUE"
+        tagDefinition {
+            name: VEHICLE_BATTERY
+            value: "BATTERY_TAG_VALUE"
+        }
+        tagsIdentifyingUniqueInstance: VEHICLE_BATTERY
+    }];
+    CONFIGURATION = 1081 [(signalDefinition) = {
+      description: "Indicates a vehicle configuration. The configuration value specifies the type and value of the configuration."
+      value: "CONFIGURATION_VALUE"
+    }];
+    VEHICLE_LIFE_CYCLE_MODE = 1082 [(signalDefinition) = {
+      description: "Indicates life cycle mode of a vehicle."
+      enumValue: "VEHICLE_LIFE_CYCLE_MODE"
+    }];
+    LANE_KEEPING_ASSIST_SYSTEM_STATUS = 1083 [(signalDefinition) = {
+      description: "Indicates that the lane keeping assistance feature is active or inactive."
+      enumValue: "ACTIVE_INACTIVE_STATUS"
+    }];
+    BATTERY_LOAD_STATUS = 1084 [(signalDefinition) = {
+      description: "Indicates current state of the 12v battery load. Load signifies the power currently being drawn from the battery by accessories within the vehicle"
+      enumValue: "BATTERY_LOAD_STATUS"
+      tagDefinition {
+        name: BATTERY_LOAD_FAULT
+        value: "BATTERY_LOAD_FAULT_TAG_VALUE"
+      }
+      tagDefinition {
+        name: VEHICLE_BATTERY
+        value: "BATTERY_TAG_VALUE"
+      }
+      tagsIdentifyingUniqueInstance : VEHICLE_BATTERY
+    }];
+    ELECTRONIC_STABILITY_CONTROL_SYSTEM_STATUS = 1085 [(signalDefinition) = {
+      description: "Indicates if the Electronic Stability Control System is active or inactive"
+      enumValue: "ACTIVE_INACTIVE_STATUS"
+    }];
+    PANIC_ALARM_STATUS = 1086 [(signalDefinition) = {
+        description: "Indicates whether the panic alarm is on or off."
+        enumValue: "OFF_ON_STATUS"
+    }];
+
+    ENGINE_STATUS = 1300 [(signalDefinition) = {
+      description: "Status of the engine."
+      implementationDetails: "Can include a tag that indicates engine type."
+      enumValue: "ENGINE_STATUS"
+      tagDefinition {
+        name: ENGINE_TYPE
+        value: "ENGINE_TYPE"
+      }
+    }];
+    ELECTRIC_MACHINE_CONTROLLER_TEMP = 1301 [deprecated = true, (signalDefinition) = {
+        description: "Deprecated."
+        unit: "degrees Celsius"
+        value: "DOUBLE_VALUE"
+        tagDefinition {
+            name: ELECTRIC_MACHINE_ID
+            value: "STRING_VALUE"
+        }
+    }];
+    ELECTRIC_MACHINE_CURRENT = 1302 [deprecated = true, (signalDefinition) = {
+        description: "Deprecated."
+        unit: "A"
+        value: "DOUBLE_VALUE"
+        tagDefinition {
+            name: ELECTRIC_MACHINE_ID
+            value: "STRING_VALUE"
+        }
+    }];
+    ELECTRIC_MACHINE_VOLTAGE = 1303 [deprecated = true, (signalDefinition) = {
+        description: "Deprecated."
+        unit: "volts"
+        value: "DOUBLE_VALUE"
+        tagDefinition {
+            name: ELECTRIC_MACHINE_ID
+            value: "STRING_VALUE"
+        }
+    }];
+    ELECTRIC_MACHINE_SPEED = 1304 [deprecated = true, (signalDefinition) = {
+        description: "Deprecated."
+        unit: "radians per second"
+        value: "DOUBLE_VALUE"
+        tagDefinition {
+            name: ELECTRIC_MACHINE_ID
+            value: "STRING_VALUE"
+        }
+    }];
+    ELECTRIC_MACHINE_STATUS = 1305 [deprecated = true, (signalDefinition) = {
+        description: "Deprecated."
+        enumValue: "ELECTRIC_MACHINE_STATUS"
+    }];
+    ELECTRIC_MACHINE_TEMP = 1306 [deprecated = true, (signalDefinition) = {
+        description: "Deprecated."
+        unit: "celsius"
+        value: "DOUBLE_VALUE"
+        tagDefinition {
+            name: ELECTRIC_MACHINE_ID
+            value: "STRING_VALUE"
+        }
+    }];
+    ELECTRIC_MACHINE_TORQUE = 1307 [deprecated = true, (signalDefinition) = {
+        description: "Deprecated."
+        unit: "newton meters"
+        value: "DOUBLE_VALUE"
+        tagDefinition {
+            name: ELECTRIC_MACHINE_ID
+            value: "STRING_VALUE"
+        }
+    }];
+    EV_BATTERY_CHARGE_DISPLAY_STATUS = 1308 [deprecated = true, (signalDefinition) = {
+      description: "Deprecated. Status of the battery charge displayed in the vehicle"
+      enumValue: "EV_BATTERY_CHARGE_DISPLAY_STATUS"
+    }];
+    EV_BATTERY_CHARGE_STATUS = 1309 [deprecated = true, (signalDefinition) = {
+      description: "Deprecated. Status of how the electric vehicle is being charged"
+      enumValue: "EV_BATTERY_CHARGE_STATUS"
+    }];
+    EV_BATTERY_INSULATING_RESISTANCE = 1310 [deprecated = true, (signalDefinition) = {
+      description: "Deprecated. Insulating resistance in double precision, ohm"
+      unit: "ohm"
+      value: "DOUBLE_VALUE"
+    }];
+    EV_BATTERY_LEVEL = 1311 [deprecated = true, (signalDefinition) = {
+      description: "Deprecated. Please use XEV_BATTERY_STATE_OF_CHARGE"
+      unit: "%"
+      value: "DOUBLE_VALUE"
+    }];
+    EV_BATTERY_RANGE = 1312 [deprecated = true, (signalDefinition) = {
+      description: "Deprecated. Please use XEV_BATTERY_RANGE."
+      unit: "km"
+      value: "DOUBLE_VALUE"
+    }];
+    EV_BATTERY_TIME_TO_TARGET_CHARGE = 1313 [deprecated = true, (signalDefinition) = {
+      description: "Deprecated. Estimated time to target charge."
+      unit: "min"
+      value: "DOUBLE_VALUE"
+    }];
+    EV_BATTERY_TOTAL_CURRENT = 1314 [deprecated = true, (signalDefinition) = {
+      description: "Deprecated. Battery current in double precision, ampere"
+      unit: "amp"
+      value: "DOUBLE_VALUE"
+    }];
+    EV_BATTERY_TOTAL_VOLTAGE = 1315 [deprecated = true, (signalDefinition) = {
+      description: "Deprecated. Battery voltage in double precision, voltage"
+      unit: "V"
+      value:"DOUBLE_VALUE"
+    }];
+    EV_DC_POWER_SOURCE_STATUS = 1316 [deprecated = true, (signalDefinition) = {
+      description: "Deprecated. Status of the electric vehicle's DC power source"
+      enumValue: "EV_DC_POWER_SOURCE_STATUS"
+    }];
+    EV_OPERATION_MODE = 1317 [deprecated = true, (signalDefinition) = {
+      description: "Deprecated. The mode the electric vehicle is operating in"
+      enumValue: "EV_OPERATION_MODE"
+    }];
+    EV_PLUG_CHARGER_STATUS = 1318 [deprecated = true, (signalDefinition) = {
+      description: "Deprecated. Please use XEV_PLUG_CHARGER_STATUS."
+      enumValue: "EV_PLUG_CHARGER_STATUS"
+    }];
+
+    FUEL_ECONOMY = 1319 [deprecated = true, (signalDefinition) = {
+      description: "Deprecated. Please use TRIP_FUEL_ECONOMY."
+      unit: "L/100km"
+      value: "DOUBLE_VALUE"
+    }];
+    FUEL_RANGE = 1320 [(signalDefinition) = {
+      description : "Fuel range in double precision, kilometers"
+      unit: "km"
+      value: "DOUBLE_VALUE"
+    }];
+
+    HYBRID_VEHICLE_MODE_STATUS = 1321 [(signalDefinition) = {
+        description: "Operating mode of the hybrid vehicle."
+        enumValue: "HYBRID_VEHICLE_MODE_STATUS"
+    }];
+
+    EV_BATTERY_PACKAGE_STATUS = 1322 [deprecated = true, (signalDefinition) = {
+        description: "Deprecated. Status of EV battery package"
+        value: "EV_BATTERY_PACKAGE_STATUS"
+    }];
+    EV_BATTERY_CELL_STATUS = 1324 [deprecated = true, (signalDefinition) = {
+        description: "Deprecated. Status of EV battery cell"
+        value: "EV_BATTERY_CELL_STATUS"
+    }];
+    EV_BATTERY_PROBE_STATUS = 1326 [deprecated = true, (signalDefinition) = {
+        description: "Deprecated. Status of EV battery probe"
+        value: "EV_BATTERY_PROBE_STATUS"
+    }];
+    ELECTRIC_MACHINE_STATE = 1328 [deprecated = true, (signalDefinition) = {
+        description: "Deprecated. Status of electric machine"
+        value: "ELECTRIC_MACHINE_STATE"
+    }];
+
+    UPFITTER_DIGITAL_INPUT_STATUS = 1329 [(signalDefinition) = { // multiple instances of this signal can be reported for a certain point in time because there can be mulitple ports
+        description: "Indicates whether the upfitter module digital input is on or off. "
+        implementationDetails: "Can include a tag that indicates the upfitter port ID."
+        enumValue: "OFF_ON_STATUS"
+        tagDefinition {
+            name: UPFITTER_PORT_ID
+            value: "STRING_VALUE"
+        }
+        tagsIdentifyingUniqueInstance: UPFITTER_PORT_ID
+    }];
+    UPFITTER_DIGITAL_HIGH_OUTPUT_STATUS = 1330 [(signalDefinition) = { // multiple instances of this signal can be reported for a certain point in time because there can be mulitple ports
+        description: "Indicates whether the upfitter digital high output is on or off. "
+        implementationDetails: "Can include a tag that indicates the upfitter port ID."
+        enumValue: "OFF_ON_STATUS"
+        tagDefinition {
+            name: UPFITTER_PORT_ID
+            value: "STRING_VALUE"
+        }
+        tagsIdentifyingUniqueInstance: UPFITTER_PORT_ID
+    }];
+    UPFITTER_DIGITAL_LOW_OUTPUT_STATUS = 1331 [(signalDefinition) = { // multiple instances of this signal can be reported for a certain point in time because there can be mulitple ports
+        description: "Indicates whether the upfitter digital low output is on or off. "
+        implementationDetails: "Can include a tag that indicates the upfitter port ID."
+        enumValue: "OFF_ON_STATUS"
+        tagDefinition {
+            name: UPFITTER_PORT_ID
+            value: "STRING_VALUE"
+        }
+        tagsIdentifyingUniqueInstance: UPFITTER_PORT_ID
+    }];
+    UPFITTER_ANALOG_INPUT_VOLTAGE = 1332 [(signalDefinition) = { // multiple instances of this signal can be reported for a certain point in time because there can be mulitple ports
+        description: "Upfitter analog input voltage."
+        implementationDetails: "Can include a tag that indicates the upfitter port ID."
+        unit: "V"
+        value: "DOUBLE_VALUE"
+        tagDefinition {
+            name: UPFITTER_PORT_ID
+            value: "STRING_VALUE"
+        }
+        tagsIdentifyingUniqueInstance: UPFITTER_PORT_ID
+    }];
+
+    reserved 1333; //
+    EV_BATTERY_TIME_TO_FULL_CHARGE = 1334 [deprecated = true, (signalDefinition) = {
+        description: "Deprecated. Use XEV_BATTERY_TIME_TO_FULL_CHARGE"
+        unit : "min"
+        value : "DOUBLE_VALUE"
+    }];
+    TRIP_FUEL_ECONOMY = 1335 [(signalDefinition) = {
+        description: "Fuel economy since the last ignition on."
+        unit: "L/100km"
+        value: "DOUBLE_VALUE"
+        tagDefinition {
+            name: TRIP_PROGRESS
+            value: "TRIP_PROGRESS_VALUE"
+        }
+    }];
+    DOOR_PRESENCE_STATUS = 1336 [(signalDefinition) = {
+        description: "Indicates whether the specified door is present or not. "
+        implementationDetails: "Can include tags that indicate which door and an occupant role, if applicable. Multiple instances of this signal can be reported for a certain point in time because there can be mulitple doors."
+        enumValue: "DOOR_PRESENCE_STATUS"
+        tagDefinition {
+            name: VEHICLE_DOOR
+            value: "DOOR_TAG_VALUE"
+        }
+        tagDefinition {
+            name: VEHICLE_OCCUPANT_ROLE
+            value: "OCCUPANT_ROLE_VALUE"
+        }
+        tagDefinition {
+            name: VEHICLE_SIDE
+            value: "VEHICLE_SIDE_VALUE"
+        }
+        tagsIdentifyingUniqueInstance: VEHICLE_DOOR
+        tagsIdentifyingUniqueInstance: VEHICLE_OCCUPANT_ROLE
+        tagsIdentifyingUniqueInstance: VEHICLE_SIDE
+    }];
+
+    // signals related to consumer application (e.g. commands & controls, in-vehicle experiences), range from 1400 - 1500
+    REMOTE_START_COUNTDOWN_TIMER = 1400 [(signalDefinition) = {
+        description : "After remote start command issued, if the user does not key-on the vehicle within a set amount of time, the engine will shut down. This value represents how much time remains before the engine shuts down."
+        unit : "s"
+        value : "DOUBLE_VALUE"
+    }];
+    CLIMATE_CONTROL = 1401 [(signalDefinition) = { // multiple instances of this signal can be reported for a certain point in time because there can be multiple occupant roles
+        description: "Information regarding the climate control system. Can include a tag indicating occupant role, if applicable."
+        value: "CLIMATE_CONTROL_VALUE"
+        tagDefinition {
+            name: VEHICLE_OCCUPANT_ROLE
+            value: "OCCUPANT_ROLE_VALUE"
+        }
+        tagsIdentifyingUniqueInstance: VEHICLE_OCCUPANT_ROLE
+    }];
+    HANDS_OFF_WHEEL_WARNING_STATUS = 1402 [(signalDefinition) = {
+      description: "Indicates whether the hands off the wheel warning system is active or inactive."
+      implementationDetails: "Can include tags that indicate whether audio and/or visual warnings are also on or off."
+      enumValue: "ACTIVE_INACTIVE_STATUS"
+      tagDefinition {
+        name: HANDS_OFF_WHEEL_VISUAL_WARNING
+        value: "HANDS_OFF_WHEEL_WARNING_TYPE_VALUE"
+      }
+      tagDefinition {
+        name: HANDS_OFF_WHEEL_AUDIO_WARNING
+        value: "HANDS_OFF_WHEEL_WARNING_TYPE_VALUE"
+      }
+    }];
+    BLIND_SPOT_WARNING_STATUS = 1403 [deprecated = true]; // See "OffOnStatus" for details
+    BLIND_SPOT_WARNING_SYSTEM_STATUS = 1404 [(signalDefinition) = {
+        description: "Indicates whether the blind spot warning system is active or inactive."
+        implementationDetails: "Can include a tag that indicates the monitor coverage type."
+        enumValue: "ACTIVE_INACTIVE_STATUS"
+        tagDefinition {
+            name: MONITOR_COVERAGE_TYPE
+            value: "MONITOR_COVERAGE_TAG_VALUE"
+        }
+    }];
+    REAR_CROSS_WARNING_SYSTEM_STATUS = 1405 [(signalDefinition) = {
+        description: "Indicates whether the rear cross warning system is active or inactive."
+        enumValue: "ACTIVE_INACTIVE_STATUS"
+    }];
+    REMOTE_START_DEVICE_STATUS = 1406 [(signalDefinition) = {
+        description: "Operating status of the remote start device."
+        enumValue: "REMOTE_START_DEVICE_STATUS"
+    }];
+    HARSH_CORNERING_MAXIMUM_ACCELERATION = 1407 [(signalDefinition) = {
+        description: "Maximum lateral acceleration recorded during a harsh cornering event."
+        unit : "m/s^2"
+        value : "DOUBLE_VALUE"
+    }];
+    BLUETOOTH_PHONE_SYSTEM_STATUS= 1408 [(signalDefinition) = {
+        description: "Status of the Bluetooth phone system and phone call."
+        enumValue: "BLUETOOTH_PHONE_SYSTEM_STATUS"
+        tagDefinition {
+            name: BLUETOOTH_PHONE_CALL_TYPE
+            value: "BLUETOOTH_PHONE_CALL_TYPE_VALUE"
+        }
+        tagDefinition {
+            name: BLUETOOTH_PHONE_CALL_STATUS
+            value: "BLUETOOTH_PHONE_CALL_STATUS_VALUE"
+        }
+    }];
+    IN_VEHICLE_AUDIO_SYSTEM_VOLUME_LEVEL = 1409 [(signalDefinition) = {
+        description: "Indicates volume level of the in-vehicle audio system."
+        unit: "%"
+        value: "DOUBLE_VALUE"
+    }];
+    UPFITTER_PWM_HIGH_OUTPUT_DUTY_CYCLE_TARGET = 1410 [(signalDefinition) = {
+        description: "The configured duty cycle of an upfitter high-side pin output signal."
+        implementationDetails: "If there is a device failure, an ErrorMetric will be present rather than the double percentage value."
+        unit: "%"
+        value: "DOUBLE_VALUE"
+        tagDefinition {
+            name: UPFITTER_PORT_ID
+            value: "STRING_VALUE"
+        }
+        tagsIdentifyingUniqueInstance: UPFITTER_PORT_ID
+    }];
+
+    UPFITTER_PWM_LOW_OUTPUT_DUTY_CYCLE_TARGET = 1411 [(signalDefinition) = {
+        description: "The configured duty cycle of an upfitter ground signal (low-side) PWM output signal."
+        implementationDetails: "If there is a device failure, an ErrorMetric will be present rather than the double percentage value."
+        unit: "%"
+        value: "DOUBLE_VALUE"
+        tagDefinition {
+          name: UPFITTER_PORT_ID
+          value: "STRING_VALUE"
+        }
+    }];
+
+    UPFITTER_PWM_HBRIDGE_OUTPUT_DUTY_CYCLE_TARGET = 1412 [(signalDefinition) = {
+        description: "The configured duty cycle of an upfitter H-bridge pin output signal."
+        implementationDetails: "If there is a device failure, an ErrorMetric will be present rather than the double percentage value."
+        unit: "%"
+        value: "DOUBLE_VALUE"
+        tagDefinition {
+            name: UPFITTER_PORT_ID
+            value: "STRING_VALUE"
+        }
+    }];
+
+    HARSH_MAXIMUM_LONGITUDINAL_ACCELERATION = 1413 [(signalDefinition) = {
+        description: "Maximum longitudinal acceleration recorded during a harsh acceleration event or a harsh braking event."
+        unit : "m/s^2"
+        value : "DOUBLE_VALUE"
+    }];
+
+    // XEV (PHEV/EV) range 2000-2099
+    XEV_BATTERY_TIME_TO_FULL_CHARGE = 2000[(signalDefinition) = {
+        description: "Estimated time to full charge for an xEV battery"
+        unit: "min"
+        value: "DOUBLE_VALUE"
+    }];
+    XEV_PLUG_CHARGER_STATUS = 2001[(signalDefinition) = {
+        description: "Status of the electric vehicle's charger plug"
+        enumValue: "XEV_PLUG_CHARGER_STATUS"
+    }];
+    XEV_BATTERY_RANGE = 2002 [(signalDefinition) = {
+      description: "Estimated battery range."
+      unit: "km"
+      value: "DOUBLE_VALUE"
+    }];
+    XEV_BATTERY_STATE_OF_CHARGE = 2003 [(signalDefinition) = {
+        description: "State of charge of the xEV battery expressed as a percentage."
+        unit: "%"
+        value: "DOUBLE_VALUE"
+    }];
+    XEV_BATTERY_PERFORMANCE_STATUS = 2004 [(signalDefinition) = {
+        description: "Performance status of the xEV battery."
+        enumValue: "BATTERY_PERFORMANCE_STATUS"
+        tagDefinition {
+            name: BATTERY_PERFORMANCE_CAUSE
+            value: "BATTERY_PERFORMANCE_CAUSE_TAG_VALUE"
+        }
+    }];
+    TRIP_XEV_BATTERY_RANGE_REGENERATED = 2005 [(signalDefinition) = {
+        description: "Estimated battery range that was recovered through regeneration during a trip."
+        unit: "km"
+        value: "DOUBLE_VALUE"
+        tagDefinition {
+            name: TRIP_PROGRESS
+            value: "TRIP_PROGRESS_VALUE"
+        }
+    }];
+    TRIP_XEV_BATTERY_CHARGE_REGENERATED = 2006 [(signalDefinition) = {
+        description: "Estimated electrical charge that was recovered through regeneration during a trip."
+        unit: "%"
+        value: "DOUBLE_VALUE"
+        tagDefinition {
+            name: TRIP_PROGRESS
+            value: "TRIP_PROGRESS_VALUE"
+        }
+    }];
+    XEV_BATTERY_CHARGE_DISPLAY_STATUS = 2007 [(signalDefinition) = {
+        description: "The display that will show the charging status or the use of charge from a charging station."
+        enumValue: "XEV_BATTERY_CHARGE_DISPLAY_STATUS"
+        tagDefinition {
+            name: XEV_CHARGER_POWER_TYPE
+            value: "XEV_CHARGER_POWER_TYPE_VALUE"
+        }
+        tagDefinition {
+            name: XEV_BATTERY_TYPE
+            value: "XEV_BATTERY_TYPE_VALUE"
+        }
+        tagDefinition {
+            name: XEV_CHARGE_STATUS_ORIGIN
+            value: "XEV_CHARGE_STATUS_ORIGIN_VALUE"
+        }
+        tagDefinition {
+            name: XEV_VEHICLE_CONDITIONING_TYPE
+            value: "XEV_VEHICLE_CONDITIONING_TYPE_VALUE"
+        }
+        tagDefinition {
+            name: XEV_CHARGE_ORIGINATOR_TYPE
+            value: "XEV_CHARGE_ORIGINATOR_TYPE_VALUE"
+        }
+    }];
+    XEV_BATTERY_ENERGY_REMAINING = 2008 [(signalDefinition) = {
+      description: "Energy remaining in the electrical battery."
+      unit: "kWh"
+      value: "DOUBLE_VALUE"
+    }];
+    XEV_CHARGE_STATION_POWER_TYPE = 2009 [(signalDefinition) = {
+        description: "The charge power type of the connected charging station."
+        enumValue: "XEV_CHARGE_STATION_POWER_TYPE"
+    }];
+    XEV_CHARGE_STATION_COMMUNICATION_STATUS = 2010 [(signalDefinition) = {
+        description: "The communication status with a charging station."
+        enumValue: "XEV_CHARGE_STATION_COMMUNICATION_STATUS"
+    }];
+    TRIP_XEV_BATTERY_DISTANCE_ACCUMULATED = 2011 [(signalDefinition) = {
+        description: "Distance traveled using only electric energy during a trip."
+        unit: "km"
+        value: "DOUBLE_VALUE"
+        tagDefinition {
+            name: TRIP_PROGRESS
+            value: "TRIP_PROGRESS_VALUE"
+        }
+    }];
+    XEV_BATTERY_TEMPERATURE = 2012 [(signalDefinition) = {
+        description: "The temperature of the electric (HV) battery."
+        unit: "Cel"
+        value: "DOUBLE_VALUE"
+    }];
+    XEV_BATTERY_CHARGER_CURRENT_OUTPUT = 2013 [(signalDefinition) = {
+        description: "Current of electric charge output to the xEV battery from the charger."
+        unit: "amp"
+        value: "DOUBLE_VALUE"
+    }];
+    XEV_BATTERY_CHARGER_VOLTAGE_OUTPUT = 2014 [(signalDefinition) = {
+        description: "Voltage of electric charge output to the xEV battery from the charger."
+        unit: "V"
+        value: "DOUBLE_VALUE"
+    }];
+    XEV_BATTERY_CHARGER_ENERGY_OUTPUT = 2021 [(signalDefinition) = {
+        description: "Energy of electric charge output to the xEV battery from the charger."
+        unit: "kWh"
+        value: "DOUBLE_VALUE"
+    }];
+    XEV_BATTERY_CHARGE_TRANSFER_REASON = 2015 [(signalDefinition) = {
+        description: "The reason for the electric (HV) battery transferring energy to the 12V battery."
+        enumValue: "XEV_BATTERY_CHARGE_TRANSFER_REASON"
+    }];
+    XEV_BATTERY_ACTUAL_STATE_OF_CHARGE = 2016 [(signalDefinition) = {
+        description: "Actual state of charge of the xEV battery expressed as a percentage, which includes upper and lower bounds not included in display of charge."
+        unit: "%"
+        value: "DOUBLE_VALUE"
+    }];
+    XEV_BATTERY_IO_CURRENT = 2017 [(signalDefinition) = {
+        description: "Indicates the input current from the charging circuit to the xEV battery or output current discharged from the xEV battery, measured at the HV battery pack."
+        unit: "amp"
+        value: "DOUBLE_VALUE"
+    }];
+    XEV_BATTERY_VOLTAGE = 2018 [(signalDefinition) = {
+        description: "Indicates the voltage from the charging circuit to the xEV battery measured at the HV battery pack"
+        unit: "V"
+        value: "DOUBLE_VALUE"
+    }];
+    XEV_TRACTION_MOTOR_CURRENT = 2019 [(signalDefinition) = {
+        description: "Indicates the current applied to the traction motor on BEV and PHEV vehicles."
+        unit: "amp"
+        value: "DOUBLE_VALUE"
+    }];
+    XEV_TRACTION_MOTOR_VOLTAGE = 2020 [(signalDefinition) = {
+        description: "Indicates the voltage applied to the traction motor on BEV and PHEV vehicles."
+        unit: "V"
+        value: "DOUBLE_VALUE"
+    }];
+    XEV_EVSE_BATTERY_DC_CURRENT_OUTPUT = 2022 [(signalDefinition) = {
+        description: "DC Current of Battery Charger High Voltage Output as measured by the Charger."
+        unit: "amp"
+        value: "DOUBLE_VALUE"
+    }];
+    XEV_EVSE_BATTERY_DC_VOLTAGE_OUTPUT = 2023 [(signalDefinition) = {
+        description: "DC Voltage of Battery Charger High Voltage Output as measured by the Charger."
+        unit: "V"
+        value: "DOUBLE_VALUE"
+    }];
+    XEV_BATTERY_CAPACITY = 2024 [(signalDefinition) = {
+        description: "Estimated battery capacity"
+        unit: "kWh"
+        value: "DOUBLE_VALUE"
+    }];
+    XEV_BATTERY_MAXIMUM_RANGE = 2025 [(signalDefinition) = {
+        description: "Estimated battery range at full charge"
+        unit: "km"
+        value: "DOUBLE_VALUE"
+    }];
+    // end XEV range 2000-2999
+
+    // Resolution range 3000-4000
+    // use this for signals that HAD conflicts between protos-repo and external-protos
+    TIRE_PRESSURE_STATUS = 3000 [(signalDefinition) = { // multiple instances of this signal can be reported for a certain point in time because there can be mulitple tires
+        description : "Tire pressure status (normal, low, alert)."
+        implementationDetails: "Can include a tag that indicates which tire."
+        enumValue :  "TIRE_PRESSURE_STATUS"
+        tagDefinition {
+            name : VEHICLE_WHEEL
+            value : "WHEEL_TAG_VALUE"
+        }
+        tagsIdentifyingUniqueInstance: VEHICLE_WHEEL
+    }];
+    IMPACT_STATUS = 3001 [(signalDefinition) = {
+        description: "The system effect an impact had on the vehicle."
+        enumValue: "IMPACT_STATUS"
+    }];
+    ENGINE_SERVICE_INDICATOR = 3002;
+    COLLISION_MITIGATION_BRAKE_STATUS = 3004 [(signalDefinition) = {
+      description: "The brake status as a result of a collision mitigation attempt."
+      enumValue: "MITIGATION_BRAKE_STATUS"
+    }];
+    DRIVER_ASSIST_SYSTEM_STATUS = 3005 [(signalDefinition) = {
+      description: "Indicates whether the driver assistance system is on or off."
+      enumValue: "OFF_ON_STATUS"
+    }];
+    VEHICLE_AUDIO_SOURCE = 3006 [(signalDefinition) = {
+            description: "Audio input source of the vehicle."
+            enumValue: "VEHICLE_AUDIO_SOURCE"
+    }];
+    TRAILER_LIGHT_CHECK_STATUS = 3007 [(signalDefinition) = {
+            description: "Status of the trailer light check."
+            implementationDetails: "Can include a tag indicating if any preconditions have failed in order to complete the trailer light check."
+            enumValue: "TRAILER_LIGHT_CHECK_STATUS"
+            tagDefinition {
+                name : PRECONDITION_STATUS
+                value : "PRECONDITION_STATUS_VALUE"
+            }
+            tagDefinition {
+                name : TRAILER_LIGHT_CHECK_PRECONDITION_FAILURE_REASON
+                value : "TRAILER_LIGHT_CHECK_PRECONDITION_FAILURE_REASON_VALUE"
+            }
+    }];
+    TIRE_PRESSURE_SYSTEM_STATUS = 3008 [(signalDefinition) = {
+        description: "Tire pressure system status."
+        enumValue:  "TIRE_PRESSURE_SYSTEM_STATUS"
+        tagDefinition {
+            name: VEHICLE_WHEEL
+            value: "WHEEL_TAG_VALUE"
+        }
+        tagsIdentifyingUniqueInstance: VEHICLE_WHEEL
+    }];
+
+
+    // OEM A signals
+    // reserved 5000-7000
+    F_DRIVER_SCORE = 5000 [deprecated = true];
+    F_SERVICE_REQUIRED = 5001 [deprecated = true];
+    F_DEVICE_AUTHORIZATION_STATUS = 5006 [deprecated = true];
+    F_ABS_INDICATOR = 5500 [deprecated = true];
+    F_FUEL_FILTER_INDICATOR = 5501 [deprecated = true];
+    F_OIL_INDICATOR = 5502 [deprecated = true];
+    F_CHECK_ENGINE_INDICATOR = 5503 [deprecated = true];
+    F_BRAKE_FLUID_INDICATOR = 5504 [deprecated = true];
+    F_POWERTRAIN_INDICATOR = 5505 [deprecated = true];
+    F_TIRE_INDICATOR = 5506 [deprecated = true];
+    F_SERVICE_REQUIRED_INDICATOR = 5507 [deprecated = true];
+    F_AIRBAG_INDICATOR = 5508 [deprecated = true];
+    F_ANTI_THEFT_INDICATOR = 5509 [deprecated = true];
+    F_PARKING_BRAKE_INDICATOR = 5510 [deprecated = true];
+    F_TIRE_PRESSURE_MONITOR_SYSTEM_INDICATOR = 5511 [deprecated = true];
+    F_CHARGE_SYSTEM_INDICATOR = 5512 [deprecated = true];
+    F_TRACTION_CONTROL_INDICATOR = 5513 [deprecated = true];
+    F_RIDE_CONTROL_INDICATOR = 5514 [deprecated = true];
+    F_TRAILER_BRAKE_INDICATOR = 5515 [deprecated = true];
+    F_CRUISE_CONTROL_INDICATOR = 5516 [deprecated = true];
+    F_FUEL_CAP_INDICATOR = 5517 [deprecated = true];
+    F_FUEL_FILL_INLET_INDICATOR = 5518 [deprecated = true];
+    F_FUEL_DOOR_INDICATOR = 5519 [deprecated = true];
+    F_AIR_FILTER_MINDER_INDICATOR = 5520 [deprecated = true];
+    F_PARK_AID_MALFUNCTION_INDICATOR = 5521 [deprecated = true];
+    F_FORWARD_COLLISION_INDICATOR = 5522 [deprecated = true];
+    F_SERVICE_STEERING_INDICATOR = 5523 [deprecated = true];
+    F_PASSIVE_ENTRY_PASSIVE_START_INDICATOR = 5524 [deprecated = true];
+    F_TRAILER_SWAY_ACTIVE_INDICATOR = 5525 [deprecated = true]; // use TRAILER_SWAY_STATUS
+
+
+    // OEM G signals
+    // reserved 9000-11000
+
+    // OEM T signals
+    // reserved 13000-15000
+}

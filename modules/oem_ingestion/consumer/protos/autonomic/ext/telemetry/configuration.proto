@@ -1,0 +1,96 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2020 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ *
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ *
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+
+syntax = "proto3";
+
+package autonomic.ext.telemetry;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/telemetry";
+option java_package = "com.autonomic.ext.telemetry";
+option java_outer_classname = "ConfigurationProto";
+option java_multiple_files = true;
+
+option cc_enable_arenas = true;
+
+option objc_class_prefix = "AUT";
+
+import "autonomic/ext/telemetry/well_known_configuration.proto";
+import "autonomic/ext/telemetry/configurations/vehicle_control_policy.proto";
+import "autonomic/ext/telemetry/configurations/xev_departure_schedule.proto";
+import "autonomic/ext/telemetry/enumerations/forward_collision_warning_sensitivity_setting.proto";
+import "autonomic/ext/telemetry/enumerations/error.proto";
+import "autonomic/ext/telemetry/enumerations/offon_status.proto";
+import "autonomic/ext/common/schedule.proto";
+
+// Represents a single configuration value
+message Configuration {
+
+    oneof configuration_name {
+        WellKnownConfiguration configuration = 1;
+        string string_label = 2;
+    }
+
+    // The value. The type of value used in the request must
+    // agree with the configuration definition in our documentation, otherwise
+    // the configuration may be rejected.
+    oneof value {
+        bool bool_value = 10;
+
+        int64 int64_value = 11;
+
+        double double_value = 12;
+
+        string string_value = 13;
+
+        ConfigurationEnumeration enum_value = 14;
+
+        autonomic.ext.telemetry.configurations.VehicleControlPolicy vehicle_control_policy = 20;
+
+        autonomic.ext.common.schedule.Schedule schedule_value = 21;
+
+        autonomic.ext.telemetry.configurations.XevDepartureSchedules xev_departure_schedules = 22;
+
+        autonomic.ext.telemetry.configurations.DepartureLocation departure_location = 23;
+
+        ErrorConfiguration error_value = 100;
+    }
+}
+
+message ErrorConfiguration {
+
+    autonomic.ext.telemetry.enumerations.error.Error wk_error_name = 1;
+
+    // Custom message to expand on Error
+    string message = 2;
+
+    // See: ErrorSource enum
+    autonomic.ext.telemetry.enumerations.error.ErrorSource source = 3;
+
+    // Capture (if available) the original metric value
+    Configuration source_configuration = 4;
+}
+
+message ConfigurationEnumeration {
+    oneof value {
+        autonomic.ext.telemetry.enumerations.forwardCollisionWarningSensitivitySetting.ForwardCollisionWarningSensitivitySetting forward_collision_warning_sensitivity_setting = 1;
+        autonomic.ext.telemetry.enumerations.offOnStatus.OffOnStatus off_on_status = 2;
+
+    }
+}

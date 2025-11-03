@@ -1,0 +1,138 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2020 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ *
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ *
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+
+syntax = "proto3";
+
+package autonomic.ext.connectivity.deviceconnectivity;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/connectivity";
+option java_package = "com.autonomic.ext.connectivity.deviceconnectivity";
+option java_outer_classname = "DeviceConnectivityProto";
+option java_multiple_files = true;
+
+option cc_enable_arenas = true;
+
+option objc_class_prefix = "AUT";
+
+import "autonomic/ext/common/optional.proto";
+import "autonomic/ext/event/state/device_connectivity.proto";
+import "google/protobuf/timestamp.proto";
+
+// Indicates that a device has connected to or disconnected from a given connectivity source, at a certain time.
+message ConnectivityStateUpdate {
+  ConnectivitySource connectivity_source = 1;
+  ConnectivityState connectivity_state = 2;
+}
+
+// The source from which the connectivity originated.
+// Native indicates a native service like edge-service.
+// Adapter sources encompass a specific set of endpoints at the TMC that do not speak native protos.
+// Cloud Ingest source indicates that the connectivity state update was recieved from an adapter
+// layer via the TMC Cloud Ingest.
+message ConnectivitySource {
+  oneof source {
+    NativeConnectivitySource native = 1;
+    AdapterConnectivitySource adapter = 2;
+    CloudIngestConnectivitySource cloud_ingest = 3;
+    MqttConnectivitySource mqtt = 4;
+  }
+}
+
+message ConnectivityState {
+  // The state which the device entered at the given timestamp - CONNECTED, DISCONNECTED.
+  autonomic.ext.event.state.deviceconnectivity.WellKnownDeviceConnectivityState state = 1;
+  // The time at which the device entered the state.
+  google.protobuf.Timestamp timestamp = 2;
+  //optional - can be set if the device indicates that a certain command should be delivered, if available.
+  string requested_command_uuid = 6;
+
+  autonomic.ext.common.entity.IntOptional message_order_id = 7;
+
+  Metadata metadata = 8;
+}
+
+message Metadata {
+  DisconnectMetadata disconnect_metadata = 1;
+}
+
+message DisconnectMetadata {
+  enum DisconnectReason {
+    UNKNOWN_DISCONNECT_REASON = 0;
+    // graceful
+    CLIENT_DISCONNECT = 1;
+    // ungraceful
+    CONNECTION_LOST = 2;
+    CLIENT_TAKEOVER = 3;
+    IDLE_CLIENT = 4;
+    UNAUTHORIZED_PUBLISHED = 5;
+    SERVER_DISCONNECT = 6;
+  }
+  DisconnectReason reason = 1;
+}
+
+// Emitted by the TMC when a device connects to the native TMC endpoints.
+message NativeConnectivitySource {
+  enum NativeConnectivityEndpoint {
+    UNKNOWN = 0; //will be ignored
+    REGISTER_COMMAND_LISTENER = 1;
+    PUBLISH = 2;
+  }
+  NativeConnectivityEndpoint endpoint = 1;
+}
+
+// Emitted by the TMC when a device connects to a adapter local to the TMC.
+message AdapterConnectivitySource {
+  // Cloud_uri will take the form of "aui:cloud-provider/au/$identifier", where $identifier specifies
+  // the program or OEM specific to the connectivity source.
+  string cloud_uri = 1;
+  enum AdapterConnectivityEndpoint {
+    UNKNOWN = 0; // will be ignored
+    LOG = 1;
+    SCHEMA = 2;
+  }
+  AdapterConnectivityEndpoint source = 2;
+}
+
+// Emitted by clouds that connect via cloud ingest.
+message CloudIngestConnectivitySource {
+  // Cloud_uri will take the form of "aui:cloud-provider/$oem/$identifier" where $oem is the
+  // original equipment manufacturer whose cloud the TMC is ingesting connectivity from, and
+  // $identifier is an optional, additional identifier.
+  string cloud_uri = 1;
+}
+
+// Emitted by the TMC when a device connects to MQTT
+message MqttConnectivitySource {
+  enum MqttConnectivityEndpoint {
+    UNKNOWN = 0; //will be ignored
+    HIVEMQ = 1;
+  }
+
+  MqttConnectivityEndpoint endpoint = 1;
+}
+
+// Device is not connected, but is on and doing stuff
+// Device wants to go into deep sleep state, generates a deep sleep "event" (or FTCP equivelant) with Timestamp t0
+// Device finally is able to connect to the cloud, generates a CONNECTED event with Timestamp t1, FTCP messageId I0
+// Device sends DEEP SLEEP event, I1
+// Device sends event, and then disconnected, generating a DISCONNECTED event with Timestamp t2, I2
+
+// DEEP_SLEEP -> CONNECTED -> DISCONNECTED   # State is DISCONNECTED, based on timestamp ordering t0 -> t1 -> t2
+// CONNECTED -> DEEP_SLEEP -> DISCONNECTED   # State is DEEP SLEEP based on FTCP messageId ordering

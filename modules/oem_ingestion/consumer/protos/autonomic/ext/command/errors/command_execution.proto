@@ -1,0 +1,121 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2017 - 2019 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ * 
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ * 
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+syntax = "proto3";
+
+package autonomic.ext.command.errors;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/command/errors";
+option java_package = "com.autonomic.ext.command.errors";
+option java_outer_classname = "CommandExecutionErrorProto";
+option java_multiple_files = true;
+option cc_enable_arenas = true;
+option objc_class_prefix = "AUT";
+
+import "autonomic/ext/command/errors/hardware_state.proto";
+
+// A command for which all preconditions are satisfied, but one or more errors cause the command
+// to fail on the device. This message allows the device to state which component failed, and
+// oem-specific information about the failure, which can then be handed by the cloud platfrom
+// to calling applications.
+//
+// Note: this file is imported directly by the parent file command_error_data.proto.
+//
+message CommandExecutionFailure {
+
+    // The component where the failure occurred
+    enum ComponentSystem {
+        UNKNOWN_COMPONENT_SYSTEM = 0;
+        COOLING_SYSTEM = 1;
+        MOTOR = 2;
+        DOOR = 3;
+        ANTI_THEFT_SYSTEM = 4;
+    }
+
+    ComponentSystem component_system = 1;
+
+    // oem error code (opaque to au)
+    int32 oem_error_code = 2;
+
+    // oem error context (opaque to au)
+    string oem_error_context = 3;
+
+    // Any component state changes as a result of the command execution attempt
+    // (may not necessarily be the same component as expressed in component_system)
+    PostCommandExecutionComponentStateChanges component_state_changes = 4;
+
+    // one or more reasons why the command failed
+    repeated CommandFailureCause command_failure_cause = 5;
+}
+
+// A component state expresses the change of state of a component after
+// a command execution has been attempted on a vehicle or device.
+message PostCommandExecutionComponentStateChanges {
+
+    // One or more hardware component states which changed as a result
+    // of the command execution attempt
+    repeated HardwareState hardware_state_change = 1;
+}
+
+// Well known failure causes for a command
+message CommandFailureCause {
+
+    oneof type {
+        CommandContentViolation command_content_violation = 1;
+        TargetViolation target_violation = 2;
+        ComponentError component_error = 3;
+        CommunicationError communication_error = 4;
+    }
+
+    enum CommandContentViolation {
+        UNKNOWN_CONTENT_VIOLATION = 0;
+        // Command is unknown
+        UNKNOWN_COMMAND = 1;
+        // Command contained illegal (read-only) content
+        ILLEGAL_COMMAND_CONTENT = 2;
+        // Command contained invalid content
+        INVALID_COMMAND_CONTENT = 3;
+    }
+
+    enum TargetViolation {
+        UNKNOWN_TARGET_VIOLATION = 0;
+        // Command was issued to an invalid target (e.g. component)
+        INVALID_TARGET = 1;
+    }
+
+    enum ComponentError {
+        UNKNOWN_COMPONENT_ERROR = 0;
+        // Command encountered an internal error in a component
+        INTERNAL_COMPONENT_ERROR = 1;
+        // Command encountered a memory error in a component
+        MEMORY_ERROR = 2;
+        // Command encountered an out of memory error in a component
+        OUT_OF_MEMORY_ERROR = 3;
+    }
+
+    enum CommunicationError {
+        UNKNOWN_COMMUNICATION_ERROR = 0;
+        // Command encountered an error establishing a connection
+        CONNECTION_ESTABLISHMENT_ERROR = 1;
+        // Command encountered a connection timeout error
+        CONNECTION_TIMEOUT_ERROR = 2;
+        // Command encountered a communication error by the server
+        SERVER_ERROR = 3;
+    }
+}

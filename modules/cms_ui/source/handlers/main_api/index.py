@@ -5,6 +5,7 @@ import time
 from datetime import datetime, timedelta
 from cache_client import create_cached_dynamodb_client
 from decimal import Decimal
+from event_catalog_helper import enrich_event_with_catalog, normalize_event_response
 
 # Create cached DynamoDB client
 redis_endpoint = os.environ.get('REDIS_ENDPOINT')
@@ -1819,9 +1820,9 @@ def handler(event, context):
                 
                 reverse_sort = sort_order == 'desc'
                 if sort_by == 'createdAt':
-                    vehicles.sort(key=lambda x: x.get('createdAt', ''), reverse=reverse_sort)
+                    vehicles.sort(key=lambda x: str(x.get('createdAt', '')), reverse=reverse_sort)
                 elif sort_by == 'vehicleId':
-                    vehicles.sort(key=lambda x: x.get('vehicleId', ''), reverse=reverse_sort)
+                    vehicles.sort(key=lambda x: str(x.get('vehicleId', '')), reverse=reverse_sort)
                 
                 has_next_page = 'LastEvaluatedKey' in response
                 

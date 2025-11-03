@@ -1,0 +1,73 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2017 - 2018 Autonomic Incorporated - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ *
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ *
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+syntax = "proto3";
+
+package autonomic.ext.command.diagnostic;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/command/diagnostic";
+option java_package = "com.autonomic.ext.command.diagnostic";
+option java_outer_classname = "DiagnosticProto";
+option java_multiple_files = true;
+option cc_enable_arenas = true;
+option objc_class_prefix = "AUT";
+
+import "autonomic/ext/common/optional.proto";
+import "google/protobuf/timestamp.proto";
+
+// A request to put the device into a diagnostic mode and upload results
+message DiagnosticRequest {
+  // type of log to get
+  string log_type = 1;
+  // path to upload the file to in the Byte Stream - this is required unless the report_type is ReportType.INCLUDE_IN_RESPONSE
+  string bytestream_url = 2;
+
+  LogOptions log_options = 3;
+
+  ReportType report_type = 4;
+
+  DiagnosticTrigger diagnostic_trigger = 5;
+
+}
+
+message LogOptions {
+  // time until the first log is generated (unit is opaque to Au)
+  autonomic.ext.common.entity.IntOptional initial_log_delay = 1;
+  // time between log generation (unit is opaque to Au)
+  autonomic.ext.common.entity.IntOptional log_interval = 2;
+  // time logs should be generated for (unit is opaque to Au)
+  autonomic.ext.common.entity.IntOptional max_duration = 3;
+  // maximum number of logs to generate
+  autonomic.ext.common.entity.IntOptional max_log_count = 4;
+}
+
+enum ReportType {
+  UPLOAD_RESULT_TO_URL = 0;
+  INCLUDE_IN_RESPONSE = 1;
+}
+
+message DiagnosticTrigger {
+  int32  target_module_id = 1;
+
+  // diagnostic trigger condition
+  string trigger_condition = 2;
+
+  //time before the diagnostic request expires - if unable to execute
+  google.protobuf.Timestamp trigger_timeout = 3;
+}

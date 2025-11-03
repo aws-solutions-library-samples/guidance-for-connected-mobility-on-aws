@@ -1,0 +1,41 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2024 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ * 
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ * 
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+syntax = "proto3";
+
+package ford.protobuf;
+
+option go_package = "ford/protobuf";
+
+// A UUID encoded in accordance with section 4.1.2 of RFC 4122.
+// Requires 18 bytes on the wire, compared with 38 for a string representation.
+//
+// This type is copied from the protobuf-uuid library, to avoid any external dependencies.
+//
+// Example: 98d154a2-67b6-4deb-b34f-c7ae72b8b511
+// UUID { most_significant_bits:  0x98d154a267b64deb, least_significant_bits: 0xb34fc7ae72b8b511 }
+message UUID {
+  // The most significant 64 bits of the UUID, in big-endian ordering:
+  // time_low (32 bits) | time_mid (16 bits) | time_hi_and_version (16 bits)
+  fixed64 most_significant_bits = 1;
+
+  // The least significant 64 bits of the UUID, in big-endian ordering:
+  // clock_seq_hi_and_reserved (8 bits) | clock_seq_low (8 bits) | node (48 bits)
+  fixed64 least_significant_bits = 2;
+}

@@ -32,6 +32,7 @@ import { SafetyEventLocationModal } from '../../commons/SafetyEventLocationModal
 import TirePressureWidget from './TirePressureWidget';
 import { TripsTable } from '../../commons/TripsTable';
 import { useVehicle } from '../../../contexts/VehicleContext';
+import { VehicleStatusBadge } from './EnrollmentStatusSection';
 import './vehicle-detail-tabs-borderless.css';
 
 interface VehicleMetadata {
@@ -52,6 +53,10 @@ interface VehicleMetadata {
   fuelType?: string;
   status: string;
   vehicleStatus?: string;
+  enrollmentStatus?: string;
+  enrolledAt?: string;
+  activatedAt?: string;
+  lastSeenAt?: string;
   connectionStatus: string;
   activityStatus: string;
   lastConnected: string | null;
@@ -556,8 +561,9 @@ const VehicleDetailView: React.FC = () => {
                         header={<Header variant="h2">Vehicle Information</Header>}
                       >
                         <SpaceBetween size="l">
-                          {/* Vehicle Overview */}
+                          {/* All Vehicle Metadata - 4x4 Grid */}
                           <ColumnLayout columns={4} variant="text-grid">
+                            {/* Row 1 */}
                             <div>
                               <Box variant="awsui-key-label">VIN</Box>
                               <div>{vehicleData.vin || vehicleId}</div>
@@ -574,39 +580,48 @@ const VehicleDetailView: React.FC = () => {
                               <Box variant="awsui-key-label">Color</Box>
                               <div>{vehicleData.color || 'N/A'}</div>
                             </div>
-                            <div>
-                              <Box variant="awsui-key-label">Software Version</Box>
-                              <div>{vehicleData.softwareVersion || vehicleData.software_version || 'v2.4.1'}</div>
-                            </div>
+
+                            {/* Row 2 */}
                             <div>
                               <Box variant="awsui-key-label">Vehicle Type</Box>
                               <div>{vehicleData.vehicle_type || vehicleData.vehicleType || 'N/A'}</div>
                             </div>
                             <div>
-                              <SpaceBetween direction="vertical" size="xs">
-                                <SpaceBetween direction="horizontal" size="xs">
-                                  <Box variant="awsui-key-label">Vehicle Status</Box>
-                                  <Popover
-                                    size="small"
-                                    position="top"
-                                    triggerType="custom"
-                                    dismissButton={false}
-                                    content={
-                                      <div>
-                                        <strong>Active:</strong> Registered & operational<br/>
-                                        <strong>Inactive:</strong> Registered but not operational<br/>
-                                        <strong>Not Registered:</strong> Vehicle exists in system but not yet fully registered for fleet operations
-                                      </div>
-                                    }
-                                  >
-                                    <Button variant="inline-icon" iconName="status-info" />
-                                  </Popover>
-                                </SpaceBetween>
-                                <Badge color={vehicleData.status === 'active' ? 'green' : vehicleData.status === 'inactive' ? 'grey' : 'red'}>
-                                  {vehicleData.status === 'active' ? 'Active' : vehicleData.status === 'inactive' ? 'Inactive' : vehicleData.status || vehicleData.vehicleStatus || 'Unknown'}
-                                </Badge>
-                              </SpaceBetween>
+                              <Box variant="awsui-key-label">Software Version</Box>
+                              <div>{vehicleData.softwareVersion || vehicleData.software_version || 'v2.4.1'}</div>
                             </div>
+                            <div>
+                              <Box variant="awsui-key-label">Fleet</Box>
+                              <div>{vehicleData.fleet_name || vehicleData.fleetName || 'Unassigned'}</div>
+                            </div>
+                            <div>
+                              <Box variant="awsui-key-label">Driver Assigned</Box>
+                              <div>{vehicleData.driver_assigned || vehicleData.driverAssigned || 'Unassigned'}</div>
+                            </div>
+
+                            {/* Row 3 - Status Badges */}
+                            <SpaceBetween direction="vertical" size="xs">
+                              <SpaceBetween direction="horizontal" size="xs">
+                                <Box variant="awsui-key-label">Enrollment Status</Box>
+                                <Popover
+                                  size="small"
+                                  position="top"
+                                  triggerType="custom"
+                                  dismissButton={false}
+                                  content="NOT_ENROLLED → PENDING_ACTIVATION → ENROLLED → ACTIVE → INACTIVE"
+                                >
+                                  <Button variant="inline-icon" iconName="status-info" />
+                                </Popover>
+                              </SpaceBetween>
+                              <Badge color={
+                                vehicleData.enrollmentStatus === 'ACTIVE' ? 'green' :
+                                vehicleData.enrollmentStatus === 'ENROLLED' || vehicleData.enrollmentStatus === 'PENDING_ACTIVATION' ? 'blue' :
+                                vehicleData.enrollmentStatus === 'INACTIVE' ? 'red' : 'grey'
+                              }>
+                                {vehicleData.enrollmentStatus || 'NOT_ENROLLED'}
+                              </Badge>
+                            </SpaceBetween>
+                            <VehicleStatusBadge vehicleStatus={vehicleData.vehicleStatus || vehicleData.status || 'UNKNOWN'} />
                             <div>
                               <SpaceBetween direction="vertical" size="xs">
                                 <SpaceBetween direction="horizontal" size="xs">
@@ -616,18 +631,13 @@ const VehicleDetailView: React.FC = () => {
                                     position="top"
                                     triggerType="custom"
                                     dismissButton={false}
-                                    content={
-                                      <div>
-                                        <strong>Connected:</strong> Vehicle is online & sending data<br/>
-                                        <strong>Disconnected:</strong> Vehicle is offline or not sending data
-                                      </div>
-                                    }
+                                    content="Connected: Online & sending data | Disconnected: Offline"
                                   >
                                     <Button variant="inline-icon" iconName="status-info" />
                                   </Popover>
                                 </SpaceBetween>
                                 <Badge color={vehicleData.connectionStatus === 'connected' ? 'blue' : 'red'}>
-                                  {vehicleData.connectionStatus === 'connected' ? 'Connected' : vehicleData.connectionStatus === 'disconnected' ? 'Disconnected' : vehicleData.connectionStatus || 'Unknown'}
+                                  {vehicleData.connectionStatus === 'connected' ? 'Connected' : 'Disconnected'}
                                 </Badge>
                               </SpaceBetween>
                             </div>
@@ -640,152 +650,33 @@ const VehicleDetailView: React.FC = () => {
                                     position="top"
                                     triggerType="custom"
                                     dismissButton={false}
-                                    content={
-                                      <div>
-                                        <strong>Active:</strong> Currently in use or recently used<br/>
-                                        <strong>Inactive:</strong> Not currently in use
-                                      </div>
-                                    }
+                                    content="Active: In use | Inactive: Not in use"
                                   >
                                     <Button variant="inline-icon" iconName="status-info" />
                                   </Popover>
                                 </SpaceBetween>
                                 <Badge color={vehicleData.activityStatus === 'active' ? 'green' : 'grey'}>
-                                  {vehicleData.activityStatus === 'active' ? 'Active' : vehicleData.activityStatus === 'inactive' ? 'Inactive' : vehicleData.activityStatus || 'Unknown'}
+                                  {vehicleData.activityStatus === 'active' ? 'Active' : 'Inactive'}
                                 </Badge>
                               </SpaceBetween>
                             </div>
+
+                            {/* Row 4 - Metrics */}
                             <div>
-                              <SpaceBetween direction="horizontal" size="xs">
-                                <Box variant="awsui-key-label">Fleet</Box>
-                                <Popover
-                                  size="small"
-                                  position="top"
-                                  triggerType="custom"
-                                  dismissButton={false}
-                                  content="The fleet group this vehicle is assigned to"
-                                >
-                                  <Button variant="inline-icon" iconName="status-info" />
-                                </Popover>
-                              </SpaceBetween>
-                              <div>{vehicleData.fleet_name || vehicleData.fleetName || 'Unassigned'}</div>
-                            </div>
-                            <div>
-                              <SpaceBetween direction="horizontal" size="xs">
-                                <Box variant="awsui-key-label">Fuel Level</Box>
-                                <Popover
-                                  size="small"
-                                  position="top"
-                                  triggerType="custom"
-                                  dismissButton={false}
-                                  content="Current fuel tank level as a percentage"
-                                >
-                                  <Button variant="inline-icon" iconName="status-info" />
-                                </Popover>
-                              </SpaceBetween>
+                              <Box variant="awsui-key-label">Fuel Level</Box>
                               <div>{vehicleData.fuel_level || vehicleData.fuelLevel || 0}%</div>
                             </div>
                             <div>
-                              <SpaceBetween direction="horizontal" size="xs">
-                                <Box variant="awsui-key-label">Battery Level</Box>
-                                <Popover
-                                  size="small"
-                                  position="top"
-                                  triggerType="custom"
-                                  dismissButton={false}
-                                  content="Current battery charge level as a percentage"
-                                >
-                                  <Button variant="inline-icon" iconName="status-info" />
-                                </Popover>
-                              </SpaceBetween>
+                              <Box variant="awsui-key-label">Battery Level</Box>
                               <div>{vehicleData.battery_level || vehicleData.batteryLevel || 0}%</div>
                             </div>
                             <div>
-                              <SpaceBetween direction="horizontal" size="xs">
-                                <Box variant="awsui-key-label">Driver Assigned</Box>
-                                <Popover
-                                  size="small"
-                                  position="top"
-                                  triggerType="custom"
-                                  dismissButton={false}
-                                  content="The driver currently assigned to this vehicle"
-                                >
-                                  <Button variant="inline-icon" iconName="status-info" />
-                                </Popover>
-                              </SpaceBetween>
-                              <div>{vehicleData.driver_assigned || vehicleData.driverAssigned || 'Unassigned'}</div>
-                            </div>
-                            <div>
-                              <SpaceBetween direction="vertical" size="xs">
-                                <SpaceBetween direction="horizontal" size="xs">
-                                  <Box variant="awsui-key-label">Auto Registration</Box>
-                                  <Popover
-                                    size="small"
-                                    position="top"
-                                    triggerType="custom"
-                                    dismissButton={false}
-                                    content={
-                                      <div>
-                                        <strong>Registered:</strong> Vehicle has valid certificates and is auto-registered<br/>
-                                        <strong>Not Registered:</strong> Vehicle lacks proper certificates or registration
-                                      </div>
-                                    }
-                                  >
-                                    <Button variant="inline-icon" iconName="status-info" />
-                                  </Popover>
-                                </SpaceBetween>
-                                <Badge color={vehicleData.auto_registered || vehicleData.has_certificate ? 'green' : 'red'}>
-                                  {vehicleData.auto_registered || vehicleData.has_certificate ? 'Registered' : 'Not Registered'}
-                                </Badge>
-                              </SpaceBetween>
-                            </div>
-                            <div>
-                              <Box variant="awsui-key-label">Current Location</Box>
-                              <div>
-                                {vehicleData.currentLocation ? (
-                                  <div>
-                                    <div>{vehicleData.currentLocation.address}</div>
-                                    <Box variant="small" color="text-body-secondary">
-                                      {vehicleData.currentLocation.latitude.toFixed(4)}, {vehicleData.currentLocation.longitude.toFixed(4)}
-                                    </Box>
-                                    <Box variant="small" color="text-body-secondary">
-                                      Updated: {new Date(vehicleData.currentLocation.lastUpdated * 1000).toLocaleString()}
-                                    </Box>
-                                  </div>
-                                ) : vehicleData.lastKnownLocation ? (
-                                  <div>
-                                    <Box variant="small" color="text-body-secondary">
-                                      {vehicleData.lastKnownLocation.lat.toFixed(4)}, {vehicleData.lastKnownLocation.lng.toFixed(4)}
-                                    </Box>
-                                  </div>
-                                ) : (
-                                  'Unknown'
-                                )}
-                              </div>
-                            </div>
-                            <div>
-                              <Box variant="awsui-key-label">Last Connected</Box>
-                              <div>{vehicleData.lastConnected ? new Date(vehicleData.lastConnected).toLocaleString() : 'N/A'}</div>
-                            </div>
-                            <div>
-                              <Box variant="awsui-key-label">Last Maintenance</Box>
-                              <div>{vehicleData.last_maintenance || vehicleData.lastMaintenance || 'N/A'}</div>
-                            </div>
-                            <div>
-                              <Box variant="awsui-key-label">Next Maintenance Due</Box>
-                              <div>{vehicleData.next_maintenance_due || vehicleData.nextMaintenanceDue || 'N/A'}</div>
-                            </div>
-                            <div>
-                              <Box variant="awsui-key-label">Insurance Expiry</Box>
-                              <div>{vehicleData.insurance_expiry || vehicleData.insuranceExpiry || 'N/A'}</div>
-                            </div>
-                            <div>
-                              <Box variant="awsui-key-label">Registration Expiry</Box>
-                              <div>{vehicleData.registration_expiry || vehicleData.registrationExpiry || 'N/A'}</div>
+                              <Box variant="awsui-key-label">Odometer</Box>
+                              <div>{vehicleData.calculatedOdometer?.toLocaleString() || vehicleData.odometer?.toLocaleString() || 0} mi</div>
                             </div>
                             <div>
                               <Box variant="awsui-key-label">Last Updated</Box>
-                              <div>{vehicleData.last_updated ? new Date(vehicleData.last_updated).toLocaleString() : vehicleData.updatedAt ? new Date(vehicleData.updatedAt).toLocaleString() : 'N/A'}</div>
+                              <div>{vehicleData.lastSeenAt ? new Date(vehicleData.lastSeenAt).toLocaleString() : 'N/A'}</div>
                             </div>
                           </ColumnLayout>
 

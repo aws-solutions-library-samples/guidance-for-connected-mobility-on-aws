@@ -81,6 +81,7 @@ import ChargingView from "./components/charging/ChargingView";
 import WarrantyView from "./components/warranty/WarrantyView";
 import SystemMonitoringView from "./components/system-monitoring/SystemMonitoringView";
 import AnalyticsView from "./components/analytics/AnalyticsView";
+import DataProcessingView from "./components/data-processing/DataProcessingView";
 // Common Components
 import NotFound from "./components/common/NotFound";
 
@@ -550,6 +551,7 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
                     { type: 'link', text: 'Safety', href: UI_ROUTES.ALERTS_SAFETY },
                     { type: 'link', text: 'Warranty', href: '/warranty' },
                     { type: 'link', text: 'System Monitoring', href: '/system-monitoring' },
+                    { type: 'link', text: 'Data Processing', href: UI_ROUTES.DATA_PROCESSING },
                     { type: 'link', text: 'Analytics', href: '/analytics' },
                   ]}
                 />
@@ -636,6 +638,18 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
                             buttons: [
                               { text: 'Refresh', iconName: 'refresh' },
                               { text: 'Export Logs', variant: 'primary' as const }
+                            ]
+                          };
+                        case UI_ROUTES.DATA_PROCESSING:
+                          return {
+                            title: 'Data Processing',
+                            description: 'View signal catalog and data transformation configurations for telemetry processing.',
+                            breadcrumbs: [
+                              { text: 'Home', href: '/' },
+                              { text: 'Data Processing', href: UI_ROUTES.DATA_PROCESSING }
+                            ],
+                            buttons: [
+                              { text: 'Refresh', iconName: 'refresh' }
                             ]
                           };
                         case '/analytics':
@@ -1030,6 +1044,7 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
                     <Route path="/charging" element={<ChargingView />} />
                     <Route path="/warranty" element={<WarrantyView />} />
                     <Route path="/system-monitoring" element={<SystemMonitoringView />} />
+                    <Route path={UI_ROUTES.DATA_PROCESSING} element={<DataProcessingView />} />
                     <Route path="/analytics" element={<AnalyticsView />} />
                     
                     {/* Device Management Routes */}

@@ -1,0 +1,55 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2020 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ *
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ *
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+
+syntax = "proto3";
+
+package autonomic.ext.command.opaque;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/command/opaque";
+option java_package = "com.autonomic.ext.command.opaque";
+option java_outer_classname = "OpaqueProto";
+option java_multiple_files = true;
+option cc_enable_arenas = true;
+option objc_class_prefix = "AUT";
+
+message OpaqueRequest {
+  // Allows users to provide information about the opaque cloud-to-device message
+  // that is sent through the TMC, to allow them to deserialize the otherwise opaque
+  // blob.
+
+  // The type (or protocol) which indicates the representation of the data in the blob.
+  // This is opaque to the TMC.
+  string payload_type = 1;
+
+  // The version of the message type/protocol which indicates the representation of the
+  // data in the blob. This is opaque to the TMC.
+  string payload_version = 2;
+
+  // Allows for specification of a specific message name within the message type/protocol.
+  // This is opaque to the TMC.
+  string payload_name = 3;
+
+  // The actual opaque request payload. This is opaque to the TMC.
+  bytes payload = 4;
+
+  // Whether or not the TMC cloud should expect the device to respond after payload delivery, and track that response.
+  // By default (unset/false), the TMC will expect the device to respond before moving to a terminal state.
+  bool stop_tracking_on_payload_delivery = 5;
+}

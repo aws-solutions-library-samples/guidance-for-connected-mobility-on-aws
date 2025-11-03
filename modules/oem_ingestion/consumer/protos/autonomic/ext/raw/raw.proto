@@ -1,0 +1,87 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2017 - 2020 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ *
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ *
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+syntax = "proto3";
+
+package autonomic.ext.raw;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/raw";
+option java_package = "com.autonomic.ext.raw";
+option java_outer_classname = "RawProto";
+option java_multiple_files = true;
+
+option cc_enable_arenas = true;
+
+option objc_class_prefix = "AUT";
+
+import "google/protobuf/timestamp.proto";
+import "autonomic/ext/common/oem_data.proto";
+
+enum MessageType {
+  UNKNOWN_MESSAGE_TYPE = 0;
+  PUBLISH_REQUEST = 1;
+  ENCRYPTED_PUBLISH_REQUEST = 2;
+  REPORT = 3;
+  // OEM Specific message types
+  FTCP = 100;
+  FNV2_MMOTA = 101;
+  INGEST_AUDIT = 102;
+}
+
+// A Raw message contains the raw data, as sent, to/from a specific asset_id.
+// For example if a raw data packet arrives and contains data for multiple vehicles,
+// then multiple Raw messages will be generated, each containing the raw data for a
+// single vehicle.
+message Raw {
+  // Type of the raw data
+  MessageType message_type = 1;
+  // Type specific version information
+  string message_version = 2;
+  // The direction of the message
+  MessageDirection message_direction = 4;
+
+  // The time this raw message was created. For purposes of raw message ordering, this timestamp can be used.
+  google.protobuf.Timestamp created_at = 3;
+
+  // The correlation id is a 128-bit v4 UUID.
+  //
+  // The correlation id allows related messages to be connected.
+  // The meaning of the correlation id is specific to the scenario of
+  // message: for deployments, it is the deployment id; for control it
+  // is the command id.
+  //
+  // Messages for scenarios that do not require correlation must not set
+  // the correlation id and services should ignore the correlation id
+  // on such messages.
+  string correlation_id = 10;
+
+  oneof data {
+    bytes bytes_data = 20;
+    string json_data = 21;
+  }
+
+  // oem parameters for this message. Opaque to Au.
+  autonomic.ext.common.oemdata.OemData oem_data = 30;
+
+  enum MessageDirection {
+    UNKNOWN = 0;
+    CLOUD_TO_DEVICE = 1;
+    DEVICE_TO_CLOUD = 2;
+  }
+}

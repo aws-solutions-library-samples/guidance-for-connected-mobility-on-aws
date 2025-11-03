@@ -1,0 +1,235 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2019 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ *
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ *
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+
+syntax = "proto3";
+
+package autonomic.ext.telemetry;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/telemetry";
+option java_package = "com.autonomic.ext.telemetry";
+option java_outer_classname = "EvProto";
+option java_multiple_files = true;
+
+option cc_enable_arenas = true;
+
+option objc_class_prefix = "AUT";
+
+option deprecated = true;
+
+import "autonomic/ext/telemetry/enumerations/electric_machine_status.proto";
+import "autonomic/ext/telemetry/enumerations/error.proto";
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
+// Deprecated. We will re-introduce these concepts in a later version.
+//
+//
+//
+//
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+message Temperature {
+  oneof value {
+    double temperature = 1; // value is double precision, celsius
+    autonomic.ext.telemetry.enumerations.error.Error wk_error_name = 2; // error if temperature not available
+  }
+}
+
+message Voltage {
+  oneof value {
+    double voltage = 1; // value is double precision, volts
+    autonomic.ext.telemetry.enumerations.error.Error wk_error_name = 2; // error if voltage not available
+  }
+}
+
+message Current {
+  oneof value {
+    double current = 1; // value is double precision, amps
+    autonomic.ext.telemetry.enumerations.error.Error wk_error_name = 2; // error if current not available
+  }
+}
+
+// a EV battery package could include multiple battery cells and probes
+message EvBatteryPackage {
+
+  reserved 2, 3, 4;
+
+  string package_id = 1;
+  Current current = 5; // see Current for details
+  Voltage voltage = 6; // see Voltage for details
+  Temperature temperature = 7; // see Temperature for details
+  repeated EvBatteryCell ev_battery_cell = 8 [deprecated = true];
+  repeated EvBatteryProbe ev_battery_probe = 9 [deprecated = true];
+  int64 cell_count = 10; // the count of battery cell in a battery package
+  int64 probe_count = 11; // the count of battery probe in a battery package
+  repeated EvBatteryCellInfo ev_battery_cell_info = 12; // empty if cell has no correlation with package
+  repeated EvBatteryProbeInfo ev_battery_probe_info = 13; // empty if probe has no correlation with package
+}
+
+message EvBatteryPackageInfo {
+  oneof value {
+    EvBatteryPackage ev_battery_package = 1;
+    autonomic.ext.telemetry.enumerations.error.Error wk_error_name = 2; // error if ev_battery_package not available
+  }
+}
+
+message EvBatteryCell {
+
+  reserved 3, 4;
+
+  string cell_id = 1;
+  string package_id = 2; // required if EvBatteryCell referred independently (EvBatteryCellStatus)
+  Voltage voltage = 5; // see Voltage for details
+  Temperature temperature = 6; // see Temperature for details
+}
+
+message EvBatteryCellInfo {
+  oneof value {
+    EvBatteryCell ev_battery_cell = 1;
+    autonomic.ext.telemetry.enumerations.error.Error wk_error_name = 2; // error if ev_battery_cell not available
+  }
+}
+
+message EvBatteryProbe {
+
+  reserved 4;
+
+  string probe_id = 1;
+  string cell_id = 2; // required if EvBatteryProbe referred independently (EvBatteryProbeStatus)
+  string package_id = 3; // required if EvBatteryProbe referred independently (EvBatteryProbeStatus)
+  Temperature temperature = 5; // see Temperature for details
+}
+
+message EvBatteryProbeInfo {
+  oneof value {
+    EvBatteryProbe ev_battery_probe = 1;
+    autonomic.ext.telemetry.enumerations.error.Error wk_error_name = 2; // error if ev_battery_probe not available
+  }
+}
+
+message EvBatteryPackageStatus {
+  reserved 1;
+  EvBatteryPackage package_max_voltage = 2 [deprecated = true];
+  EvBatteryPackage package_min_voltage = 3 [deprecated = true];
+  EvBatteryPackage package_max_temperature = 4 [deprecated = true];
+  EvBatteryPackage package_min_temperature = 5 [deprecated = true];
+
+  EvBatteryPackageInfo package_max_voltage_info = 8; // max voltage of battery package
+  EvBatteryPackageInfo package_min_voltage_info = 9; // min voltage of battery package
+  EvBatteryPackageInfo package_max_temperature_info = 10; // max temperature of battery package
+  EvBatteryPackageInfo package_min_temperature_info = 11; // min temperature of battery package
+
+  int64  package_count = 6; // the count of battery package in the vehicle
+  repeated EvBatteryPackage ev_battery_package = 7 [deprecated = true];
+  repeated EvBatteryPackageInfo ev_battery_package_info = 12; // list of battery package
+}
+
+message EvBatteryCellStatus {
+  reserved 1, 2;
+  EvBatteryCell cell_max_voltage = 3 [deprecated = true];
+  EvBatteryCell cell_min_voltage = 4 [deprecated = true];
+  EvBatteryCell cell_max_temperature = 5 [deprecated = true];
+  EvBatteryCell cell_min_temperature = 6 [deprecated = true];
+
+  EvBatteryCellInfo cell_max_voltage_info = 7; // max voltage of battery cell across all packages
+  EvBatteryCellInfo cell_min_voltage_info = 8; // min voltage of battery cell across all packages
+  EvBatteryCellInfo cell_max_temperature_info = 9; // max temperature of battery cell across all packages
+  EvBatteryCellInfo cell_min_temperature_info = 10; // min temperature of battery cell across all packages
+}
+
+message EvBatteryProbeStatus {
+  reserved 1, 2, 5, 6;
+  EvBatteryProbe probe_max_temperature = 3 [deprecated = true];
+  EvBatteryProbe probe_min_temperature = 4 [deprecated = true];
+
+  EvBatteryProbeInfo probe_max_temperature_info = 7; // max temperature of battery probe across all packages
+  EvBatteryProbeInfo probe_min_temperature_info = 8; // min temperature of battery probe across all packages
+}
+
+message ElectricMachineState {
+  int64 electric_machine_count = 1;
+  repeated ElectricMachine eletric_machine = 2;
+}
+
+message ElectricMachine {
+  ElectricMachineControllerTemp electric_machine_controller_temp = 1;
+  ElectricMachineCurrent electric_machine_current = 2;
+  ElectricMachineVoltage electric_machine_voltage = 3;
+  ElectricMachineSpeed electric_machine_speed = 4;
+  ElectricMachineStatus electric_machine_status = 5;
+  ElectricMachineTemp electric_machine_temp = 6;
+  ElectricMachineTorque electric_machine_torque = 7;
+  string electric_machine_id = 8;
+}
+
+message ElectricMachineControllerTemp {
+  oneof value {
+    double electric_machine_controller_temp = 1; // double precision, celsius degrees
+    autonomic.ext.telemetry.enumerations.error.Error wk_error_name = 2; // error if electric_machine_controller_temp not available
+  }
+}
+
+message ElectricMachineCurrent {
+  oneof value {
+    double electric_machine_current = 1; // double precision, ampere
+    autonomic.ext.telemetry.enumerations.error.Error wk_error_name = 2; // error if electric_machine_current not available
+  }
+}
+
+message ElectricMachineVoltage {
+  oneof value {
+    double electric_machine_voltage = 1; // double precision, volt
+    autonomic.ext.telemetry.enumerations.error.Error wk_error_name = 2; // error if electric_machine_voltage not available
+  }
+}
+
+message ElectricMachineSpeed {
+  oneof value {
+    double electric_machine_speed = 1; // double precision, rad per sec
+    autonomic.ext.telemetry.enumerations.error.Error wk_error_name = 2; // error if electric_machine_speed not available
+  }
+}
+
+message ElectricMachineStatus {
+  oneof value {
+    autonomic.ext.telemetry.enumerations.electricMachineStatus.ElectricMachineStatus electric_machine_status = 1; // enum ElectricMachineStatus (power consumption, power generation, deactivation state, readiness state, no data exists)
+    autonomic.ext.telemetry.enumerations.error.Error wk_error_name = 2; // error if electric_machine_status not available
+  }
+}
+
+message ElectricMachineTemp {
+  oneof value {
+    double electric_machine_temp = 1; // double precision,  celsius degrees
+    autonomic.ext.telemetry.enumerations.error.Error wk_error_name = 2; // error if electric_machine_temp not available
+  }
+}
+
+message ElectricMachineTorque {
+  oneof value {
+    double electric_machine_torque = 1; // double precision, newton metre
+    autonomic.ext.telemetry.enumerations.error.Error wk_error_name = 2; // error if electric_machine_torque not available
+  }
+}

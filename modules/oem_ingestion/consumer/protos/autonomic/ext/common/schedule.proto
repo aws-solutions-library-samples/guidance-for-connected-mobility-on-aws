@@ -1,0 +1,89 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2017 - 2020 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ * 
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ * 
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+syntax = "proto3";
+
+package autonomic.ext.common.schedule;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/common";
+option java_package = "com.autonomic.ext.common.schedule";
+option java_outer_classname = "ScheduleProto";
+option java_multiple_files = true;
+
+option cc_enable_arenas = true;
+
+option objc_class_prefix = "AUT";
+
+import "google/type/date.proto";
+import "google/type/dayofweek.proto";
+import "google/type/timeofday.proto";
+
+message Schedule {
+  enum ScheduleType {
+    UNKNOWN = 0;
+    NONE = 1;
+    ONE_TIME = 2;
+    IMMEDIATE = 3;
+    RECURRING = 4;
+  }
+
+  enum ScheduleExecutor {
+    UNKNOWN_EXECUTOR = 0;
+    DEVICE = 1;
+    CLOUD = 2;
+  }
+
+  ScheduleType schedule_type = 1;
+  oneof scheduled_time {
+    OneTimeSchedule one_time_schedule = 2;
+    google.type.TimeOfDay daily_schedule = 3;
+    DayOfWeekAndTime weekly_schedule = 4;
+    MultipleDaysOfWeekAndTimes multiple_weekly_schedules = 7;
+  }
+  TimeZone time_zone = 5;
+  ScheduleExecutor schedule_executor = 6;
+}
+
+message OneTimeSchedule {
+  oneof value {
+    DateAndTime date_and_time = 1;
+    DayOfWeekAndTime day_of_week_and_time = 2;
+  }
+}
+
+message DateAndTime {
+  google.type.Date year_month_date = 1;
+  google.type.TimeOfDay time_of_day = 2;
+}
+
+message DayOfWeekAndTime {
+  google.type.DayOfWeek day_of_week = 1;
+  google.type.TimeOfDay time_of_day = 2;
+}
+
+enum TimeZone {
+  UNKNOWN = 0;
+  UTC = 1;
+  LOCAL_TIME = 2; // Note: This may not be a particular timezone. The local clock can be set to any random time.
+}
+
+message MultipleDaysOfWeekAndTimes {
+  repeated DayOfWeekAndTime day_of_week_and_time = 1;
+}
+

@@ -1,0 +1,100 @@
+/*-
+ * ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+ * Autonomic Proprietary 1.0
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Copyright (C) 2017 - 2019 Autonomic, LLC - All rights reserved
+ * ——————————————————————————————————————————————————————————————————————————————
+ * Proprietary and confidential.
+ *
+ * NOTICE:  All information contained herein is, and remains the property of
+ * Autonomic, LLC and its suppliers, if any.  The intellectual and technical
+ * concepts contained herein are proprietary to Autonomic, LLC and its suppliers
+ * and may be covered by U.S. and Foreign Patents, patents in process, and are
+ * protected by trade secret or copyright law. Dissemination of this information
+ * or reproduction of this material is strictly forbidden unless prior written
+ * permission is obtained from Autonomic, LLC.
+ *
+ * Unauthorized copy of this file, via any medium is strictly prohibited.
+ * ______________________________________________________________________________
+ */
+syntax = "proto3";
+
+package autonomic.ext.vehicledeviceregistration;
+
+option go_package = "github.com/autonomic-ai/external-protos/src/main/proto/autonomic/ext/vehicledeviceregistration";
+option java_package = "com.autonomic.ext.vehicledeviceregistration";
+option java_outer_classname = "VehicleDeviceRegistrationEventProto";
+option java_multiple_files = true;
+option cc_enable_arenas = true;
+option objc_class_prefix = "AUT";
+
+import "google/protobuf/timestamp.proto";
+
+// A specific PlatformEvent type that represents the registration of a vehicle-device
+// pair onto the TMC platform.
+message VehicleDeviceRegistrationEvent {
+
+    // REQUIRED: Unique identifier for the event - e.g. aui:vehicledeviceregistration:event:<au-ingest-message-id>
+    string id = 1;
+
+    // REQUIRED: The timestamp at which the event occurred
+    google.protobuf.Timestamp timestamp = 2;
+
+    // REQUIRED: The payload received from a device that initiated the VehicleDeviceRegistrationEvent
+    bytes bytes_data = 3;
+
+    // REQUIRED: The VIN of the vehicle associated with the VehicleDeviceRegistrationEvent
+    string vin = 4;
+
+    // REQUIRED: The serial number of the device associated with the VehicleDeviceRegistrationEvent
+    string device_serial_number = 5;
+
+    // OPTIONAL: In the event of a device-swap scenario, the serial number of the device previously associated
+    // with the vehicle prior to the swap
+    string pre_swap_device_serial_number = 9;
+
+    // REQUIRED: The type of the connectivity device associated with the VehicleDeviceRegistrationEvent
+    string device_type = 6;
+
+    // REQUIRED: The region code associated with the vehicle-device registration
+    string region_code = 10;
+
+    // REQUIRED: The country code associated with the vehicle-device registration
+    string country_code = 11;
+
+    // OPTIONAL: Additional key-value metadata associated with the vehicle-device registration
+    map<string, string> metadata = 12;
+
+    // REQUIRED: The status of the VehicleDeviceRegistrationEvent (success/failure)
+    Status status = 7;
+
+    // OPTIONAL: Present if the status of the VehicleDeviceRegistrationEvent is success - the home URL assigned
+    // to the device by the vehicle-device registration
+    string home_url = 13;
+
+    // OPTIONAL: Present if the status of the VehicleDeviceRegistrationEvent is failure - a failure
+    // code that indicates the reason for the failure.
+    FailureCode failure_code = 8;
+
+    enum Status {
+        UNKNOWN_STATUS = 0;
+        SUCCESS = 1;
+        FAILURE = 2;
+    }
+
+    enum FailureCode {
+        UNKNOWN_FAILURE = 0;
+
+        // Insufficient/invalid information was contained in the payload received from
+        // the device requesting registration.
+        PARSE_ERROR = 1;
+
+        // The device is missing from TMC. (Note that a device must be defined in TMC
+        // prior to any VehicleDeviceRegistrationEvent that it is associated with.)
+        DEVICE_NOT_FOUND = 2;
+
+        // An unexpected error was encountered on TMC during the registration process
+        // that resulted in the registration not completing successfully.
+        INTERNAL_SERVICE_ERROR = 3;
+    }
+}

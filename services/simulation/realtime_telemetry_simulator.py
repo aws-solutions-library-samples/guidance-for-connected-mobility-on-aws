@@ -1931,13 +1931,22 @@ class RealtimeTelemetrySimulator:
         return phone_connected and speed > 5
     
     def create_safety_event(self, event_type: str, telemetry: Dict, state: VehicleState) -> Dict:
-        """Create standardized safety event message"""
+        """Create standardized safety event message with Event Catalog format"""
+        # Import Event Catalog loader
+        try:
+            from event_catalog_loader import get_catalog_loader
+            catalog_loader = get_catalog_loader(profile_name=getattr(self, 'profile_name', None))
+            use_dynamic_catalog = True
+        except ImportError:
+            use_dynamic_catalog = False
+        
         event_type_map = {
             "HB": "HARD_BRAKING",
             "RA": "RAPID_ACCELERATION", 
             "EC": "ENGINE_CRITICAL",
             "SV": "SEATBELT_VIOLATION",
-            "PU": "PHONE_USAGE"
+            "PU": "PHONE_USAGE",
+            "FCW": "FORWARD_COLLISION_WARNING"
         }
         
         severity_map = {
@@ -1947,20 +1956,71 @@ class RealtimeTelemetrySimulator:
             "C": "CRITICAL"
         }
         
+        # Numeric severity for Event Catalog (0=info, 1=warning, 2=critical)
+        severity_numeric_map = {
+            "L": 0,
+            "M": 1,
+            "H": 2,
+            "C": 2
+        }
+        
         severity_code = self.calculate_severity(event_type, telemetry, state)
+        
+        # Get Event Catalog entry dynamically or use fallback
+        if use_dynamic_catalog:
+            catalog_entry = catalog_loader.map_simulator_event(event_type)
+            if not catalog_entry:
+                # Fallback if not found
+                catalog_entry = {
+                    "event_id": f"safety.{event_type.lower()}",
+                    "category": "safety",
+                    "severity": 1
+                }
+        else:
+            # Static fallback mapping
+            event_catalog_map = {
+                "HB": {"event_id": "safety.harsh_braking", "category": "safety"},
+                "RA": {"event_id": "safety.harsh_acceleration", "category": "safety"},
+                "EC": {"event_id": "maintenance.check_engine_light", "category": "maintenance"},
+                "SV": {"event_id": "safety.seatbelt_unfastened", "category": "safety"},
+                "PU": {"event_id": "safety.phone_usage", "category": "safety"},
+                "FCW": {"event_id": "safety.forward_collision_warning", "category": "safety"}
+            }
+            catalog_entry = event_catalog_map.get(event_type, {
+                "event_id": f"safety.{event_type.lower()}",
+                "category": "safety"
+            })
+        
+        # Build signal_values based on event type
+        signal_values = {
+            "speed": telemetry["speed"]
+        }
+        
+        if event_type == "HB":
+            signal_values["deceleration"] = telemetry.get('deceleration', 0)
+        elif event_type == "RA":
+            signal_values["acceleration"] = telemetry.get('acceleration', 0)
         
         safety_event = {
             "messageType": "SAFETY_EVENT",
             "vehicleId": telemetry["vehicleId"],
             "timestamp": telemetry["timestamp"],
+            
+            # Event Catalog fields (NEW)
+            "event_id": catalog_entry["event_id"],
+            "category": catalog_entry.get("category", "safety"),
+            "severity": catalog_entry.get("severity", severity_numeric_map.get(severity_code, 1)),
+            "signal_values": signal_values,
+            
+            # Legacy fields (for compatibility)
             "eventType": event_type_map.get(event_type, event_type),
-            "severity": severity_map.get(severity_code, "LOW"),
+            
             "lat": telemetry["lat"],
             "lng": telemetry["lng"],
             "speed": telemetry["speed"]
         }
         
-        # Add event-specific fields
+        # Add event-specific fields (legacy)
         if event_type == "HB":
             safety_event["deceleration"] = telemetry.get('deceleration', 0)
         elif event_type == "RA":
@@ -1987,6 +2047,8 @@ class RealtimeTelemetrySimulator:
             return "HIGH"
         elif event_type == "PU":  # Phone usage
             return "MEDIUM"
+        elif event_type == "FCW":  # Forward collision warning
+            return "CRITICAL"
         return "LOW"
 
     def validate_message_format(self, data: Dict) -> bool:
