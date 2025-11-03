@@ -1,0 +1,132 @@
+/*
+ * Generic OEM Schema Template
+ * 
+ * This is a self-contained protobuf schema for OEM telemetry and events.
+ * Customize this template to match your OEM's data structure.
+ * 
+ * All message definitions must be in this single file (no imports).
+ */
+
+syntax = "proto3";
+
+package oem;
+
+// ============================================================================
+// TELEMETRY MESSAGES
+// ============================================================================
+
+// Main telemetry message - customize fields to match your OEM
+message Metric {
+  string vehicleId = 1;
+  string timestamp = 2;
+  
+  // Signal identifier
+  Signal signal = 3;
+  
+  // Value can be one of these types
+  oneof value {
+    double doubleValue = 4;
+    string stringValue = 5;
+    bool boolValue = 6;
+    int64 int64Value = 7;
+    
+    // Complex value types
+    SpeedValue speedValue = 10;
+    EnumValue enumValue = 11;
+    PositionValue positionValue = 12;
+  }
+  
+  // Optional location data
+  Location location = 20;
+  
+  // Optional metadata
+  map<string, string> metadata = 30;
+}
+
+// Signal identifier
+message Signal {
+  string wksSignal = 1;  // Well-known signal name (e.g., "SPEED", "FUEL_LEVEL")
+  string customSignal = 2;  // OEM-specific signal name
+}
+
+// Speed with uncertainty
+message SpeedValue {
+  double speed = 1;  // Speed value
+  double uncertainty = 2;  // Measurement uncertainty
+  string unit = 3;  // Unit (e.g., "m/s", "mph", "km/h")
+}
+
+// Enumerated values (for status fields)
+message EnumValue {
+  string ignitionStatus = 1;  // ON, OFF, ACCESSORY
+  string gearPosition = 2;  // PARK, DRIVE, REVERSE, NEUTRAL
+  string doorStatus = 3;  // OPEN, CLOSED
+  // Add more enum fields as needed
+}
+
+// Position/GPS data
+message PositionValue {
+  double latitude = 1;
+  double longitude = 2;
+  double altitude = 3;
+  double heading = 4;
+  double speed = 5;
+  double accuracy = 6;
+}
+
+// ============================================================================
+// EVENT MESSAGES
+// ============================================================================
+
+// Main event message - customize fields to match your OEM
+message Event {
+  string vehicleId = 1;
+  string timestamp = 2;
+  string eventType = 3;  // Event type identifier (e.g., "HARSH_BRAKING", "DTC")
+  string severity = 4;  // CRITICAL, HIGH, MEDIUM, LOW, INFO
+  
+  // Event-specific data
+  oneof eventData {
+    HarshBrakingEvent harshBraking = 10;
+    DiagnosticEvent diagnostic = 11;
+    GeofenceEvent geofence = 12;
+    // Add more event types as needed
+  }
+  
+  // Optional location where event occurred
+  Location location = 20;
+  
+  // Optional metadata
+  map<string, string> metadata = 30;
+}
+
+// Harsh braking event
+message HarshBrakingEvent {
+  double deceleration = 1;  // G-force
+  double speed = 2;  // Speed at time of event
+}
+
+// Diagnostic trouble code event
+message DiagnosticEvent {
+  string dtcCode = 1;  // DTC code (e.g., "P0420")
+  string description = 2;
+  string system = 3;  // Engine, Transmission, etc.
+}
+
+// Geofence event
+message GeofenceEvent {
+  string geofenceId = 1;
+  string action = 2;  // ENTER, EXIT
+}
+
+// ============================================================================
+// SHARED TYPES
+// ============================================================================
+
+// Geographic location
+message Location {
+  double latitude = 1;
+  double longitude = 2;
+  double heading = 3;  // Compass heading in degrees
+  double altitude = 4;  // Altitude in meters
+}

@@ -52,9 +52,8 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
   const [sampleEvent, setSampleEvent] = useState('');
   const [dataDictionary, setDataDictionary] = useState('');
   
-  // Schema fields (for protobuf/avro)
-  const [telemetrySchema, setTelemetrySchema] = useState('');
-  const [eventSchema, setEventSchema] = useState('');
+  // Schema field (single proto file for both telemetry and events)
+  const [protoSchema, setProtoSchema] = useState('');
   
   const [mappings, setMappings] = useState<SignalMapping[]>([]);
   const [generatedManifest, setGeneratedManifest] = useState<any>(null);
@@ -367,15 +366,15 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
 
             {encodingType.value === 'protobuf' && (
               <FormField 
-                key="telemetry-proto"
-                label="Telemetry Protobuf Schema (Required for Protobuf)" 
-                description="Paste the .proto file that defines the telemetry message structure"
+                key="proto-schema"
+                label="Protobuf Schema (Required for Protobuf)" 
+                description="Paste a single .proto file with all message definitions (Metric and Event)"
               >
                 <Textarea
-                  value={telemetrySchema}
-                  onChange={e => setTelemetrySchema(e.detail.value)}
-                  rows={10}
-                  placeholder={'syntax = "proto3";\n\nmessage Metric {\n  string vehicleId = 1;\n  double speed = 2;\n  double fuelLevel = 3;\n  Location location = 4;\n}\n\nmessage Location {\n  double latitude = 1;\n  double longitude = 2;\n}'}
+                  value={protoSchema}
+                  onChange={e => setProtoSchema(e.detail.value)}
+                  rows={15}
+                  placeholder={'syntax = "proto3";\n\npackage oem;\n\nmessage Metric {\n  string vehicleId = 1;\n  string timestamp = 2;\n  Signal signal = 3;\n  oneof value {\n    double doubleValue = 4;\n    SpeedValue speedValue = 5;\n  }\n  Location location = 6;\n}\n\nmessage Event {\n  string vehicleId = 1;\n  string eventType = 2;\n  Location location = 3;\n}\n\nmessage Signal { string wksSignal = 1; }\nmessage SpeedValue { double speed = 1; }\nmessage Location { double latitude = 1; double longitude = 2; }'}
                 />
               </FormField>
             )}
@@ -392,21 +391,6 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
                 placeholder={'{\n  "event_type": "harsh_braking",\n  "vin": "1FTABCDEFG1000001",\n  "timestamp": "2025-10-24T12:00:00Z",\n  "severity": "high",\n  "deceleration": -0.85,\n  "location": {\n    "lat": 42.326215,\n    "lon": -83.211655\n  }\n}'}
               />
             </FormField>
-
-            {encodingType.value === 'protobuf' && (
-              <FormField 
-                key="event-proto"
-                label="Event Protobuf Schema (Required for Protobuf)" 
-                description="Paste the .proto file that defines the event message structure"
-              >
-                <Textarea
-                  value={eventSchema}
-                  onChange={e => setEventSchema(e.detail.value)}
-                  rows={10}
-                  placeholder={'syntax = "proto3";\n\nmessage Event {\n  string eventType = 1;\n  string vehicleId = 2;\n  string timestamp = 3;\n  string severity = 4;\n  double deceleration = 5;\n  Location location = 6;\n}'}
-                />
-              </FormField>
-            )}
             
             <FormField 
               key="data-dictionary"
