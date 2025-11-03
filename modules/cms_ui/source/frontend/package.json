@@ -52,7 +52,7 @@
     "@types/react-test-renderer": "^18.3.0",
     "@types/uuid": "^9.0.8",
     "@vitejs/plugin-react": "^4.3.1",
-    "@vitest/coverage-v8": "^1.6.0",
+    "@vitest/coverage-v8": "^4.0.6",
     "buffer": "^6.0.3",
     "crypto-browserify": "^3.12.1",
     "file-loader": "^6.2.0",
@@ -67,9 +67,9 @@
     "sass-embedded": "^1.80.6",
     "stream-browserify": "^3.0.0",
     "util": "^0.12.5",
-    "vite": "^5.3.5",
+    "vite": "^7.1.12",
     "vite-tsconfig-paths": "^4.3.2",
-    "vitest": "^1.6.1"
+    "vitest": "^4.0.6"
   },
   "scripts": {
     "start": "vite",
