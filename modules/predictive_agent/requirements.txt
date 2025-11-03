@@ -13,7 +13,7 @@ aws-cdk-lib==2.100.0
 constructs==10.3.0
 
 # Data processing
-pyarrow==13.0.0
+pyarrow>=14.0.1
 awswrangler==3.4.0
 
 # ML and analytics
