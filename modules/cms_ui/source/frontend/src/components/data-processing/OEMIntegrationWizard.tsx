@@ -368,14 +368,31 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
               <FormField 
                 key="proto-schema"
                 label="Protobuf Schema (Required for Protobuf)" 
-                description="Paste a single .proto file with all message definitions (Metric and Event)"
+                description="Paste or upload a single .proto file with all message definitions"
               >
-                <Textarea
-                  value={protoSchema}
-                  onChange={e => setProtoSchema(e.detail.value)}
-                  rows={15}
-                  placeholder={'syntax = "proto3";\n\npackage oem;\n\nmessage Metric {\n  string vehicleId = 1;\n  string timestamp = 2;\n  Signal signal = 3;\n  oneof value {\n    double doubleValue = 4;\n    SpeedValue speedValue = 5;\n  }\n  Location location = 6;\n}\n\nmessage Event {\n  string vehicleId = 1;\n  string eventType = 2;\n  Location location = 3;\n}\n\nmessage Signal { string wksSignal = 1; }\nmessage SpeedValue { double speed = 1; }\nmessage Location { double latitude = 1; double longitude = 2; }'}
-                />
+                <SpaceBetween size="s">
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input 
+                      type="file" 
+                      accept=".proto"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const text = await file.text();
+                          setProtoSchema(text);
+                        }
+                      }}
+                      style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                    />
+                    <span style={{ fontSize: '12px', color: '#666' }}>or paste below</span>
+                  </div>
+                  <Textarea
+                    value={protoSchema}
+                    onChange={e => setProtoSchema(e.detail.value)}
+                    rows={15}
+                    placeholder={'syntax = "proto3";\n\npackage oem;\n\nmessage Metric {\n  string vehicleId = 1;\n  string timestamp = 2;\n  Signal signal = 3;\n  oneof value {\n    double doubleValue = 4;\n    SpeedValue speedValue = 5;\n  }\n  Location location = 6;\n}\n\nmessage Event {\n  string vehicleId = 1;\n  string eventType = 2;\n  Location location = 3;\n}\n\nmessage Signal { string wksSignal = 1; }\nmessage SpeedValue { double speed = 1; }\nmessage Location { double latitude = 1; double longitude = 2; }'}
+                  />
+                </SpaceBetween>
               </FormField>
             )}
             
