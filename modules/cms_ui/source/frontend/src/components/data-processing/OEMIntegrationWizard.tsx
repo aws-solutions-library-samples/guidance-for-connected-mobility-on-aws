@@ -52,6 +52,10 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
   const [sampleEvent, setSampleEvent] = useState('');
   const [dataDictionary, setDataDictionary] = useState('');
   
+  // Schema fields (for protobuf/avro)
+  const [telemetrySchema, setTelemetrySchema] = useState('');
+  const [eventSchema, setEventSchema] = useState('');
+  
   const [mappings, setMappings] = useState<SignalMapping[]>([]);
   const [generatedManifest, setGeneratedManifest] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -279,57 +283,6 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
                 ]}
               />
             </FormField>
-
-            {encodingType.value === 'protobuf' && (
-              <FormField 
-                key="proto-content" 
-                label="Protocol Buffer Schema" 
-                description="Paste your .proto file content (main message definition)"
-              >
-                <Textarea
-                  value={schemaContent}
-                  onChange={e => setSchemaContent(e.detail.value)}
-                  placeholder={`syntax = "proto3";\n\nmessage Metric {\n  string vehicleId = 1;\n  double speed = 2;\n  Location location = 3;\n}\n\nmessage Location {\n  double latitude = 1;\n  double longitude = 2;\n}`}
-                  rows={12}
-                />
-              </FormField>
-            )}
-
-            {encodingType.value === 'json' && (
-              <FormField 
-                key="json-schema" 
-                label="JSON Schema (Optional)" 
-                description="Paste JSON Schema for validation"
-              >
-                <Textarea
-                  value={schemaContent}
-                  onChange={e => setSchemaContent(e.detail.value)}
-                  placeholder={`{\n  "$schema": "http://json-schema.org/draft-07/schema#",\n  "type": "object",\n  "properties": {\n    "vehicleId": { "type": "string" },\n    "speed": { "type": "number" }\n  }\n}`}
-                  rows={8}
-                />
-              </FormField>
-            )}
-
-            {encodingType.value === 'avro' && (
-              <FormField 
-                key="avro-schema" 
-                label="Avro Schema" 
-                description="Paste Avro schema (.avsc content)"
-              >
-                <Textarea
-                  value={schemaContent}
-                  onChange={e => setSchemaContent(e.detail.value)}
-                  placeholder={`{\n  "type": "record",\n  "name": "Telemetry",\n  "fields": [\n    {"name": "vehicleId", "type": "string"},\n    {"name": "speed", "type": "double"}\n  ]\n}`}
-                  rows={8}
-                />
-              </FormField>
-            )}
-
-            {encodingType.value === 'raw' && (
-              <Alert type="info">
-                Raw encoding selected - no schema validation will be performed. Data will be passed through as-is.
-              </Alert>
-            )}
             
             {connectionType.value === 'rest' && (
               <FormField key="rest-endpoint" label="Data API Endpoint" description="REST endpoint for fetching vehicle telemetry">
@@ -411,6 +364,21 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
                 placeholder={'{\n  "vin": "1FTABCDEFG1000001",\n  "timestamp": "2025-10-24T12:00:00Z",\n  "speed": 50.5,\n  "fuel_level": 75.2,\n  "latitude": 42.326215,\n  "longitude": -83.211655,\n  "odometer": 12345.6\n}'}
               />
             </FormField>
+
+            {encodingType.value === 'protobuf' && (
+              <FormField 
+                key="telemetry-proto"
+                label="Telemetry Protobuf Schema (Required for Protobuf)" 
+                description="Paste the .proto file that defines the telemetry message structure"
+              >
+                <Textarea
+                  value={telemetrySchema}
+                  onChange={e => setTelemetrySchema(e.detail.value)}
+                  rows={10}
+                  placeholder={'syntax = "proto3";\n\nmessage Metric {\n  string vehicleId = 1;\n  double speed = 2;\n  double fuelLevel = 3;\n  Location location = 4;\n}\n\nmessage Location {\n  double latitude = 1;\n  double longitude = 2;\n}'}
+                />
+              </FormField>
+            )}
             
             <FormField 
               key="sample-event"
@@ -424,6 +392,21 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
                 placeholder={'{\n  "event_type": "harsh_braking",\n  "vin": "1FTABCDEFG1000001",\n  "timestamp": "2025-10-24T12:00:00Z",\n  "severity": "high",\n  "deceleration": -0.85,\n  "location": {\n    "lat": 42.326215,\n    "lon": -83.211655\n  }\n}'}
               />
             </FormField>
+
+            {encodingType.value === 'protobuf' && (
+              <FormField 
+                key="event-proto"
+                label="Event Protobuf Schema (Required for Protobuf)" 
+                description="Paste the .proto file that defines the event message structure"
+              >
+                <Textarea
+                  value={eventSchema}
+                  onChange={e => setEventSchema(e.detail.value)}
+                  rows={10}
+                  placeholder={'syntax = "proto3";\n\nmessage Event {\n  string eventType = 1;\n  string vehicleId = 2;\n  string timestamp = 3;\n  string severity = 4;\n  double deceleration = 5;\n  Location location = 6;\n}'}
+                />
+              </FormField>
+            )}
             
             <FormField 
               key="data-dictionary"
