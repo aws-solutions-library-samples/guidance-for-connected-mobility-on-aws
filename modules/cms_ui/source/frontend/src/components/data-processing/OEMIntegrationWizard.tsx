@@ -398,8 +398,9 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
                       const text = await file.text();
                       JSON.parse(text); // Validate JSON
                       setSampleData(text);
-                    } catch (err) {
-                      setError('Invalid JSON in sample telemetry file');
+                      setError(''); // Clear any previous errors
+                    } catch (err: any) {
+                      setError(`Invalid JSON in sample telemetry file: ${err.message}`);
                     }
                   }
                 }}
@@ -453,8 +454,9 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
                       const text = await file.text();
                       JSON.parse(text); // Validate JSON
                       setSampleEvent(text);
-                    } catch (err) {
-                      setError('Invalid JSON in sample event file');
+                      setError(''); // Clear any previous errors
+                    } catch (err: any) {
+                      setError(`Invalid JSON in sample event file: ${err.message}`);
                     }
                   }
                 }}
@@ -589,8 +591,9 @@ message Location {
                         return;
                       }
                       setDataDictionary(text);
-                    } catch (err) {
-                      setError('Invalid JSON in data dictionary file');
+                      setError(''); // Clear any previous errors
+                    } catch (err: any) {
+                      setError(`Invalid JSON in data dictionary file: ${err.message}`);
                     }
                   }
                 }}
