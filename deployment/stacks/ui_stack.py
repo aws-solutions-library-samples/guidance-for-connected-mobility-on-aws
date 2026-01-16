@@ -214,10 +214,13 @@ class UIStack(Stack):
         )
         
         # Origin Access Control for secure CloudFront access
+        # Generate unique OAC name with stack ID suffix
+        import hashlib
+        stack_hash = hashlib.md5(self.stack_id.encode() if hasattr(self, 'stack_id') else construct_id.encode()).hexdigest()[:8]
         oac = cloudfront.CfnOriginAccessControl(
             self, "FrontendOAC",
             origin_access_control_config=cloudfront.CfnOriginAccessControl.OriginAccessControlConfigProperty(
-                name=f"{construct_id}-oac",
+                name=f"{construct_id}-oac-{stack_hash}",
                 origin_access_control_origin_type="s3",
                 signing_behavior="always",
                 signing_protocol="sigv4"

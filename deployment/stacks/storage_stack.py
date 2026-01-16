@@ -362,9 +362,9 @@ class StorageStack(Stack):
         )
         
         # S3 Datalake Bucket for Iceberg Analytics
+        # Use auto-generated bucket name to avoid S3 eventual consistency issues
         self.datalake_bucket = s3.Bucket(
             self, "DatalakeBucket",
-            bucket_name=f"{construct_id}-datalake-{self.account}",
             removal_policy=RemovalPolicy.RETAIN,
             versioned=True,
             public_read_access=False,
