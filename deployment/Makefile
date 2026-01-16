@@ -12,7 +12,7 @@ BLUE := \033[0;34m
 NC := \033[0m # No Color
 
 # Configuration
-AWS_REGION := us-east-1
+AWS_REGION ?= $(shell aws configure get region --profile $(AWS_PROFILE) 2>/dev/null || echo "us-east-1")
 DEPLOYMENT_STAGE := dev
 
 # AWS Profile Selection
@@ -138,12 +138,22 @@ bootstrap: ## Bootstrap CDK in current account
 	cdk bootstrap aws://$(shell aws sts get-caller-identity --query Account --output text)/$(AWS_REGION)
 	@echo "$(GREEN)✅ CDK bootstrapped$(NC)"
 
+check-bootstrap: ## Check if CDK is bootstrapped
+	@echo "$(BLUE)🔍 Checking CDK bootstrap status in $(AWS_REGION)...$(NC)"
+	@if ! aws ssm get-parameter --name /cdk-bootstrap/hnb659fds/version --region $(AWS_REGION) --profile $(AWS_PROFILE) >/dev/null 2>&1; then \
+		echo "$(YELLOW)⚠️  CDK not bootstrapped in $(AWS_REGION). Running bootstrap...$(NC)"; \
+		source .venv/bin/activate && \
+		cdk bootstrap aws://$$(aws sts get-caller-identity --profile $(AWS_PROFILE) --query Account --output text)/$(AWS_REGION) --profile $(AWS_PROFILE); \
+	else \
+		echo "$(GREEN)✅ CDK already bootstrapped in $(AWS_REGION)$(NC)"; \
+	fi
+
 build-ui: ## Build the React frontend application
 	@echo "$(BLUE)🔨 Building React frontend...$(NC)"
-	@cd ../modules/cms_ui/source/frontend && npm run build
+	@cd ../modules/cms_ui/source/frontend && yarn install && yarn build
 	@echo "$(GREEN)✅ Frontend build completed$(NC)"
 
-infrastructure: ## Infrastructure Foundation (VPC, Subnets, ElastiCache)
+infrastructure: check-bootstrap ## Infrastructure Foundation (VPC, Subnets, ElastiCache)
 	@echo "$(BLUE)🏗️  Infrastructure Foundation$(NC)"
 	@echo "Deploying: VPC, Subnets, Security Groups, ElastiCache Redis"
 	@echo "$(YELLOW)⚠️  This creates the foundation for all other services$(NC)"
@@ -220,6 +230,8 @@ phase3b: ## Phase 3b: Configure MSK for IoT Integration
 phase4: ## Phase 4: Telemetry Pipeline 3 (Flink Deployment)
 	@echo "$(BLUE)🚀 Phase 4: Telemetry Pipeline 3 (Flink Deployment)$(NC)"
 	@echo "Deploying Flink applications for real-time telemetry processing"
+	@echo "$(BLUE)Building Flink JAR...$(NC)"
+	@cd ../modules/flink && ./build.sh
 	@echo "$(BLUE)Deploying Flink stack...$(NC)"
 	@source .venv/bin/activate && \
 	CDK_DEFAULT_ACCOUNT=$$(aws sts get-caller-identity --profile $(AWS_PROFILE) --query Account --output text) \
