@@ -146,19 +146,24 @@ The interactive deployment guides you through profile selection, environment con
    cd guidance-for-connected-mobility-on-aws/deployment
    ```
 
-2. Start interactive deployment:
+2. Install dependencies:
+   ```bash
+   make install
+   ```
+
+3. Start interactive deployment:
    ```bash
    make deploy
    ```
 
-3. Follow the prompts to:
+4. Follow the prompts to:
    - Select your AWS profile
    - Choose deployment stage (dev, prod, or custom)
    - Select deployment phase or deploy all phases
 
 Note: We recommend deploying one phase at a time to ensure no issues in the deployment
 
-4. When the deployment is complete, all necessary data will be available on the screen, URL, username/password.
+5. When the deployment is complete, all necessary data will be available on the screen, URL, username/password.
 
 ![Architecture Diagram](/documentation/deployment_options1.png)
 
@@ -172,12 +177,17 @@ The Makefile automates environment setup, dependency installation, and phased de
    cd guidance-for-connected-mobility-on-aws/deployment
    ```
 
-2. View available deployment options:
+2. Install dependencies:
+   ```bash
+   make install
+   ```
+
+3. View available deployment options:
    ```bash
    make help
    ```
 
-3. Deploy all phases sequentially:
+4. Deploy all phases sequentially:
    ```bash
    make deploy-all
    ```

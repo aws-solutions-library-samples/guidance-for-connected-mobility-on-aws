@@ -23,11 +23,13 @@ export default defineConfig({
       keep_fnames: true
     },
     rollupOptions: {
-      plugins: [polyfillNode(), commonjs()],
+      plugins: [polyfillNode()],
     },
     commonjsOptions: {
       include: [/node_modules/],
-      transformMixedEsModules: true
+      transformMixedEsModules: true,
+      requireReturnsDefault: 'auto',
+      esmExternals: true
     }
   },
   resolve: {
@@ -56,6 +58,7 @@ export default defineConfig({
       '@aws-sdk/client-cognito-identity',
       '@aws-sdk/credential-provider-cognito-identity',
       'react',
+      'react/jsx-runtime',
       'react-dom',
       'react-router-dom',
       'react-oauth2-code-pkce',
