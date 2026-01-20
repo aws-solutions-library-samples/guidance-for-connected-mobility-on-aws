@@ -57,14 +57,33 @@ deploy: ## Interactive deployment with profile and phase selection
 	@echo "=============================="
 	@echo ""
 	@echo "$(GREEN)Available AWS Profiles:$(NC)"
-	@echo "$(AWS_PROFILES)" | tr ' ' '\n' | nl -v0
-	@echo ""
-	@read -p "Select profile number (0 for default): " profile_choice; \
-	if [ "$$profile_choice" = "0" ] || [ -z "$$profile_choice" ]; then \
-		selected_profile="default"; \
+	@all_profiles=$$(grep '^\[' ~/.aws/credentials 2>/dev/null | sed 's/\[//g' | sed 's/\]//g' | sort); \
+	if [ -z "$$all_profiles" ]; then \
+		all_profiles="default"; \
+	fi; \
+	echo "$$all_profiles" | nl -v0; \
+	echo ""; \
+	current_profile="$(AWS_PROFILE)"; \
+	current_region="$(AWS_REGION)"; \
+	if [ -n "$$current_profile" ] && echo "$$all_profiles" | grep -q "^$$current_profile$$"; then \
+		profile_num=$$(echo "$$all_profiles" | grep -n "^$$current_profile$$" | cut -d: -f1); \
+		profile_num=$$(($$profile_num - 1)); \
+		echo "$(GREEN)✓ Current AWS_PROFILE: $$current_profile (option $$profile_num)$(NC)"; \
+		if [ -n "$$current_region" ]; then \
+			echo "$(GREEN)✓ Current AWS_REGION: $$current_region$(NC)"; \
+		fi; \
+		echo ""; \
+		read -p "Select profile number (press Enter for current): " profile_choice; \
+		if [ -z "$$profile_choice" ]; then \
+			selected_profile="$$current_profile"; \
+		else \
+			profile_index=$$(($$profile_choice + 1)); \
+			selected_profile=$$(echo "$$all_profiles" | sed -n "$${profile_index}p"); \
+		fi; \
 	else \
+		read -p "Select profile number: " profile_choice; \
 		profile_index=$$(($$profile_choice + 1)); \
-		selected_profile=$$(echo "$(AWS_PROFILES)" | tr ' ' '\n' | sed -n "$${profile_index}p"); \
+		selected_profile=$$(echo "$$all_profiles" | sed -n "$${profile_index}p"); \
 	fi; \
 	if [ -z "$$selected_profile" ]; then \
 		echo "$(RED)❌ Invalid profile selection$(NC)"; \
@@ -383,7 +402,7 @@ configure-pipeline: ## Configure IoT rules and Flink applications
 	@cd scripts && AWS_PROFILE=$(AWS_PROFILE) DEPLOYMENT_STAGE=$(DEPLOYMENT_STAGE) python3 complete_integration.py
 	@echo "$(GREEN)✅ Pipeline configuration complete$(NC)"
 
-deploy-all: infrastructure phase1 phase2 phase3 phase4 phase5 phase6 ## Deploy all phases sequentially
+deploy-all: build-ui infrastructure phase1 phase2 phase3 phase4 phase5 phase6 ## Deploy all phases sequentially
 	@echo "$(GREEN)🎉 All phases deployed successfully!$(NC)"
 	@$(MAKE) status
 

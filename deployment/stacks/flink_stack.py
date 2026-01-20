@@ -20,6 +20,7 @@ from aws_cdk import (
 import aws_cdk.aws_kinesisanalytics_flink_alpha as flink
 from constructs import Construct
 from typing import Dict
+import os
 
 class FlinkStack(Stack):
     
@@ -94,15 +95,20 @@ class FlinkStack(Stack):
             enforce_ssl=True
         )
         
-        # Upload real Flink JAR file
+        # Upload real Flink JAR file (only if built)
         jar_s3_key = "jars/cms-telemetry-processor-1.0.0.zip"
+        flink_target_dir = os.path.join(os.path.dirname(__file__), "../../modules/flink/target")
         
-        s3deploy.BucketDeployment(
-            self, "FlinkJarDeployment",
-            sources=[s3deploy.Source.asset("../modules/flink/target", exclude=["**", "!cms-telemetry-processor-1.0.0.zip"])],
-            destination_bucket=self.jar_bucket,
-            destination_key_prefix="jars/"
-        )
+        if os.path.exists(flink_target_dir):
+            s3deploy.BucketDeployment(
+                self, "FlinkJarDeployment",
+                sources=[s3deploy.Source.asset("../modules/flink/target", exclude=["**", "!cms-telemetry-processor-1.0.0.zip"])],
+                destination_bucket=self.jar_bucket,
+                destination_key_prefix="jars/"
+            )
+            print("✅ Flink JAR will be deployed from target directory")
+        else:
+            print("⚠️  Flink JAR not built yet - skipping deployment. Run 'make configure-flink' later to build and deploy.")
         
         # IAM role for Flink applications (matches working target account)
         self.flink_role = iam.Role(
