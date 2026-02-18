@@ -538,3 +538,4 @@ modules/predictive_agent
 modules/oem_processor/schemas/
 *signal-catalog.json
 modules/oem_ingestion/consumer/logs/*.jsonl
+tests/e2e/.venv/

@@ -1,0 +1,27 @@
+#!/bin/bash
+# Pre-push hook: runs E2E integration tests before pushing to GitLab.
+# Install: cp hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
+
+set -e
+
+echo "🧪 Running E2E integration tests before push..."
+
+# Check simulation API is running
+if ! curl -s http://localhost:5001/health > /dev/null 2>&1; then
+    echo "⚠️  Simulation API not running at localhost:5001 — skipping E2E tests"
+    echo "   Start it with: cd services/simulation && python simulation_api.py"
+    exit 0
+fi
+
+cd "$(git rev-parse --show-toplevel)"
+source tests/e2e/.venv/bin/activate
+python -m pytest tests/e2e/ -v --tb=short
+
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "❌ E2E tests FAILED — push aborted."
+    echo "   Fix the issues above and try again."
+    exit 1
+fi
+
+echo "✅ E2E tests passed — proceeding with push."
