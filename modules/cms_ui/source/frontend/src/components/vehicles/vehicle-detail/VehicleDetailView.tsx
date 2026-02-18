@@ -30,6 +30,7 @@ import { TripMap } from '../trip-detail/TripMap';
 import { SafetyEventsTable } from '../../commons/SafetyEventsTable';
 import { SafetyEventLocationModal } from '../../commons/SafetyEventLocationModal';
 import TirePressureWidget from './TirePressureWidget';
+import TripSimulatorModal from './TripSimulatorModal';
 import { TripsTable } from '../../commons/TripsTable';
 import { useVehicle } from '../../../contexts/VehicleContext';
 import { VehicleStatusBadge } from './EnrollmentStatusSection';
@@ -110,6 +111,7 @@ interface Trip {
   endTime?: number;
   duration: number;
   distance: number;
+  totalDistance?: number;
   totalLength?: number;
   driverName: string;
   assignedDriver?: string;
@@ -162,6 +164,7 @@ const VehicleDetailView: React.FC = () => {
   console.log('VehicleDetailView - URL pathname:', window.location.pathname);
   
   const [activeTab, setActiveTab] = useState("overview");
+  const [showSimulator, setShowSimulator] = useState(false);
   
   // Data states
   const [vehicleData, setVehicleData] = useState<VehicleMetadata | null>(null);
@@ -227,12 +230,12 @@ const VehicleDetailView: React.FC = () => {
   const recentActivity = [
     ...trips.slice(0, 3).map((trip: Trip) => ({
       type: 'Trip',
-      date: new Date(trip.startTime * 1000).toLocaleDateString(),
-      description: `${trip.driverName || trip.assignedDriver || 'Unknown Driver'} - ${(trip.distance || trip.totalLength || 0).toFixed(1)} km`
+      date: new Date(trip.startTime > 9999999999 ? trip.startTime : trip.startTime * 1000).toLocaleDateString(),
+      description: `${trip.driverName || trip.assignedDriver || 'Unknown Driver'} - ${parseFloat(String(trip.totalDistance || trip.distance || trip.totalLength || 0)).toFixed(1)} km`
     })),
     ...safetyEvents.slice(0, 2).map((event: SafetyEvent) => ({
       type: 'Safety',
-      date: new Date(event.timestamp * 1000).toLocaleDateString(),
+      date: new Date(event.timestamp > 9999999999 ? event.timestamp : event.timestamp * 1000).toLocaleDateString(),
       description: `${event.eventType || event.message} - ${event.severity}`
     })),
     ...maintenanceAlerts.slice(0, 2).map((alert: MaintenanceAlert) => ({
@@ -543,9 +546,19 @@ const VehicleDetailView: React.FC = () => {
         {/* Header */}
         <Header
           variant="h1"
+          actions={
+            <Button iconName="caret-right-filled" onClick={() => setShowSimulator(true)}>
+              Trip Simulator
+            </Button>
+          }
         >
           Vehicle Details: {vehicleData?.vin || vehicleId}
         </Header>
+        <TripSimulatorModal
+          visible={showSimulator}
+          vehicleId={vehicleId!}
+          onDismiss={() => setShowSimulator(false)}
+        />
           {/* Tabs */}
           <Tabs
             activeTabId={activeTab}
@@ -642,23 +655,8 @@ const VehicleDetailView: React.FC = () => {
                               </SpaceBetween>
                             </div>
                             <div>
-                              <SpaceBetween direction="vertical" size="xs">
-                                <SpaceBetween direction="horizontal" size="xs">
-                                  <Box variant="awsui-key-label">Activity Status</Box>
-                                  <Popover
-                                    size="small"
-                                    position="top"
-                                    triggerType="custom"
-                                    dismissButton={false}
-                                    content="Active: In use | Inactive: Not in use"
-                                  >
-                                    <Button variant="inline-icon" iconName="status-info" />
-                                  </Popover>
-                                </SpaceBetween>
-                                <Badge color={vehicleData.activityStatus === 'active' ? 'green' : 'grey'}>
-                                  {vehicleData.activityStatus === 'active' ? 'Active' : 'Inactive'}
-                                </Badge>
-                              </SpaceBetween>
+                              <Box variant="awsui-key-label">Last Connected</Box>
+                              <div>{vehicleData.lastUpdated ? new Date(Number(vehicleData.lastUpdated) > 9999999999 ? Number(vehicleData.lastUpdated) : Number(vehicleData.lastUpdated) * 1000).toLocaleString() : vehicleData.lastConnected ? new Date(vehicleData.lastConnected).toLocaleString() : 'N/A'}</div>
                             </div>
 
                             {/* Row 4 - Metrics */}
@@ -705,7 +703,7 @@ const VehicleDetailView: React.FC = () => {
                               />
                               <Box margin={{ top: 's' }} variant="small" color="text-body-secondary">
                                 {vehicleData.currentLocation ? (
-                                  `Current location: ${vehicleData.currentLocation.address} (Updated: ${new Date(vehicleData.currentLocation.lastUpdated * 1000).toLocaleString()})`
+                                  `Current location: ${vehicleData.currentLocation.address} (Updated: ${new Date(vehicleData.currentLocation.lastUpdated > 9999999999 ? vehicleData.currentLocation.lastUpdated : vehicleData.currentLocation.lastUpdated * 1000).toLocaleString()})`
                                 ) : (
                                   `Last known location: ${vehicleData.lastKnownLocation!.lat.toFixed(4)}, ${vehicleData.lastKnownLocation!.lng.toFixed(4)}`
                                 )}
@@ -726,7 +724,7 @@ const VehicleDetailView: React.FC = () => {
                           </div>
                           <div>
                             <Box variant="awsui-key-label">Total Distance</Box>
-                            <div>{vehicleData.calculatedOdometerKm ? `${vehicleData.calculatedOdometerKm} km` : 'N/A'}</div>
+                            <div>{vehicleData.calculatedOdometerKm ? `${vehicleData.calculatedOdometerKm} km` : trips.length > 0 ? `${trips.reduce((sum: number, t: Trip) => sum + parseFloat(String(t.totalDistance || t.distance || 0)), 0).toFixed(1)} km` : 'N/A'}</div>
                           </div>
                           <div>
                             <Box variant="awsui-key-label">Safety Events</Box>
@@ -743,28 +741,21 @@ const VehicleDetailView: React.FC = () => {
                       <ColumnLayout columns={3} variant="text-grid">
                         {/* Tire Pressure Monitor */}
                         <div>
-                          {latestTelemetry && (latestTelemetry.tire_fl || latestTelemetry.tire_fr || latestTelemetry.tire_rl || latestTelemetry.tire_rr) ? (
-                            <TirePressureWidget
-                              tirePressure={{
-                                tire_fl: latestTelemetry.tire_fl,
-                                tire_fr: latestTelemetry.tire_fr,
-                                tire_rl: latestTelemetry.tire_rl,
-                                tire_rr: latestTelemetry.tire_rr,
-                                tire_temp_max: latestTelemetry.tire_temp_max
-                              }}
-                              lastUpdated={latestTelemetry.timestamp ? new Date(latestTelemetry.timestamp * 1000).toISOString() : undefined}
-                            />
+                          {(latestTelemetry && (latestTelemetry.tire_fl || latestTelemetry.tire_fr)) || vehicleData.tire_fl ? (
+                          <TirePressureWidget
+                            tirePressure={{
+                              tire_fl: latestTelemetry?.tire_fl || vehicleData.tire_fl,
+                              tire_fr: latestTelemetry?.tire_fr || vehicleData.tire_fr,
+                              tire_rl: latestTelemetry?.tire_rl || vehicleData.tire_rl,
+                              tire_rr: latestTelemetry?.tire_rr || vehicleData.tire_rr,
+                              tire_temp_max: latestTelemetry?.tire_temp_max
+                            }}
+                            lastUpdated={latestTelemetry?.timestamp ? new Date(latestTelemetry.timestamp > 9999999999 ? latestTelemetry.timestamp : latestTelemetry.timestamp * 1000).toISOString() : undefined}
+                          />
                           ) : (
-                            <Container
-                              header={<Header variant="h3">Tire Pressure Monitor</Header>}
-                            >
-                              <Box textAlign="center" padding="xl" color="text-body-secondary">
-                                <Box variant="strong" color="inherit">No tire pressure data</Box>
-                                <Box variant="p" color="inherit">
-                                  Tire pressure readings will appear here when telemetry data is available.
-                                </Box>
-                              </Box>
-                            </Container>
+                          <Container header={<Header variant="h3" description="Current tire pressure readings">Tire Pressure Monitor</Header>}>
+                            <Box textAlign="center" color="text-status-inactive" padding="l">No tire pressure data available</Box>
+                          </Container>
                           )}
                         </div>
 
@@ -806,7 +797,7 @@ const VehicleDetailView: React.FC = () => {
                                 height="300px"
                               />
                               <Box variant="small" color="text-body-secondary">
-                                {new Date(trips[0].startTime * 1000).toLocaleDateString()} - 
+                                {new Date(trips[0].startTime > 9999999999 ? trips[0].startTime : trips[0].startTime * 1000).toLocaleDateString()} - 
                                 {trips[0].driverName || trips[0].assignedDriver || 'Unknown Driver'} - 
                                 {(trips[0].distance || trips[0].totalLength || 0).toFixed(1)} km
                               </Box>
@@ -829,9 +820,7 @@ const VehicleDetailView: React.FC = () => {
                         </Container>
 
                         {/* Recent Activity Table */}
-                        <Container
-                          header={<Header variant="h3">Recent Activity</Header>}
-                        >
+                        <Container>
                           <Table
                             variant="container"
                             items={recentActivity}

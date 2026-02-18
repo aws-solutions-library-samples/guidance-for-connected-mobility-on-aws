@@ -26,55 +26,43 @@ if command -v nvm &> /dev/null; then
     source ~/.nvm/nvm.sh && nvm use 22 2>/dev/null || echo "   Node.js 22 not available, using current version"
 fi
 
-# Activate virtual environment if it exists
-if [ -d "$VENV_PATH" ]; then
-    echo "🔄 Activating virtual environment..."
-    source "$VENV_PATH/bin/activate"
-    echo "✅ Virtual environment activated"
-else
-    echo "⚠️  Virtual environment not found at $VENV_PATH"
-    echo "   Using system Python..."
+# Create virtual environment if it doesn't exist
+if [ ! -d "$VENV_PATH" ]; then
+    echo "📦 Virtual environment not found. Creating one at $VENV_PATH..."
+    python3 -m venv "$VENV_PATH"
+    echo "✅ Virtual environment created"
 fi
 
-# Check and install dependencies
+# Activate virtual environment
+echo "🔄 Activating virtual environment..."
+source "$VENV_PATH/bin/activate"
+echo "✅ Virtual environment activated"
+
+# Install/update dependencies from requirements.txt
 echo ""
 echo "📦 Checking Python dependencies..."
+REQUIREMENTS_FILE="$SIMULATION_DIR/requirements.txt"
 
-# Function to install dependencies
-install_deps() {
-    echo "⚠️  Installing missing dependencies..."
-    
-    if [ -d "$VENV_PATH" ]; then
-        # Install in virtual environment
-        pip install flask flask-cors boto3 requests
-    else
-        # Try different installation methods for system Python
-        if command -v pip &> /dev/null; then
-            pip install --user flask flask-cors boto3 requests
-        elif python3 -m pip --version &> /dev/null; then
-            python3 -m pip install --break-system-packages flask flask-cors boto3 requests 2>/dev/null || \
-            python3 -m pip install --user flask flask-cors boto3 requests
-        else
-            echo "❌ Could not find pip. Please install dependencies manually:"
-            echo "   python3 -m pip install flask flask-cors boto3 requests"
-            exit 1
+if [ -f "$REQUIREMENTS_FILE" ]; then
+    # Check if all required packages are importable
+    missing_deps=()
+    for package in flask flask_cors boto3 requests paho awsiotsdk; do
+        if ! python3 -c "import $package" 2>/dev/null; then
+            missing_deps+=($package)
         fi
-    fi
-}
+    done
 
-# Check if required packages are available
-missing_deps=()
-for package in flask flask_cors boto3 requests; do
-    if ! python3 -c "import $package" 2>/dev/null; then
-        missing_deps+=($package)
+    if [ ${#missing_deps[@]} -gt 0 ]; then
+        echo "⚠️  Missing dependencies: ${missing_deps[*]}"
+        echo "📥 Installing from requirements.txt..."
+        pip install -r "$REQUIREMENTS_FILE" --quiet
+        echo "✅ Dependencies installed"
+    else
+        echo "✅ All dependencies are available"
     fi
-done
-
-if [ ${#missing_deps[@]} -gt 0 ]; then
-    echo "❌ Missing dependencies: ${missing_deps[*]}"
-    install_deps
 else
-    echo "✅ All dependencies are available"
+    echo "❌ requirements.txt not found at $REQUIREMENTS_FILE"
+    exit 1
 fi
 
 # Check if simulation script exists

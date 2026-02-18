@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import React, { useState, useEffect, useContext } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Header,
   SpaceBetween,
@@ -18,6 +18,7 @@ import {
 import { UserContext } from '../../commons/UserContext';
 import { UI_ROUTES } from "../../../utils/constants";
 import { TripMap } from './TripMap';
+import { useVehicle } from '../../../contexts/VehicleContext';
 import { getRuntimeConfig } from '../../../config/api';
 
 interface Trip {
@@ -33,6 +34,7 @@ interface Trip {
   currentFuelLevel?: number;
   currentEngineTemp?: number;
   driverName: string;
+  driverId?: string;
   driverScore: number;
   route?: Array<{ lat: number; lng: number; timestamp?: string; speed?: number }>;
   startLocation?: { lat: number; lng: number; address?: string };
@@ -45,6 +47,7 @@ export default function TripDetailView() {
   const { vehicleId, tripId } = useParams<{ vehicleId: string; tripId: string }>();
   const navigate = useNavigate();
   const userContext = useContext(UserContext);
+  const { setVehicleVin } = useVehicle();
   
   const [tripData, setTripData] = useState<Trip | null>(null);
   const [safetyEvents, setSafetyEvents] = useState<any[]>([]);
@@ -55,7 +58,17 @@ export default function TripDetailView() {
   useEffect(() => {
     if (vehicleId && tripId) {
       fetchTripData();
-      // Remove separate safety events call - now included in trip data
+      // Fetch vehicle VIN for breadcrumb
+      (async () => {
+        try {
+          const runtimeConfig = getRuntimeConfig();
+          const resp = await fetch(`${runtimeConfig.apiEndpoint}api/v1/vehicles/${vehicleId}`);
+          if (resp.ok) {
+            const data = await resp.json();
+            setVehicleVin(data.vehicle?.vin || null);
+          }
+        } catch {}
+      })();
     }
   }, [vehicleId, tripId]);
 
@@ -132,7 +145,9 @@ export default function TripDetailView() {
               },
               {
                 label: 'Driver',
-                value: tripData.driverName || 'Unknown'
+                value: tripData.driverId ? (
+                  <Link to={`/drivers/${tripData.driverId}`}>{tripData.driverName || tripData.driverId}</Link>
+                ) : 'Unknown'
               },
               {
                 label: 'Status',
@@ -193,14 +208,6 @@ export default function TripDetailView() {
               {
                 label: 'Safety Events',
                 value: safetyEventsTotal
-              },
-              {
-                label: 'Current Fuel Level',
-                value: tripData.currentFuelLevel ? `${tripData.currentFuelLevel}%` : '-'
-              },
-              {
-                label: 'Engine Temperature',
-                value: tripData.currentEngineTemp ? `${tripData.currentEngineTemp}°F` : '-'
               }
             ]}
           />

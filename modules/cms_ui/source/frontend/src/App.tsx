@@ -97,9 +97,44 @@ const ReactivePageHeader = () => {
   const navigate = useNavigate();
   const { vehicleVin, driverName } = useVehicle();
   
+  // Handle trip detail pages (must be before vehicle detail check)
+  if (location.pathname.match(/\/vehicles\/management\/[^/]+\/trips\/[^/]+/)) {
+    const pathSegments = location.pathname.replace('/vehicles/management/', '').split('/');
+    const vehicleId = pathSegments[0];
+    const tripId = pathSegments[2];
+    const displayName = vehicleVin || vehicleId;
+    
+    return (
+      <PageHeader
+        title="Trip Details"
+        description={`Trip ${tripId}`}
+        breadcrumbs={[
+          { text: 'Home', href: '/' },
+          { text: 'Vehicle Management', href: UI_ROUTES.VEHICLE_MANAGEMENT },
+          { text: displayName, href: `/vehicles/management/${vehicleId}` },
+          { text: 'Trip Details' }
+        ]}
+        buttons={[
+          {
+            text: 'Back to Vehicle',
+            iconName: 'arrow-left',
+            onClick: () => navigate(`/vehicles/management/${vehicleId}`)
+          }
+        ]}
+        onBreadcrumbFollow={(e) => {
+          e.preventDefault();
+          if (e.detail.href) {
+            navigate(e.detail.href);
+          }
+        }}
+      />
+    );
+  }
+
   // Handle vehicle detail pages
   if (location.pathname.startsWith('/vehicles/management/') && location.pathname !== '/vehicles/management') {
-    const vehicleId = location.pathname.split('/').pop();
+    const pathSegments = location.pathname.replace('/vehicles/management/', '').split('/');
+    const vehicleId = pathSegments[0];
     console.log('🚗 App.tsx - vehicleId:', vehicleId, 'vehicleVin:', vehicleVin);
     const displayName = vehicleVin || vehicleId;
     
@@ -840,7 +875,7 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
                           }
                           
                           if (pathname.startsWith('/vehicles/management/') && pathname !== '/vehicles/management') {
-                            const vehicleId = pathname.split('/').pop();
+                            const vehicleId = pathname.replace('/vehicles/management/', '').split('/')[0];
                             const { vehicleVin } = useVehicle();
                             console.log('🚗 App.tsx - vehicleId:', vehicleId, 'vehicleVin:', vehicleVin);
                             const displayName = vehicleVin || vehicleId;

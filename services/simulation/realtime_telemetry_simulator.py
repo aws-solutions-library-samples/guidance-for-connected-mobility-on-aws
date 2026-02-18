@@ -50,6 +50,7 @@ class VehicleState:
         self.brake_wear = 100.0  # Decreases with braking
         self.engine_temp_base = 180.0  # Can increase under load
         self.battery_voltage_base = 13.8  # Can degrade
+        self.fuel_level = round(random.uniform(60, 95), 1)  # Starting fuel level
         self.soc_base = 85.0  # EV state of charge (decreases)
         self.hv_voltage_base = 380.0  # EV HV battery (can degrade)
         
@@ -208,7 +209,38 @@ class RealtimeTelemetrySimulator:
         except Exception as e:
             print(f"❌ Error loading drivers: {e}")
             return []
-    
+
+    def _ensure_driver_exists(self, vehicle_id: str) -> str:
+        """Create a driver in the drivers table if none exist, return driverId"""
+        import time as _time
+        names = [("Alex","Morgan"),("Jordan","Chen"),("Sam","Patel"),("Riley","Kim"),("Casey","Brooks")]
+        idx = hash(vehicle_id) % len(names)
+        first, last = names[idx]
+        driver_id = f"DRV-{int(_time.time())}-{vehicle_id[-4:]}"
+        try:
+            table_name = "cms-dev-storage-drivers"
+            try:
+                table = boto3.resource('dynamodb', region_name=self.region).Table(table_name)
+            except:
+                table = self.dynamodb.Table(table_name)
+            table.put_item(Item={
+                'driverId': driver_id,
+                'firstName': first, 'lastName': last,
+                'email': f"{first.lower()}.{last.lower()}@example.com",
+                'phone': f"555-{hash(vehicle_id) % 9000 + 1000}",
+                'licenseNumber': f"DL-{driver_id}",
+                'licenseExpiry': '2028-01-01',
+                'status': 'active',
+                'createdAt': datetime.utcnow().isoformat(),
+                'updatedAt': datetime.utcnow().isoformat()
+            })
+            # Refresh cache so subsequent trips find this driver
+            self.drivers_loaded = False
+            print(f"✅ Auto-created driver {driver_id} ({first} {last}) for {vehicle_id}")
+        except Exception as e:
+            print(f"⚠️ Failed to auto-create driver: {e}")
+        return driver_id
+
     def configure_driver_selection(self, mode='random', specific_driver_id=None):
         """Configure how drivers are selected for vehicles
         
@@ -298,6 +330,12 @@ class RealtimeTelemetrySimulator:
         now = datetime.now(timezone.utc)
         timestamp_ms = int(now.timestamp() * 1000)  # Convert to milliseconds for consistency
         
+        # Ensure each waypoint gets a distinct timestamp even if generated in rapid succession
+        if previous_state is not None and hasattr(previous_state, 'last_timestamp') and previous_state.last_timestamp:
+            if timestamp_ms <= previous_state.last_timestamp:
+                # Advance by the configured interval (default 15s) to simulate realistic spacing
+                timestamp_ms = previous_state.last_timestamp + (getattr(self, 'telemetry_interval', 15) * 1000)
+        
         # Initialize previous_state if None
         if previous_state is None:
             previous_state = VehicleState()
@@ -347,10 +385,12 @@ class RealtimeTelemetrySimulator:
                         selected_driver = real_drivers[vehicle_hash]
                         previous_state.current_driver_id = selected_driver['driverId']
                 else:
-                    # Fallback to generated driver if no real drivers found
-                    vehicle_hash = hash(vehicle['vehicleId']) % 20 + 1
-                    previous_state.current_driver_id = f"DRIVER-{vehicle_hash:03d}"
+                    # Auto-create a driver in the drivers table
+                    auto_driver = self._ensure_driver_exists(vehicle['vehicleId'])
+                    previous_state.current_driver_id = auto_driver
             engine_event = "ENGINE_START"
+            
+            # Vehicle status updated by Flink based on ENGINE_START event
             
             # Log trip start with route info
             start_pos = previous_state.route[0] if previous_state.route else current_pos
@@ -363,6 +403,8 @@ class RealtimeTelemetrySimulator:
         elif previous_state.route_index >= len(previous_state.route) - 1:
             previous_state.engine_on = False
             engine_event = "ENGINE_STOP"
+            
+            # Vehicle status updated by Flink based on ENGINE_STOP event
             
             print(f"🏁 Completed trip {previous_state.current_trip_id}")
             
@@ -431,8 +473,8 @@ class RealtimeTelemetrySimulator:
             'engineRPM': random.randint(800, 4000) if previous_state.engine_on else 0,
             'engineTemp': round(random.uniform(180, 220), 1) if previous_state.engine_on else 70,
             'oilPressure': round(random.uniform(20, 80), 1) if previous_state.engine_on else 0,
-            'batteryVoltage': round(random.uniform(12.0, 14.4), 1),
-            'fuelLevel': round(random.uniform(10, 100), 1),
+            'batteryVoltage': round(previous_state.battery_voltage_base + random.uniform(-0.2, 0.2), 1),
+            'fuelLevel': round(max(5, previous_state.fuel_level - random.uniform(0.3, 1.5)), 1),
             'odometer': int(vehicle.get('mileage', 50000)) + previous_state.route_index,
             'lat': current_pos['lat'],
             'lng': current_pos['lng'],
@@ -447,6 +489,8 @@ class RealtimeTelemetrySimulator:
         # === INTELLIGENT CONDITION PROGRESSION ===
         # Update conditions based on trip progression and driving behavior
         self.update_vehicle_conditions(previous_state, current_speed, acceleration, deceleration)
+        # Track fuel consumption from telemetry
+        previous_state.fuel_level = telemetry['fuelLevel']
         
         # === TIRE PRESSURES (Progressive degradation) ===
         tire_fl = previous_state.tire_pressure_fl
@@ -1304,6 +1348,20 @@ class RealtimeTelemetrySimulator:
         except Exception as e:
             print(f"❌ Error storing telemetry: {e}")
     
+    def _update_vehicle_status(self, vehicle_id: str, connection_status: str, activity_status: str):
+        """Update vehicle connection and activity status"""
+        if 'vehicles' not in self.table_names:
+            return
+        try:
+            table = self.dynamodb.Table(self.table_names['vehicles'])
+            table.update_item(
+                Key={'vehicleId': vehicle_id},
+                UpdateExpression='SET connectionStatus = :cs, activityStatus = :as',
+                ExpressionAttributeValues={':cs': connection_status, ':as': activity_status}
+            )
+        except Exception as e:
+            print(f"⚠️ Failed to update vehicle status: {e}")
+
     def update_vehicle_location(self, telemetry_data: Dict):
         """Update vehicle location in vehicles table"""
         if 'vehicles' not in self.table_names:
@@ -1655,6 +1713,9 @@ class RealtimeTelemetrySimulator:
                     sys.stdout.flush()
                 except:
                     pass
+            
+            # Leave vehicle as connected/idle (trip completed, vehicle still "on")
+            # self._update_vehicle_status(vehicle_id, 'disconnected', 'inactive')
         
         print(f"✅ Telemetry simulation completed for {vehicle_id}")
         print(f"🔍 DEBUG: Function ending normally")
@@ -2177,6 +2238,8 @@ def main():
         try:
             import json
             vehicles = json.loads(args.vehicle_config)
+            # Convert plain strings to dicts if needed
+            vehicles = [{'vehicleId': v} if isinstance(v, str) else v for v in vehicles]
             print(f"📋 Using {len(vehicles)} vehicles from configuration")
         except Exception as e:
             print(f"⚠️ Error parsing vehicle config: {e}")

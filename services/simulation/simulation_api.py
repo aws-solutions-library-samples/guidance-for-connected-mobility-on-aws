@@ -191,7 +191,7 @@ class SimulationManager:
         # Prepare simulation command based on vehicle source
         script_dir = os.path.dirname(os.path.abspath(__file__))
         
-        if config.get('vehicle_source') == 'real_vehicles' or config.get('use_real_vehicles'):
+        if config.get('vehicle_source') in ('real_vehicles', 'real') or config.get('use_real_vehicles') or isinstance(config.get('vehicles'), list):
             # Use realtime telemetry simulator for real vehicles
             vehicle_count = len(config['vehicles']) if isinstance(config.get('vehicles'), list) else config.get('vehicles', 10)
             
@@ -218,7 +218,7 @@ class SimulationManager:
                 table_suffix = None  # Let simulator auto-detect
             
             cmd = [
-                'python3', 
+                sys.executable, 
                 os.path.join(script_dir, 'realtime_telemetry_simulator.py'),
                 '--profile', AWS_PROFILE or 'default',
                 '--trips', str(config.get('trips', 3)),
@@ -253,7 +253,7 @@ class SimulationManager:
                 cmd.extend(['--force-oil-pressure-low'])
             if config.get('force_hv_battery_degradation'):
                 cmd.extend(['--force-hv-battery-degradation'])
-            if config.get('force_safety_event'):
+            if config.get('force_safety_event') and config['force_safety_event'] not in (None, 'None', 'none', ''):
                 cmd.extend(['--force-safety-event', config['force_safety_event']])
             if not config.get('progressive_degradation', True):
                 cmd.extend(['--no-progressive-degradation'])
@@ -274,7 +274,7 @@ class SimulationManager:
             vehicle_count = config.get('vehicles', 10)
             
             cmd = [
-                'python3', 
+                sys.executable, 
                 os.path.join(script_dir, 'realtime_telemetry_simulator.py'),
                 '--profile', AWS_PROFILE or 'default',
                 '--trips', str(config.get('trips', 3)),
@@ -455,6 +455,8 @@ class SimulationManager:
         
         if config.get('vehicle_source') == 'real_vehicles':
             vehicle_count = len(config.get('selected_vehicles', []))
+        elif isinstance(config.get('vehicles'), list):
+            vehicle_count = len(config.get('vehicles', []))
         else:
             vehicle_count = config.get('vehicles', 10)
         
@@ -492,8 +494,8 @@ class SimulationManager:
             config = sim.get('config', {})
             trips_per_vehicle = config.get('trips', 3)
             
-            if config.get('vehicle_source') == 'real_vehicles':
-                vehicle_count = len(config.get('selected_vehicles', []))
+            if isinstance(config.get('vehicles'), list):
+                vehicle_count = len(config.get('vehicles', []))
             else:
                 vehicle_count = config.get('vehicles', 10)
             
