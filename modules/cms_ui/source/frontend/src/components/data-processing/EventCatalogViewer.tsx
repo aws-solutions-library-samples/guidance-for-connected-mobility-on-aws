@@ -1,15 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Box, SpaceBetween, Header, Container, StatusIndicator, Badge, Tabs } from '@cloudscape-design/components';
+import { Table, Box, Header, Container, StatusIndicator, Badge, Tabs } from '@cloudscape-design/components';
+import { getRuntimeConfig } from '../../config/api';
 
 interface Event {
   event_id: string;
   category: string;
-  event_name: string;
-  severity: string;
+  severity: number;
   description: string;
-  required_signals: string[];
-  status: string;
+  trigger_signal: string;
+  threshold_operator: string;
+  threshold_value: number;
+  dtc_code?: string;
 }
+
+const severityMap: Record<number, { type: 'info' | 'warning' | 'error'; label: string }> = {
+  1: { type: 'info', label: 'Low' },
+  2: { type: 'warning', label: 'Medium' },
+  3: { type: 'error', label: 'High' },
+};
 
 const EventCatalogViewer: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
@@ -17,80 +25,41 @@ const EventCatalogViewer: React.FC = () => {
   const [activeTab, setActiveTab] = useState('all');
 
   useEffect(() => {
-    // TODO: Replace with actual API endpoint
-    fetch('https://5oux6cw3ef.execute-api.us-east-1.amazonaws.com/prod/events')
+    const api = getRuntimeConfig().apiEndpoint;
+    fetch(`${api}api/v1/event-catalog`)
       .then(res => res.json())
-      .then(data => {
-        setEvents(data.events || []);
-        setLoading(false);
-      })
+      .then(data => { setEvents(data.events || []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 
-  const getSeverityType = (severity: string) => {
-    switch (severity) {
-      case 'critical': return 'error';
-      case 'warning': return 'warning';
-      case 'info': return 'info';
-      default: return 'info';
-    }
-  };
+  const filtered = activeTab === 'all' ? events : events.filter(e => e.category === activeTab);
 
-  const filterByCategory = (category: string) => {
-    if (category === 'all') return events;
-    return events.filter(e => e.category === category);
-  };
-
-  const categories = ['all', 'safety', 'maintenance', 'trip', 'geofence', 'diagnostic', 'fuel_energy', 'connectivity'];
+  const columns = [
+    { id: 'event_id', header: 'Event ID', cell: (item: Event) => item.event_id },
+    { id: 'category', header: 'Category', cell: (item: Event) => <Badge color={item.category === 'safety' ? 'red' : 'blue'}>{item.category}</Badge> },
+    { id: 'severity', header: 'Severity', cell: (item: Event) => {
+      const s = severityMap[item.severity] || severityMap[1];
+      return <StatusIndicator type={s.type}>{s.label}</StatusIndicator>;
+    }},
+    { id: 'description', header: 'Description', cell: (item: Event) => item.description },
+    { id: 'trigger', header: 'Trigger', cell: (item: Event) => <code>{item.trigger_signal} {item.threshold_operator} {item.threshold_value}</code> },
+    { id: 'dtc', header: 'DTC Code', cell: (item: Event) => item.dtc_code || '-' },
+  ];
 
   return (
-    <Container header={<Header variant="h2">Event Catalog</Header>}>
+    <Container header={<Header variant="h2" counter={`(${filtered.length})`}>Event Catalog</Header>}>
       <Tabs
         activeTabId={activeTab}
         onChange={({ detail }) => setActiveTab(detail.activeTabId)}
-        tabs={categories.map(cat => ({
-          id: cat,
-          label: cat === 'all' ? 'All Events' : cat.replace('_', '/').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-          content: (
-            <Table
-              loading={loading}
-              columnDefinitions={[
-                { id: 'event_id', header: 'Event ID', cell: (item: Event) => item.event_id },
-                { 
-                  id: 'category', 
-                  header: 'Category', 
-                  cell: (item: Event) => (
-                    <Badge color="blue">{item.category}</Badge>
-                  )
-                },
-                { 
-                  id: 'severity', 
-                  header: 'Severity', 
-                  cell: (item: Event) => (
-                    <StatusIndicator type={getSeverityType(item.severity)}>
-                      {item.severity}
-                    </StatusIndicator>
-                  )
-                },
-                { id: 'description', header: 'Description', cell: (item: Event) => item.description },
-                { 
-                  id: 'signals', 
-                  header: 'Required Signals', 
-                  cell: (item: Event) => item.required_signals?.join(', ') || '-'
-                }
-              ]}
-              items={filterByCategory(cat)}
-              empty={
-                <Box textAlign="center" color="inherit">
-                  <b>No events</b>
-                  <Box padding={{ bottom: 's' }} variant="p" color="inherit">
-                    No events found in this category.
-                  </Box>
-                </Box>
-              }
-            />
-          )
-        }))}
+        tabs={[
+          { id: 'all', label: `All (${events.length})`, content: null },
+          { id: 'safety', label: `Safety (${events.filter(e => e.category === 'safety').length})`, content: null },
+          { id: 'maintenance', label: `Maintenance (${events.filter(e => e.category === 'maintenance').length})`, content: null },
+        ].map(tab => ({ ...tab, content: (
+          <Table loading={loading} columnDefinitions={columns} items={filtered}
+            empty={<Box textAlign="center" color="inherit"><b>No events found</b></Box>}
+          />
+        )}))}
       />
     </Container>
   );

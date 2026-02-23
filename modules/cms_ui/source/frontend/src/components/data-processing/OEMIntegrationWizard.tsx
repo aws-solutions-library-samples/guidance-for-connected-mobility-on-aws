@@ -74,7 +74,7 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
         data_dictionary: JSON.parse(dataDictionary)
       };
       
-      const response = await fetch('https://5oux6cw3ef.execute-api.us-east-1.amazonaws.com/prod/generate-oem-transform', {
+      const response = await fetch('https://sel11tei2c.execute-api.us-east-1.amazonaws.com/prod/generate-oem-transform', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -145,7 +145,7 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
         if (tenant) config.oauth2.tenant = tenant;
       }
       
-      await fetch('https://5oux6cw3ef.execute-api.us-east-1.amazonaws.com/prod/data-sources', {
+      await fetch('https://sel11tei2c.execute-api.us-east-1.amazonaws.com/prod/data-sources', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -157,7 +157,7 @@ const OEMIntegrationWizard: React.FC<OEMIntegrationWizardProps> = ({ visible, on
 
       // Upload manifest using the generated manifest
       const manifestName = `${oemName.toLowerCase().replace(/\s+/g, '-')}-transform.json`;
-      await fetch('https://5oux6cw3ef.execute-api.us-east-1.amazonaws.com/prod/manifests', {
+      await fetch('https://sel11tei2c.execute-api.us-east-1.amazonaws.com/prod/manifests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

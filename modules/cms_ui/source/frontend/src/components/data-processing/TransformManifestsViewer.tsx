@@ -21,7 +21,7 @@ const TransformManifestsViewer: React.FC<TransformManifestsViewerProps> = ({ onA
 
   const loadManifests = () => {
     setLoading(true);
-    fetch('https://5oux6cw3ef.execute-api.us-east-1.amazonaws.com/prod/manifests')
+    fetch('https://sel11tei2c.execute-api.us-east-1.amazonaws.com/prod/manifests')
       .then(res => res.json())
       .then(data => {
         setManifests(data.manifests || []);
@@ -38,7 +38,7 @@ const TransformManifestsViewer: React.FC<TransformManifestsViewerProps> = ({ onA
     setSelectedManifest(manifest);
     setShowDetails(true);
     // Fetch manifest content
-    fetch(`https://5oux6cw3ef.execute-api.us-east-1.amazonaws.com/prod/manifests?name=${manifest.name}`)
+    fetch(`https://sel11tei2c.execute-api.us-east-1.amazonaws.com/prod/manifests?name=${manifest.name}`)
       .then(res => res.json())
       .then(data => setManifestContent(data))
       .catch(() => setManifestContent(null));

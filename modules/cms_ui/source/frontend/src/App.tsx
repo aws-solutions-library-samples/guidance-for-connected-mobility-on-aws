@@ -676,9 +676,10 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
                             ]
                           };
                         case UI_ROUTES.DATA_PROCESSING:
+                        case '/signal-catalog':
                           return {
-                            title: 'Data Processing',
-                            description: 'View signal catalog and data transformation configurations for telemetry processing.',
+                            title: 'Signal & Event Catalog',
+                            description: 'Browse the full signal catalog, event definitions, and data transformation configurations for fleet telemetry processing.',
                             breadcrumbs: [
                               { text: 'Home', href: '/' },
                               { text: 'Data Processing', href: UI_ROUTES.DATA_PROCESSING }
@@ -1097,7 +1098,7 @@ function App({ runtimeConfig = getRuntimeConfig() }: Record<string, any>) {
                     <Route path="/policy-list" element={<DevicePolicyList />} />
                     
                     {/* Data Collection Routes */}
-                    <Route path="/signal-catalog" element={<SignalCatalogView />} />
+                    <Route path="/signal-catalog" element={<DataProcessingView />} />
                     <Route path="/vehicle-models" element={<VehicleModelsView />} />
                     <Route path="/campaigns" element={<CampaignsView />} />
                     
