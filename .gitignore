@@ -539,3 +539,8 @@ modules/oem_processor/schemas/
 *signal-catalog.json
 modules/oem_ingestion/consumer/logs/*.jsonl
 tests/e2e/.venv/
+
+# Generated docs/diagrams from AI sessions - do not commit
+modules/campaign_manager/
+generated-diagrams/
+DEPLOYMENT_CONTEXT.md
