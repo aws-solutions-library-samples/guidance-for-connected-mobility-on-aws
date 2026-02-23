@@ -71,13 +71,27 @@ class VehicleState:
         self.high_speed_time = 0  # Track time at high speeds
 
 class RealtimeTelemetrySimulator:
-    def __init__(self, profile_name: str = "default", region: str = "us-east-1", certificates_table_name: str = None, **alert_params):
-        """Initialize the real-time telemetry simulator"""
+    def __init__(self, profile_name: str = "default", region: str = "us-east-1", certificates_table_name: str = None, mode: str = "mqtt_direct", **alert_params):
+        """Initialize the real-time telemetry simulator
+        mode: 'mqtt_direct' (MQTT to IoT Core) or 'vcan' (CAN bus + GPS via MQTT)
+        """
         self.profile_name = profile_name
         self.region = region
         self.certificates_table_name = certificates_table_name
+        self.mode = mode
         self.running = False
         self.simulation_threads = []
+
+        # CAN encoder/writer for vcan mode
+        self.can_encoder = None
+        self.can_writer = None
+        if mode == 'vcan':
+            from can_encoder import CANEncoder
+            from can_bus_writer import CANBusWriter
+            self.can_encoder = CANEncoder()
+            self.can_writer = CANBusWriter()
+            self.can_writer.open()
+            print(f"🔌 CAN mode: {self.can_writer.interface}/{self.can_writer.channel} ({self.can_encoder.signal_count} signals mapped)")
         
         # === FORCED ALERT PARAMETERS ===
         self.force_tire_blowout = alert_params.get('force_tire_blowout', False)
@@ -1318,7 +1332,32 @@ class RealtimeTelemetrySimulator:
         except Exception as e:
             print(f"❌ IoT Core publish failed for {vin}: {e}")
             raise e  # Re-raise to fail the simulation
-    
+
+    def publish_vcan(self, vehicle_id: str, telemetry_data: Dict, mqtt_client=None):
+        """Publish telemetry as CAN frames to virtual CAN bus.
+        GPS (lat/lon/alt) goes via MQTT since it's off the CAN bus."""
+        # Encode telemetry → CAN frames
+        frames = self.can_encoder.encode(telemetry_data)
+        self.can_writer.send(frames)
+
+        # GPS via MQTT (separate from CAN bus)
+        if mqtt_client and all(k in telemetry_data for k in ('lat', 'lng')):
+            import json, gzip, base64
+            gps_payload = {
+                'vin': telemetry_data.get('vin', vehicle_id),
+                'timestamp': telemetry_data.get('timestamp'),
+                'lat': telemetry_data['lat'],
+                'lng': telemetry_data['lng'],
+                'alt': telemetry_data.get('alt', 0),
+                'heading': telemetry_data.get('heading', 0),
+                'speed': telemetry_data.get('speed', 0),
+            }
+            topic = f"$aws/rules/cms_dev_iot_msk_rule/{vehicle_id}/gps"
+            compressed = base64.b64encode(gzip.compress(json.dumps(gps_payload).encode())).decode()
+            mqtt_client.publish(topic, compressed, qos=0)
+
+        print(f"📡 {vehicle_id}: {len(frames)} CAN frames + GPS via MQTT")
+
     def store_telemetry_data(self, telemetry_data: Dict):
         """Store telemetry data directly in DynamoDB"""
         if 'telemetry' not in self.table_names:
@@ -1613,14 +1652,14 @@ class RealtimeTelemetrySimulator:
                         
                         # Send final telemetry packet with ignitionOn: false
                         final_telemetry = self.generate_telemetry_data(vehicle, vehicle_state, force_maintenance_alert)
-                        compressed_payload = self.compress_telemetry(final_telemetry)
-                        topic = f"$aws/rules/cms_dev_iot_msk_rule/{vehicle_id}"
-                        
-                        result = mqtt_client.publish(topic, compressed_payload, qos=1)
-                        if result.rc == 0:
-                            message_count += 1
-                            print(f"🏁 Final telemetry sent with ignitionOn: {final_telemetry['ignitionOn']} at ({final_telemetry['lat']:.4f}, {final_telemetry['lng']:.4f})")
-                            self.logger.info(f"🏁 Final telemetry sent with ignitionOn: {final_telemetry['ignitionOn']}")
+                        if self.mode == 'vcan':
+                            self.publish_vcan(vehicle_id, final_telemetry, mqtt_client)
+                        else:
+                            compressed_payload = self.compress_telemetry(final_telemetry)
+                            topic = f"$aws/rules/cms_dev_iot_msk_rule/{vehicle_id}"
+                            mqtt_client.publish(topic, compressed_payload, qos=1)
+                        message_count += 1
+                        print(f"🏁 Final telemetry sent with ignitionOn: {final_telemetry['ignitionOn']}")
                         
                         if completed_trips >= trips_count:
                             print(f"🏁 All {trips_count} trips completed for {vehicle_id}")
@@ -1648,54 +1687,49 @@ class RealtimeTelemetrySimulator:
                     vehicle_state.last_timestamp = telemetry_data['timestamp']
                     self.vehicle_states[vehicle_id] = vehicle_state
                     
-                    # Publish telemetry using AWS Basic Ingest (policy now fixed)
-                    topic = f"$aws/rules/cms_dev_iot_msk_rule/{vehicle_id}"
-                    
-                    # Send gzipped + base64 encoded payload as raw binary data
-                    compressed_payload = self.compress_telemetry(telemetry_data)
-                    
+                    # Publish telemetry based on mode
+                    if self.mode == 'vcan':
+                        # CAN bus mode: encode to CAN frames, GPS via MQTT
+                        try:
+                            self.publish_vcan(vehicle_id, telemetry_data, mqtt_client)
+                            message_count += 1
+                        except Exception as e:
+                            print(f"❌ CAN publish failed: {e}")
+                            sys.stdout.flush()
+                    else:
+                        # MQTT direct mode: publish compressed JSON to IoT Core
+                        topic = f"$aws/rules/cms_dev_iot_msk_rule/{vehicle_id}"
+                        compressed_payload = self.compress_telemetry(telemetry_data)
+
+                        try:
+                            result1 = mqtt_client.publish(topic, compressed_payload, qos=0)
+                        except Exception as e:
+                            print(f"❌ Exception during publish: {e}")
+                            import traceback
+                            traceback.print_exc()
+                            sys.stdout.flush()
+                            break
+
+                        if result1.rc == 0:
+                            message_count += 1
+                        else:
+                            print(f"❌ Publish failed for {vehicle_id}: return code {result1.rc}")
+                            sys.stdout.flush()
+
                     # Human readable telemetry summary
                     city_name = getattr(self, 'current_city', 'Unknown')
                     progress = telemetry_data.get('tripProgress', {}).get('progressPercentage', 0)
-                    
-                    print(f"📡 {vehicle_id}: {telemetry_data['speed']:.1f} km/h at ({telemetry_data['lat']:.4f}, {telemetry_data['lng']:.4f}) in {city_name}")
-                    print(f"   Trip progress: {progress:.1f}% | Engine: {telemetry_data['engineRPM']} RPM, {telemetry_data['engineTemp']:.1f}°C")
-                    print(f"   Raw telemetry: {len([k for k in telemetry_data.keys() if not k.startswith('trip')])} fields → Flink processors")
-                    
-                    # Publish to Basic Ingest topic with QoS 0 (fire-and-forget)
-                    try:
-                        print(f"🔍 About to publish {len(compressed_payload)} bytes to {topic}")
+                    mode_label = 'CAN' if self.mode == 'vcan' else 'MQTT'
+                    print(f"📡 [{mode_label}] {vehicle_id}: {telemetry_data['speed']:.1f} km/h at ({telemetry_data['lat']:.4f}, {telemetry_data['lng']:.4f}) | msg #{message_count}")
+                    sys.stdout.flush()
+
+                    if message_count % 10 == 0:
+                        elapsed = time.time() - start_time
+                        print(f"📊 {vehicle_id}: {message_count} messages in {elapsed:.1f}s")
                         sys.stdout.flush()
-                        result1 = mqtt_client.publish(topic, compressed_payload, qos=0)
-                        print(f"🔍 Publish result: rc={result1.rc}, mid={result1.mid}")
-                        sys.stdout.flush()
-                    except Exception as e:
-                        print(f"❌ Exception during publish: {e}")
-                        import traceback
-                        traceback.print_exc()
-                        sys.stdout.flush()
-                        break
-                    
-                    if result1.rc == 0:
-                        message_count += 1
-                        print(f"✅ Published to IoT Core (msg #{message_count})")
-                        
-                        # Small delay to see when disconnection happens
-                        print(f"🔍 Waiting 2 seconds to observe connection...")
-                        sys.stdout.flush()
-                        time.sleep(2)
-                        print(f"🔍 Still connected after 2 seconds: {connected}")
-                        sys.stdout.flush()
-                        
-                        if message_count % 10 == 0:  # Summary every 10 messages
-                            elapsed = time.time() - start_time
-                            print(f"📊 {vehicle_id}: {message_count} messages sent in {elapsed:.1f}s")
-                            sys.stdout.flush()
-                    else:
-                        print(f"❌ Publish failed for {vehicle_id}: return code {result1.rc}")
-                        sys.stdout.flush()
-                    
-                    # Wait 15 seconds before next telemetry update
+
+                    # Wait before next telemetry update
+                    time.sleep(15)
                     time.sleep(15)
                     
                 except Exception as e:
@@ -1802,8 +1836,11 @@ class RealtimeTelemetrySimulator:
         
         self.simulation_threads.clear()
     def cleanup(self):
-        """Clean up MQTT connection and certificate files"""
+        """Clean up MQTT connection, CAN bus, and certificate files"""
         try:
+            if self.can_writer:
+                self.can_writer.close()
+
             if hasattr(self, 'mqtt_connection') and self.mqtt_connection:
                 disconnect_future = self.mqtt_connection.disconnect()
                 disconnect_future.result(timeout=5)
@@ -2155,7 +2192,9 @@ def main():
                        help='Force specific safety event type')
     parser.add_argument('--safety-rate', type=float, default=1.0, help='Safety event probability multiplier (0.0-1.0)')
     parser.add_argument('--no-progressive-degradation', action='store_true', help='Disable intelligent condition progression')
-    
+    parser.add_argument('--mode', default='mqtt_direct', choices=['mqtt_direct', 'vcan'],
+                       help='Output mode: mqtt_direct (JSON to IoT Core) or vcan (CAN bus + GPS via MQTT)')
+
     args = parser.parse_args()
     
     # City coordinate mapping
@@ -2194,6 +2233,7 @@ def main():
         profile_name=args.profile, 
         region=args.region,
         certificates_table_name=args.certificates_table,
+        mode=args.mode,
         **alert_params
     )
     

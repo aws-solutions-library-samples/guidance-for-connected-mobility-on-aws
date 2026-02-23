@@ -544,3 +544,4 @@ tests/e2e/.venv/
 modules/campaign_manager/
 generated-diagrams/
 DEPLOYMENT_CONTEXT.md
+services/simulation/can_env/

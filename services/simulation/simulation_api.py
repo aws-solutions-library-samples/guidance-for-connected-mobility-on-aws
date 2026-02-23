@@ -284,7 +284,12 @@ class SimulationManager:
         
         if not config.get('cleanup', True):
             cmd.append('--no-cleanup')
-        
+
+        # Add mode parameter (mqtt_direct or vcan)
+        mode = config.get('mode', 'mqtt_direct')
+        if mode in ('vcan', 'mqtt_direct'):
+            cmd.extend(['--mode', mode])
+
         # Add safety rate parameter
         if 'safety_rate' in config:
             cmd.extend(['--safety-rate', str(config['safety_rate'])])
@@ -672,7 +677,8 @@ def start_simulation():
         config.setdefault('force_oil_pressure_low', False)  # Force oil pressure low
         config.setdefault('force_hv_battery_degradation', False)  # Force EV battery degradation
         config.setdefault('force_safety_event', None)  # 'hard_braking', 'collision_avoidance', 'seatbelt_violation', 'phone_usage'
-        config.setdefault('progressive_degradation', True)  # Enable intelligent condition progression
+        config.setdefault('progressive_degradation', True)
+        config.setdefault('mode', 'mqtt_direct')  # 'mqtt_direct' or 'vcan'
         
         # Convert values to proper types (handle form data)
         def safe_convert(value, convert_func, default):
