@@ -1730,7 +1730,6 @@ class RealtimeTelemetrySimulator:
 
                     # Wait before next telemetry update
                     time.sleep(15)
-                    time.sleep(15)
                     
                 except Exception as e:
                     print(f"❌ Error publishing telemetry for {vehicle_id}: {e}")
