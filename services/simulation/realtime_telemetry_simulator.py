@@ -73,7 +73,7 @@ class VehicleState:
 class RealtimeTelemetrySimulator:
     def __init__(self, profile_name: str = "default", region: str = "us-east-1", certificates_table_name: str = None, mode: str = "mqtt_direct", **alert_params):
         """Initialize the real-time telemetry simulator
-        mode: 'mqtt_direct' (MQTT to IoT Core) or 'vcan' (CAN bus + GPS via MQTT)
+        mode: 'mqtt_direct' (MQTT to IoT Core) or 'can' (CAN bus + GPS via MQTT)
         """
         self.profile_name = profile_name
         self.region = region
@@ -82,10 +82,10 @@ class RealtimeTelemetrySimulator:
         self.running = False
         self.simulation_threads = []
 
-        # CAN encoder/writer for vcan mode
+        # CAN encoder/writer for can mode
         self.can_encoder = None
         self.can_writer = None
-        if mode == 'vcan':
+        if mode == 'can':
             from can_encoder import CANEncoder
             from can_bus_writer import CANBusWriter
             self.can_encoder = CANEncoder()
@@ -1333,7 +1333,7 @@ class RealtimeTelemetrySimulator:
             print(f"❌ IoT Core publish failed for {vin}: {e}")
             raise e  # Re-raise to fail the simulation
 
-    def publish_vcan(self, vehicle_id: str, telemetry_data: Dict, mqtt_client=None):
+    def publish_can(self, vehicle_id: str, telemetry_data: Dict, mqtt_client=None):
         """Publish telemetry as CAN frames to virtual CAN bus.
         GPS (lat/lon/alt) goes via MQTT since it's off the CAN bus."""
         # Encode telemetry → CAN frames
@@ -1652,8 +1652,8 @@ class RealtimeTelemetrySimulator:
                         
                         # Send final telemetry packet with ignitionOn: false
                         final_telemetry = self.generate_telemetry_data(vehicle, vehicle_state, force_maintenance_alert)
-                        if self.mode == 'vcan':
-                            self.publish_vcan(vehicle_id, final_telemetry, mqtt_client)
+                        if self.mode == 'can':
+                            self.publish_can(vehicle_id, final_telemetry, mqtt_client)
                         else:
                             compressed_payload = self.compress_telemetry(final_telemetry)
                             topic = f"$aws/rules/cms_dev_iot_msk_rule/{vehicle_id}"
@@ -1688,10 +1688,10 @@ class RealtimeTelemetrySimulator:
                     self.vehicle_states[vehicle_id] = vehicle_state
                     
                     # Publish telemetry based on mode
-                    if self.mode == 'vcan':
+                    if self.mode == 'can':
                         # CAN bus mode: encode to CAN frames, GPS via MQTT
                         try:
-                            self.publish_vcan(vehicle_id, telemetry_data, mqtt_client)
+                            self.publish_can(vehicle_id, telemetry_data, mqtt_client)
                             message_count += 1
                         except Exception as e:
                             print(f"❌ CAN publish failed: {e}")
@@ -1719,7 +1719,7 @@ class RealtimeTelemetrySimulator:
                     # Human readable telemetry summary
                     city_name = getattr(self, 'current_city', 'Unknown')
                     progress = telemetry_data.get('tripProgress', {}).get('progressPercentage', 0)
-                    mode_label = 'CAN' if self.mode == 'vcan' else 'MQTT'
+                    mode_label = 'CAN' if self.mode == 'can' else 'MQTT'
                     print(f"📡 [{mode_label}] {vehicle_id}: {telemetry_data['speed']:.1f} km/h at ({telemetry_data['lat']:.4f}, {telemetry_data['lng']:.4f}) | msg #{message_count}")
                     sys.stdout.flush()
 
@@ -2192,8 +2192,8 @@ def main():
                        help='Force specific safety event type')
     parser.add_argument('--safety-rate', type=float, default=1.0, help='Safety event probability multiplier (0.0-1.0)')
     parser.add_argument('--no-progressive-degradation', action='store_true', help='Disable intelligent condition progression')
-    parser.add_argument('--mode', default='mqtt_direct', choices=['mqtt_direct', 'vcan'],
-                       help='Output mode: mqtt_direct (JSON to IoT Core) or vcan (CAN bus + GPS via MQTT)')
+    parser.add_argument('--mode', default='mqtt_direct', choices=['mqtt_direct', 'can'],
+                       help='Output mode: mqtt_direct (JSON to IoT Core) or can (CAN bus + GPS via MQTT)')
 
     args = parser.parse_args()
     

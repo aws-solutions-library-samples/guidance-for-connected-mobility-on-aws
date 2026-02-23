@@ -39,8 +39,8 @@ def setup_vcan(interface: str = 'vcan0') -> bool:
         print(f"ℹ️  vcan not available on {platform.system()}, using udp_multicast instead")
         return False
     try:
-        subprocess.run(['sudo', 'modprobe', 'vcan'], check=True)
-        subprocess.run(['sudo', 'ip', 'link', 'add', 'dev', interface, 'type', 'vcan'],
+        subprocess.run(['sudo', 'modprobe', 'can'], check=True)
+        subprocess.run(['sudo', 'ip', 'link', 'add', 'dev', interface, 'type', 'can'],
                        check=True, capture_output=True)
         subprocess.run(['sudo', 'ip', 'link', 'set', interface, 'up'], check=True)
         print(f"✅ {interface} created and up")

@@ -43,7 +43,7 @@ def setup_linux():
     print("🐧 Linux detected — setting up SocketCAN virtual interface")
 
     # Check if vcan module is available
-    result = subprocess.run(['modinfo', 'vcan'], capture_output=True, text=True)
+    result = subprocess.run(['modinfo', 'can'], capture_output=True, text=True)
     if result.returncode != 0:
         print("❌ vcan kernel module not available. Install with:")
         print("   sudo apt-get install linux-modules-extra-$(uname -r)")
@@ -51,7 +51,7 @@ def setup_linux():
 
     # Load vcan module
     print(f"  Loading vcan kernel module...")
-    subprocess.run(['sudo', 'modprobe', 'vcan'], check=True)
+    subprocess.run(['sudo', 'modprobe', 'can'], check=True)
 
     # Check if vcan0 already exists
     result = subprocess.run(['ip', 'link', 'show', VCAN_INTERFACE],
@@ -62,7 +62,7 @@ def setup_linux():
         print(f"✅ {VCAN_INTERFACE} already exists and is up")
     else:
         # Create it
-        subprocess.run(['sudo', 'ip', 'link', 'add', 'dev', VCAN_INTERFACE, 'type', 'vcan'], check=True)
+        subprocess.run(['sudo', 'ip', 'link', 'add', 'dev', VCAN_INTERFACE, 'type', 'can'], check=True)
         subprocess.run(['sudo', 'ip', 'link', 'set', VCAN_INTERFACE, 'up'], check=True)
         print(f"✅ {VCAN_INTERFACE} created and up")
 
@@ -214,7 +214,7 @@ def main():
         print("   python3 simulation_api.py")
         print()
         print("Then start a simulation via API:")
-        print('   POST /api/simulation/start {"mode": "vcan", ...}')
+        print('   POST /api/simulation/start {"mode": "can", ...}')
         print('   POST /api/simulation/start {"mode": "mqtt_direct", ...}')
     else:
         print("❌ Setup incomplete — see errors above")
