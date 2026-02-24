@@ -165,8 +165,8 @@ def main():
     parser = argparse.ArgumentParser(description='Setup FleetWise Edge Agent')
     parser.add_argument('--vehicle-id', required=True, help='Vehicle ID in DDB (e.g. VEH-1771335115)')
     parser.add_argument('--profile', default='default', help='AWS profile')
-    parser.add_argument('--topic-prefix', default='$aws/rules/fw_dev_iot_msk_rule/',
-                        help='MQTT topic prefix for FWE')
+    parser.add_argument('--topic-prefix', default='cms/fleetwise/',
+                        help='MQTT topic prefix for FWE (non-reserved CMS topic)')
     parser.add_argument('--build', action='store_true', help='Build FWE from source')
     parser.add_argument('--output-dir', default=OUTPUT_DIR, help='Output directory for config/certs')
     args = parser.parse_args()
