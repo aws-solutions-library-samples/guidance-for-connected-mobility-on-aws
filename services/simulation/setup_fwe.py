@@ -1,34 +1,41 @@
 #!/usr/bin/env python3
 """
-Setup script for FleetWise Edge Agent.
-Generates config, writes certificates, and optionally builds FWE.
+Setup and run FleetWise Edge Agent as a Docker container.
+No compilation needed — uses the FWE Dockerfile from the source repo.
 
 Usage:
+    # First time: build container image
+    python3 setup_fwe.py --vehicle-id VEH-1771335115 --profile givenand-CMS --build-image
+
+    # Run FWE
+    python3 setup_fwe.py --vehicle-id VEH-1771335115 --profile givenand-CMS --run
+
+    # Just generate config (no Docker)
     python3 setup_fwe.py --vehicle-id VEH-1771335115 --profile givenand-CMS
-    python3 setup_fwe.py --vehicle-id VEH-1771335115 --profile givenand-CMS --build
 """
 
 import argparse
 import boto3
 import json
 import os
-import sys
 import subprocess
+import sys
 
 REGION = 'us-east-1'
 FWE_DIR = os.environ.get('FWE_DIR',
-    os.path.join(os.path.dirname(__file__), '..', '..', 'aws-iot-fleetwise-edge'))
-OUTPUT_DIR = os.path.join(os.path.dirname(__file__), 'fwe_config')
+    os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'aws-iot-fleetwise-edge')))
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fwe_config')
+IMAGE_NAME = 'cms-fwe-edge'
+TOPIC_PREFIX = 'cms/fleetwise/'
 
 
 def get_iot_endpoint(session):
-    iot = session.client('iot', region_name=REGION)
-    return iot.describe_endpoint(endpointType='iot:Data-ATS')['endpointAddress']
+    return session.client('iot', region_name=REGION).describe_endpoint(
+        endpointType='iot:Data-ATS')['endpointAddress']
 
 
 def get_vehicle_certificate(session, vehicle_id):
-    ddb = session.resource('dynamodb', region_name=REGION)
-    table = ddb.Table('cms-dev-storage-vehicle-certificates')
+    table = session.resource('dynamodb', region_name=REGION).Table('cms-dev-storage-vehicle-certificates')
     resp = table.get_item(Key={'vehicleId': vehicle_id})
     if 'Item' not in resp:
         print(f"❌ No certificate found for {vehicle_id}")
@@ -38,164 +45,125 @@ def get_vehicle_certificate(session, vehicle_id):
 
 def write_certificates(cert_data, output_dir):
     os.makedirs(output_dir, exist_ok=True)
-    cert_file = os.path.join(output_dir, 'certificate.pem.crt')
-    key_file = os.path.join(output_dir, 'private.pem.key')
-
+    cert_file = os.path.join(output_dir, 'certificate.pem')
+    key_file = os.path.join(output_dir, 'private-key.key')
     with open(cert_file, 'w') as f:
         f.write(cert_data['certificatePem'])
     with open(key_file, 'w') as f:
         f.write(cert_data['privateKey'])
-
-    # Download Amazon Root CA
-    ca_file = os.path.join(output_dir, 'AmazonRootCA1.pem')
-    if not os.path.exists(ca_file):
-        import urllib.request
-        urllib.request.urlretrieve(
-            'https://www.amazontrust.com/repository/AmazonRootCA1.pem', ca_file)
-
     print(f"✅ Certificates written to {output_dir}")
-    return cert_file, key_file, ca_file
+    return cert_file, key_file
 
 
-def generate_config(endpoint, thing_name, cert_file, key_file, output_dir,
-                    topic_prefix='$aws/rules/fw_dev_iot_msk_rule/'):
-    config = {
-        "version": "1.0",
-        "networkInterfaces": [
-            {
-                "canInterface": {
-                    "interfaceName": "vcan0",
-                    "protocolName": "CAN",
-                    "protocolVersion": "2.0A"
-                },
-                "interfaceId": "1",
-                "type": "canInterface"
-            }
-        ],
-        "staticConfig": {
-            "bufferSizes": {
-                "dtcBufferSize": 100,
-                "decodedSignalsBufferSize": 10000,
-                "rawCANFrameBufferSize": 10000
-            },
-            "threadIdleTimes": {
-                "inspectionThreadIdleTimeMs": 50,
-                "socketCANThreadIdleTimeMs": 50,
-                "canDecoderThreadIdleTimeMs": 50
-            },
-            "persistency": {
-                "persistencyPath": os.path.join(output_dir, "persistency"),
-                "persistencyPartitionMaxSize": 524288,
-                "persistencyUploadRetryIntervalMs": 10000
-            },
-            "internalParameters": {
-                "readyToPublishDataBufferSize": 10000,
-                "systemWideLogLevel": "Info",
-                "maximumAwsSdkHeapMemoryBytes": 10000000
-            },
-            "publishToCloudParameters": {
-                "maxPublishMessageCount": 1000,
-                "collectionSchemeManagementCheckinIntervalMs": 30000
-            },
-            "mqttConnection": {
-                "connectionType": "iotCore",
-                "endpointUrl": endpoint,
-                "clientId": thing_name,
-                "keepAliveIntervalSeconds": 60,
-                "certificateFilename": cert_file,
-                "privateKeyFilename": key_file,
-                "iotFleetWiseTopicPrefix": topic_prefix
-            }
-        }
-    }
+def build_image():
+    """Build FWE Docker image from source repo."""
+    if not os.path.exists(FWE_DIR):
+        print(f"❌ FWE source not found at {FWE_DIR}")
+        print(f"   Clone it: git clone https://github.com/aws/aws-iot-fleetwise-edge.git")
+        return False
 
-    os.makedirs(os.path.join(output_dir, "persistency"), exist_ok=True)
-    config_file = os.path.join(output_dir, 'static-config.json')
-    with open(config_file, 'w') as f:
-        json.dump(config, f, indent=2)
+    print(f"🔧 Building FWE native binary in Docker...")
+    # Build the binary using the native build script inside a container
+    build_cmd = [
+        'docker', 'build',
+        '-t', f'{IMAGE_NAME}-builder',
+        '-f', '-',
+        FWE_DIR
+    ]
 
-    print(f"✅ Config written to {config_file}")
+    dockerfile = f"""
+FROM public.ecr.aws/ubuntu/ubuntu:22.04
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y sudo git
+COPY . /fwe
+WORKDIR /fwe
+RUN sudo tools/install-deps-native.sh
+RUN tools/build-fwe-native.sh
+"""
+    result = subprocess.run(build_cmd, input=dockerfile.encode(), capture_output=True)
+    if result.returncode != 0:
+        print(f"❌ Build failed: {result.stderr.decode()[-500:]}")
+        return False
+
+    # Extract binary and build the runtime image
+    print("📦 Building runtime image...")
+    runtime_dockerfile = f"""
+FROM public.ecr.aws/ubuntu/ubuntu:22.04
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates iproute2 jq && rm -rf /var/lib/apt/lists/*
+COPY --from={IMAGE_NAME}-builder /fwe/build/src/executionmanagement/aws-iot-fleetwise-edge /usr/bin/
+COPY --from={IMAGE_NAME}-builder /fwe/tools/configure-fwe.sh /usr/bin/
+COPY --from={IMAGE_NAME}-builder /fwe/tools/container/start-fwe.sh /usr/bin/
+COPY --from={IMAGE_NAME}-builder /fwe/configuration/static-config.json /usr/share/aws-iot-fleetwise/
+RUN chmod +x /usr/bin/start-fwe.sh /usr/bin/configure-fwe.sh
+ENTRYPOINT ["/usr/bin/start-fwe.sh"]
+"""
+    result = subprocess.run(
+        ['docker', 'build', '-t', IMAGE_NAME, '-f', '-', '.'],
+        input=runtime_dockerfile.encode(), capture_output=True, cwd=FWE_DIR)
+    if result.returncode != 0:
+        print(f"❌ Runtime image build failed: {result.stderr.decode()[-500:]}")
+        return False
+
+    print(f"✅ Docker image built: {IMAGE_NAME}")
+    return True
+
+
+def check_image():
+    """Check if FWE Docker image exists."""
+    result = subprocess.run(['docker', 'images', '-q', IMAGE_NAME],
+                            capture_output=True, text=True)
+    return bool(result.stdout.strip())
+
+
+def run_fwe(endpoint, thing_name, cert_file, key_file, topic_prefix):
+    """Run FWE as a Docker container."""
+    # Read certs as strings for passing as env vars
+    with open(cert_file) as f:
+        cert_pem = f.read()
+    with open(key_file) as f:
+        private_key = f.read()
+
+    cmd = [
+        'docker', 'run', '--rm',
+        '--name', 'cms-fwe',
+        '--network', 'host',  # Needed for vcan0 access
+        '--privileged',       # Needed for CAN socket access
+        '-e', f'ENDPOINT_URL={endpoint}',
+        '-e', f'VEHICLE_NAME={thing_name}',
+        '-e', f'CERTIFICATE={cert_pem}',
+        '-e', f'PRIVATE_KEY={private_key}',
+        '-e', f'IOT_FLEETWISE_TOPIC_PREFIX={topic_prefix}',
+        '-e', 'CAN_BUS0=vcan0',
+        '-e', 'LOG_LEVEL=Info',
+        IMAGE_NAME,
+        '--endpoint-url', endpoint,
+        '--vehicle-name', thing_name,
+        '--certificate', cert_pem,
+        '--private-key', private_key,
+        '--topic-prefix', topic_prefix,
+        '--can-bus0', 'vcan0',
+    ]
+
+    print(f"🚀 Starting FWE container...")
+    print(f"   Thing: {thing_name}")
     print(f"   Endpoint: {endpoint}")
-    print(f"   Client ID: {thing_name}")
-    print(f"   Topic prefix: {topic_prefix}")
-    return config_file
+    print(f"   Topics: {topic_prefix}vehicles/{thing_name}/signals")
+    print(f"   CAN: vcan0")
+    print(f"   Stop with: docker stop cms-fwe")
+    print()
 
-
-def check_fwe_binary():
-    """Check if FWE is built."""
-    # Check local output dir first
-    local_binary = os.path.join(OUTPUT_DIR, 'aws-iot-fleetwise-edge')
-    if os.path.exists(local_binary) and os.access(local_binary, os.X_OK):
-        print(f"✅ FWE binary found: {local_binary}")
-        return local_binary
-
-    binary = os.path.join(FWE_DIR, 'build', 'src', 'executionmanagement',
-                          'aws-iot-fleetwise-edge')
-    if os.path.exists(binary):
-        print(f"✅ FWE binary found: {binary}")
-        return binary
-
-    for path in ['/usr/local/bin/aws-iot-fleetwise-edge']:
-        if os.path.exists(path):
-            print(f"✅ FWE binary found: {path}")
-            return path
-
-    print("❌ FWE binary not found locally")
-    return None
-
-
-def download_fwe_binary(session, output_dir):
-    """Download pre-built FWE binary from S3."""
-    import platform
-    arch = 'x86_64' if platform.machine() in ('x86_64', 'AMD64') else 'arm64'
-    s3_key = f"fwe/aws-iot-fleetwise-edge-{arch}"
-    bucket = "cms-dev-flink-flinkjarbucketd8dc3634-d72xj4npneqk"
-
-    os.makedirs(output_dir, exist_ok=True)
-    local_path = os.path.join(output_dir, 'aws-iot-fleetwise-edge')
-
-    try:
-        s3 = session.client('s3', region_name=REGION)
-        print(f"📥 Downloading FWE binary from s3://{bucket}/{s3_key}...")
-        s3.download_file(bucket, s3_key, local_path)
-        os.chmod(local_path, 0o755)
-        print(f"✅ FWE binary downloaded: {local_path}")
-        return local_path
-    except Exception as e:
-        print(f"❌ Failed to download FWE binary: {e}")
-        print(f"   Binary may not be built yet. Build on Linux and upload to s3://{bucket}/{s3_key}")
-        return None
-
-
-def build_fwe():
-    """Build FWE from source (Linux only)."""
-    import platform
-    if platform.system() != 'Linux':
-        print("❌ FWE can only be built on Linux (requires SocketCAN)")
-        print("   Options:")
-        print("   1. Build on an EC2 instance (Amazon Linux 2 / Ubuntu)")
-        print("   2. Use Docker: docker run -it ubuntu:22.04")
-        print(f"   3. Cross-compile from {FWE_DIR}/tools/build-fwe-native.sh")
-        return None
-
-    print("🔧 Building FWE from source...")
-    deps_script = os.path.join(FWE_DIR, 'tools', 'install-deps-native.sh')
-    build_script = os.path.join(FWE_DIR, 'tools', 'build-fwe-native.sh')
-
-    subprocess.run(['sudo', deps_script], check=True)
-    subprocess.run([build_script], check=True, cwd=FWE_DIR)
-
-    return check_fwe_binary()
+    os.execvp('docker', cmd)
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Setup FleetWise Edge Agent')
-    parser.add_argument('--vehicle-id', required=True, help='Vehicle ID in DDB (e.g. VEH-1771335115)')
+    parser = argparse.ArgumentParser(description='Setup and run FleetWise Edge Agent')
+    parser.add_argument('--vehicle-id', required=True, help='Vehicle ID in DDB')
     parser.add_argument('--profile', default='default', help='AWS profile')
-    parser.add_argument('--topic-prefix', default='cms/fleetwise/',
-                        help='MQTT topic prefix for FWE (non-reserved CMS topic)')
-    parser.add_argument('--build', action='store_true', help='Build FWE from source')
-    parser.add_argument('--output-dir', default=OUTPUT_DIR, help='Output directory for config/certs')
+    parser.add_argument('--topic-prefix', default=TOPIC_PREFIX, help='MQTT topic prefix')
+    parser.add_argument('--build-image', action='store_true', help='Build Docker image')
+    parser.add_argument('--run', action='store_true', help='Run FWE container')
+    parser.add_argument('--output-dir', default=OUTPUT_DIR, help='Output directory')
     args = parser.parse_args()
 
     session = boto3.Session(profile_name=args.profile)
@@ -203,51 +171,42 @@ def main():
     print("🔧 FleetWise Edge Agent Setup")
     print("=" * 50)
 
-    # 1. Get IoT endpoint
+    # Get endpoint and certs
     endpoint = get_iot_endpoint(session)
-    print(f"✅ IoT endpoint: {endpoint}")
-
-    # 2. Get vehicle certificate
     cert_data = get_vehicle_certificate(session, args.vehicle_id)
     thing_name = cert_data.get('thingName', args.vehicle_id)
-    print(f"✅ Vehicle: {args.vehicle_id}, Thing: {thing_name}")
+    cert_file, key_file = write_certificates(cert_data, args.output_dir)
 
-    # 3. Write certificates
-    cert_file, key_file, ca_file = write_certificates(cert_data, args.output_dir)
+    print(f"✅ Endpoint: {endpoint}")
+    print(f"✅ Vehicle: {args.vehicle_id} → Thing: {thing_name}")
+    print(f"✅ Topic prefix: {args.topic_prefix}")
 
-    # 4. Generate config
-    config_file = generate_config(endpoint, thing_name, cert_file, key_file,
-                                  args.output_dir, args.topic_prefix)
+    # Build image if requested
+    if args.build_image:
+        if not build_image():
+            sys.exit(1)
 
-    # 5. Check/build/download FWE binary
-    binary = check_fwe_binary()
-    if not binary:
-        binary = download_fwe_binary(session, args.output_dir)
-    if not binary and args.build:
-        binary = build_fwe()
-
-    print()
-    print("=" * 50)
-    if binary:
-        print("🚀 To run FWE:")
-        print(f"   {binary} {config_file}")
+    # Check if image exists
+    has_image = check_image()
+    if has_image:
+        print(f"✅ Docker image: {IMAGE_NAME}")
     else:
-        print("⚠️  FWE binary not found. Build it on Linux with:")
-        print(f"   cd {FWE_DIR}")
-        print(f"   sudo tools/install-deps-native.sh")
-        print(f"   tools/build-fwe-native.sh")
-        print()
-        print(f"   Then run: ./build/src/executionmanagement/aws-iot-fleetwise-edge {config_file}")
+        print(f"⚠️  Docker image not found. Build with: python3 setup_fwe.py --vehicle-id {args.vehicle_id} --profile {args.profile} --build-image")
 
-    print()
-    print("📋 Config summary:")
-    print(f"   Config:     {config_file}")
-    print(f"   Cert:       {cert_file}")
-    print(f"   Key:        {key_file}")
-    print(f"   Endpoint:   {endpoint}")
-    print(f"   Thing:      {thing_name}")
-    print(f"   Topic:      {args.topic_prefix}")
-    print(f"   CAN:        vcan0")
+    # Run if requested
+    if args.run:
+        if not has_image:
+            print("❌ Cannot run — Docker image not built")
+            sys.exit(1)
+        run_fwe(endpoint, thing_name, cert_file, key_file, args.topic_prefix)
+    else:
+        print()
+        print("📋 To run FWE:")
+        if has_image:
+            print(f"   python3 setup_fwe.py --vehicle-id {args.vehicle_id} --profile {args.profile} --run")
+        else:
+            print(f"   1. python3 setup_fwe.py --vehicle-id {args.vehicle_id} --profile {args.profile} --build-image")
+            print(f"   2. python3 setup_fwe.py --vehicle-id {args.vehicle_id} --profile {args.profile} --run")
 
 
 if __name__ == '__main__':
