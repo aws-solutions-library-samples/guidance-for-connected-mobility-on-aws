@@ -51,12 +51,15 @@ def write_certificates(cert_data, output_dir):
 
 def run_fwe(endpoint, thing_name, cert_file, key_file, topic_prefix):
     """Run FWE using the official AWS container image."""
+    persistency_dir = os.path.join(OUTPUT_DIR, 'persistency')
+
     cmd = [
         'docker', 'run', '--rm', '-ti',
         '--name', 'cms-fwe',
         '--network', 'host',
         '-v', f'{cert_file}:/etc/aws-iot-fleetwise/certificate.pem',
         '-v', f'{key_file}:/etc/aws-iot-fleetwise/private-key.key',
+        '-v', f'{persistency_dir}:/var/aws-iot-fleetwise/',
         '--env', f'VEHICLE_NAME={thing_name}',
         '--env', f'ENDPOINT_URL={endpoint}',
         '--env', f'IOT_FLEETWISE_TOPIC_PREFIX={topic_prefix}',
