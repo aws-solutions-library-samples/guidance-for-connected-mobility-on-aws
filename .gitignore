@@ -545,3 +545,4 @@ modules/campaign_manager/
 generated-diagrams/
 DEPLOYMENT_CONTEXT.md
 services/simulation/can_env/
+services/simulation/fwe_config/
