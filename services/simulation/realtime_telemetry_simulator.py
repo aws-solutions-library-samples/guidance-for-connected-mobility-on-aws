@@ -1696,6 +1696,7 @@ class RealtimeTelemetrySimulator:
                         except Exception as e:
                             print(f"❌ CAN publish failed: {e}")
                             sys.stdout.flush()
+                            break
                     else:
                         # MQTT direct mode: publish compressed JSON to IoT Core
                         topic = f"$aws/rules/cms_dev_iot_msk_rule/{vehicle_id}"
@@ -1811,7 +1812,7 @@ class RealtimeTelemetrySimulator:
         try:
             for thread in self.simulation_threads:
                 print(f"🔄 Waiting for thread {thread.name} to complete...")
-                thread.join(timeout=60)  # 60 second timeout for longer simulations
+                thread.join(timeout=600)  # 10 minute timeout for longer simulations
                 if thread.is_alive():
                     print(f"⚠️ Thread {thread.name} is still running after timeout")
                 else:
