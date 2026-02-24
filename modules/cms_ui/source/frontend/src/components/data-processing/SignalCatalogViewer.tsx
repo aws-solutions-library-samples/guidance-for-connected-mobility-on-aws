@@ -6,6 +6,7 @@ interface Signal {
   signal_name: string;
   signal_group: string;
   fullyQualifiedName: string;
+  jsonField?: string;
   data_type: string;
   unit: string;
   min_value: number;
@@ -64,7 +65,8 @@ const SignalCatalogViewer: React.FC = () => {
         columnDefinitions={[
           { id: 'signal_name', header: 'Signal', cell: (item: Signal) => item.signal_name, sortingField: 'signal_name' },
           { id: 'signal_group', header: 'Group', cell: (item: Signal) => item.signal_group },
-          { id: 'fqn', header: 'Fully Qualified Name', cell: (item: Signal) => <code>{item.fullyQualifiedName}</code> },
+          { id: 'jsonField', header: 'JSON Field', cell: (item: Signal) => <code>{item.jsonField || '-'}</code> },
+          { id: 'fqn', header: 'VSS Path', cell: (item: Signal) => <code>{item.fullyQualifiedName}</code> },
           { id: 'data_type', header: 'Type', cell: (item: Signal) => item.data_type },
           { id: 'unit', header: 'Unit', cell: (item: Signal) => item.unit || '-' },
           { id: 'range', header: 'Range', cell: (item: Signal) => `${item.min_value} – ${item.max_value}` },
