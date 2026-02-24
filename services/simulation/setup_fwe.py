@@ -123,21 +123,48 @@ def generate_config(endpoint, thing_name, cert_file, key_file, output_dir,
 
 def check_fwe_binary():
     """Check if FWE is built."""
+    # Check local output dir first
+    local_binary = os.path.join(OUTPUT_DIR, 'aws-iot-fleetwise-edge')
+    if os.path.exists(local_binary) and os.access(local_binary, os.X_OK):
+        print(f"✅ FWE binary found: {local_binary}")
+        return local_binary
+
     binary = os.path.join(FWE_DIR, 'build', 'src', 'executionmanagement',
                           'aws-iot-fleetwise-edge')
     if os.path.exists(binary):
         print(f"✅ FWE binary found: {binary}")
         return binary
 
-    # Also check common install locations
-    for path in ['/usr/local/bin/aws-iot-fleetwise-edge',
-                 os.path.expanduser('~/aws-iot-fleetwise-edge/build/src/executionmanagement/aws-iot-fleetwise-edge')]:
+    for path in ['/usr/local/bin/aws-iot-fleetwise-edge']:
         if os.path.exists(path):
             print(f"✅ FWE binary found: {path}")
             return path
 
-    print("❌ FWE binary not found")
+    print("❌ FWE binary not found locally")
     return None
+
+
+def download_fwe_binary(session, output_dir):
+    """Download pre-built FWE binary from S3."""
+    import platform
+    arch = 'x86_64' if platform.machine() in ('x86_64', 'AMD64') else 'arm64'
+    s3_key = f"fwe/aws-iot-fleetwise-edge-{arch}"
+    bucket = "cms-dev-flink-flinkjarbucketd8dc3634-d72xj4npneqk"
+
+    os.makedirs(output_dir, exist_ok=True)
+    local_path = os.path.join(output_dir, 'aws-iot-fleetwise-edge')
+
+    try:
+        s3 = session.client('s3', region_name=REGION)
+        print(f"📥 Downloading FWE binary from s3://{bucket}/{s3_key}...")
+        s3.download_file(bucket, s3_key, local_path)
+        os.chmod(local_path, 0o755)
+        print(f"✅ FWE binary downloaded: {local_path}")
+        return local_path
+    except Exception as e:
+        print(f"❌ Failed to download FWE binary: {e}")
+        print(f"   Binary may not be built yet. Build on Linux and upload to s3://{bucket}/{s3_key}")
+        return None
 
 
 def build_fwe():
@@ -192,8 +219,10 @@ def main():
     config_file = generate_config(endpoint, thing_name, cert_file, key_file,
                                   args.output_dir, args.topic_prefix)
 
-    # 5. Check/build FWE binary
+    # 5. Check/build/download FWE binary
     binary = check_fwe_binary()
+    if not binary:
+        binary = download_fwe_binary(session, args.output_dir)
     if not binary and args.build:
         binary = build_fwe()
 
