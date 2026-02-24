@@ -54,6 +54,7 @@ interface SimulationConfig {
   fleet_prefix: string;
   cleanup: boolean;
   vehicle_source: 'generated' | 'real_vehicles';
+  mode: 'mqtt_direct' | 'can';
   selected_vehicles?: Vehicle[];
   use_real_vehicles?: boolean;
   use_certificates?: boolean;
@@ -115,6 +116,7 @@ export default function FleetSimulationPanel() {
     fleet_prefix: 'SIM',
     cleanup: true,
     vehicle_source: 'real_vehicles',
+    mode: 'mqtt_direct',
     aws_region: 'us-east-1',
     force_maintenance_alert: false,
     driver_selection: 'random',
@@ -634,6 +636,32 @@ export default function FleetSimulationPanel() {
                     label: `Real Vehicles (From DynamoDB) - ${availableVehicles.real_vehicles} available`, 
                     value: 'real_vehicles',
                     description: 'Use real vehicles from DynamoDB with automatic certificate creation'
+                  }
+                ]}
+              />
+            </FormField>
+
+            {/* Output Mode Selection */}
+            <FormField 
+              label="Output Mode" 
+              description="How telemetry data is transmitted from the simulated vehicle"
+            >
+              <Select
+                selectedOption={{
+                  label: config.mode === 'mqtt_direct' ? 'MQTT Direct (JSON → IoT Core → Kafka)' : 'Virtual CAN Bus (CAN frames + GPS via MQTT)',
+                  value: config.mode
+                }}
+                onChange={({ detail }) => setConfig({ ...config, mode: detail.selectedOption.value as 'mqtt_direct' | 'can' })}
+                options={[
+                  { 
+                    label: 'MQTT Direct (JSON → IoT Core → Kafka)', 
+                    value: 'mqtt_direct',
+                    description: 'Publishes compressed JSON telemetry directly to IoT Core via MQTT'
+                  },
+                  { 
+                    label: 'Virtual CAN Bus (CAN frames + GPS via MQTT)', 
+                    value: 'can',
+                    description: 'Encodes telemetry as CAN frames via DBC. GPS sent separately via MQTT. Requires FWE to bridge to cloud.'
                   }
                 ]}
               />
