@@ -1,6 +1,0 @@
-kafka-python==2.0.2
-aws-msk-iam-sasl-signer-python==1.0.1
-boto3>=1.26.0
-requests>=2.31.0
-grpcio>=1.59.0
-protobuf>=4.24.0
