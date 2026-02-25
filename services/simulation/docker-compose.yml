@@ -29,9 +29,9 @@ services:
       interval: 5s
       retries: 10
 
-  # FleetWise Edge Agent - reads CAN frames from vcan0, publishes protobuf to IoT Core
+  # FleetWise Edge Agent with External GPS - reads CAN frames from vcan0 + GPS via socket
   fwe:
-    image: public.ecr.aws/aws-iot-fleetwise-edge/aws-iot-fleetwise-edge
+    image: public.ecr.aws/s0o2j8p0/cms-fwe-gps:latest
     network_mode: host
     privileged: true
     depends_on:
@@ -41,6 +41,7 @@ services:
       - ./fwe_config/certificate.pem:/etc/aws-iot-fleetwise/certificate.pem:ro
       - ./fwe_config/private-key.key:/etc/aws-iot-fleetwise/private-key.key:ro
       - ./fwe_config/persistency:/var/aws-iot-fleetwise/
+      - fwe-gps-sock:/tmp/fwe-gps
     environment:
       - VEHICLE_NAME=${FWE_VEHICLE_NAME:-2HGMY1W40ME5M4PVK}
       - ENDPOINT_URL=${FWE_ENDPOINT_URL:-a3m15yqfy6j3pe-ats.iot.us-east-1.amazonaws.com}
@@ -59,6 +60,7 @@ services:
     volumes:
       - .:/app
       - ~/.aws:/root/.aws:ro
+      - fwe-gps-sock:/tmp/fwe-gps
     working_dir: /app
     environment:
       - AWS_PROFILE=${AWS_PROFILE:-givenand-CMS}
@@ -77,3 +79,6 @@ services:
           --mode can
           --vehicle-config '[{\"vehicleId\":\"VEH-1771335115\",\"vin\":\"TEST123\"}]'
       "
+
+volumes:
+  fwe-gps-sock:

@@ -76,7 +76,17 @@ def load_decoder_manifest(session):
         can_signal.factor = can_params.get('factor', 1.0)
         can_signal.length = can_params['length']
 
-    print(f'✅ Decoder manifest: {len(signals)} CAN signals, sync_id={DECODER_NAME}')
+    # Add GPS named signals (ExternalGpsSource)
+    next_id = len(signals) + 1
+    for name in ['Vehicle.CurrentLocation.Latitude', 'Vehicle.CurrentLocation.Longitude']:
+        gps_sig = manifest.custom_decoding_signals.add()
+        gps_sig.signal_id = next_id
+        gps_sig.interface_id = 'GPS'
+        gps_sig.custom_decoding_id = name
+        gps_sig.primitive_type = dm_pb2.FLOAT64
+        next_id += 1
+
+    print(f'✅ Decoder manifest: {len(signals)} CAN + 2 GPS signals, sync_id={DECODER_NAME}')
     return manifest
 
 
@@ -110,11 +120,21 @@ def load_collection_scheme(session):
         si.minimum_sample_period_ms = sig.get('minimumSamplingIntervalMs', 0)
         si.fixed_window_period_ms = 0
 
+    # Add GPS signals (IDs follow CAN signals)
+    num_can = len(scheme_json['signalsToCollect'])
+    for gps_offset in range(2):  # lat, lng
+        si = cs.signal_information.add()
+        si.signal_id = num_can + 1 + gps_offset
+        si.sample_buffer_size = 1
+        si.minimum_sample_period_ms = 0
+        si.fixed_window_period_ms = 0
+
     cs.compress_collected_data = True
     cs.persist_all_collected_data = True
     cs.priority = 0
 
-    print(f'✅ Collection scheme: {len(scheme_json["signalsToCollect"])} signals, period={period_ms}ms, campaign={CAMPAIGN_NAME}')
+    total = len(scheme_json['signalsToCollect']) + 2
+    print(f'✅ Collection scheme: {total} signals ({num_can} CAN + 2 GPS), period={period_ms}ms, campaign={CAMPAIGN_NAME}')
     return schemes
 
 

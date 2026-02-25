@@ -1139,6 +1139,34 @@ class RealtimeTelemetrySimulator:
             sys.stdout.flush()
             return None
 
+    def _connect_gps_socket(self):
+        """Connect to FWE ExternalGpsSource Unix socket."""
+        import socket as sock_mod
+        import os
+        GPS_SOCKET_PATH = os.environ.get('FWE_GPS_SOCKET_PATH', '/tmp/fwe-gps/gps.sock')
+        try:
+            s = sock_mod.socket(sock_mod.AF_UNIX, sock_mod.SOCK_STREAM)
+            s.connect(GPS_SOCKET_PATH)
+            self._gps_socket = s
+            print(f"🛰️  Connected to FWE GPS socket at {GPS_SOCKET_PATH}")
+        except Exception as e:
+            self._gps_socket = None
+            print(f"⚠️  Could not connect to FWE GPS socket: {e}")
+
+    def _send_gps(self, lat: float, lng: float):
+        """Send GPS coordinates to FWE via Unix socket."""
+        import json
+        if not hasattr(self, '_gps_socket') or self._gps_socket is None:
+            self._connect_gps_socket()
+        if self._gps_socket is None:
+            return
+        try:
+            line = json.dumps({"lat": lat, "lng": lng}) + "\n"
+            self._gps_socket.sendall(line.encode())
+        except Exception:
+            # Reconnect on next call
+            self._gps_socket = None
+
     def create_mqtt_connection(self, vehicle_id: str, vin: str = None):
         """Create MQTT connection using vehicle's X.509 certificate"""
         if not MQTT_AVAILABLE:
@@ -1335,28 +1363,16 @@ class RealtimeTelemetrySimulator:
 
     def publish_can(self, vehicle_id: str, telemetry_data: Dict, mqtt_client=None):
         """Publish telemetry as CAN frames to virtual CAN bus.
-        GPS (lat/lon/alt) goes via MQTT since it's off the CAN bus."""
+        GPS goes via Unix socket to FWE ExternalGpsSource (injected into protobuf stream)."""
         # Encode telemetry → CAN frames
         frames = self.can_encoder.encode(telemetry_data)
         self.can_writer.send(frames)
 
-        # GPS via MQTT (separate from CAN bus)
-        if mqtt_client and all(k in telemetry_data for k in ('lat', 'lng')):
-            import json, gzip, base64
-            gps_payload = {
-                'vin': telemetry_data.get('vin', vehicle_id),
-                'timestamp': telemetry_data.get('timestamp'),
-                'lat': telemetry_data['lat'],
-                'lng': telemetry_data['lng'],
-                'alt': telemetry_data.get('alt', 0),
-                'heading': telemetry_data.get('heading', 0),
-                'speed': telemetry_data.get('speed', 0),
-            }
-            topic = f"$aws/rules/cms_dev_iot_msk_rule/{vehicle_id}/gps"
-            compressed = base64.b64encode(gzip.compress(json.dumps(gps_payload).encode())).decode()
-            mqtt_client.publish(topic, compressed, qos=0)
+        # GPS via FWE ExternalGpsSource Unix socket
+        if all(k in telemetry_data for k in ('lat', 'lng')):
+            self._send_gps(telemetry_data['lat'], telemetry_data['lng'])
 
-        print(f"📡 {vehicle_id}: {len(frames)} CAN frames + GPS via MQTT")
+        print(f"📡 {vehicle_id}: {len(frames)} CAN frames + GPS via FWE socket")
 
     def store_telemetry_data(self, telemetry_data: Dict):
         """Store telemetry data directly in DynamoDB"""
