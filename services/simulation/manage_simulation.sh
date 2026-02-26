@@ -209,55 +209,45 @@ cmd_start() {
     # Select AWS profile
     select_profile
 
-    # Ask for mode
-    echo ""
-    echo "Select simulation mode:"
-    echo "  1) MQTT Direct — JSON telemetry published directly to IoT Core"
-    echo "  2) FleetWise Edge — CAN bus + GPS via FWE protobuf pipeline"
-    echo ""
-    read -p "Mode [1]: " mode_choice
-    mode_choice="${mode_choice:-1}"
-
-    if [ "$mode_choice" = "2" ]; then
-        step "FleetWise Edge Mode Setup"
-
-        # Check Docker
-        if ! check_docker; then
-            echo "Docker is required for FWE mode."
-            if [[ "$(uname)" == "Darwin" ]]; then
-                if ask_yes_no "Install Docker via Colima?"; then
-                    setup_docker_mac
-                else
-                    err "Docker required. Install manually and retry."
-                    exit 1
-                fi
+    # Check if Docker/FWE infrastructure is available, set it up if not
+    if check_docker; then
+        step "Docker available — setting up FWE infrastructure"
+    else
+        echo ""
+        echo "Docker is not running. FWE mode requires Docker for virtual CAN bus."
+        if [[ "$(uname)" == "Darwin" ]]; then
+            if ask_yes_no "Install Docker via Colima?"; then
+                setup_docker_mac
             else
-                err "Install Docker and retry."
-                exit 1
+                info "Skipping Docker setup. MQTT Direct mode will still work."
             fi
         fi
+    fi
 
-        # Setup vcan0
+    # Set up FWE infrastructure if Docker is available
+    if check_docker; then
         setup_vcan
 
-        # Pull FWE image
         step "Pulling FleetWise Edge Agent image"
         if docker image inspect "$FWE_IMAGE" &>/dev/null; then
             info "FWE image already available"
         else
+            echo "Authenticating with ECR Public..."
+            aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws 2>/dev/null || true
             echo "Downloading FWE image (first time only, ~88MB)..."
             docker pull "$FWE_IMAGE"
             info "FWE image pulled"
         fi
 
-        # Fix DNS for AWS endpoints in Colima
         colima ssh -- sudo bash -c '
             mkdir -p /etc/systemd/resolved.conf.d
             echo -e "[Resolve]\nDNS=8.8.8.8\nFallbackDNS=8.8.4.4" > /etc/systemd/resolved.conf.d/dns.conf
             systemctl restart systemd-resolved
         ' 2>/dev/null || true
 
-        info "FWE infrastructure ready. Select vehicles in the UI when starting a simulation."
+        info "FWE infrastructure ready. Both MQTT Direct and FleetWise Edge modes available in the UI."
+    else
+        info "No Docker — only MQTT Direct mode available in the UI."
     fi
 
     # Start the simulation API service
@@ -272,10 +262,10 @@ cmd_start() {
         echo ""
         echo "🌐 API: $API_URL"
         echo "📋 Logs: tail -f $SCRIPT_DIR/simulation_service.log"
-        if [ "$mode_choice" = "2" ]; then
-            echo "🔧 FWE logs: docker logs -f cms-fwe-gps"
+        if check_docker; then
+            echo "🔧 FWE logs: docker logs -f cms-fwe-<vin>"
             echo ""
-            echo "In the UI, select 'FleetWise Edge' output mode and pick your vehicle."
+            echo "Both modes available in the UI — select MQTT Direct or FleetWise Edge when starting a simulation."
         fi
     else
         err "Service failed to start. Check: cat simulation_service.log"
