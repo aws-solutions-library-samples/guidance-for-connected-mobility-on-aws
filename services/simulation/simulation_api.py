@@ -312,10 +312,13 @@ class SimulationManager:
             # Use current workspace directory instead of hardcoded path
             workspace_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             
-            # Pass vcan mapping for multi-vehicle FWE
+            # Pass vcan and GPS socket mapping for multi-vehicle FWE
             vcan_map = config.get('_vcan_map')
             if vcan_map:
-                env['FWE_VCAN_MAP'] = _json.dumps(vcan_map) if not isinstance(vcan_map, str) else vcan_map
+                env['FWE_VCAN_MAP'] = json.dumps(vcan_map)
+            gps_sock_map = config.get('_gps_sock_map')
+            if gps_sock_map:
+                env['FWE_GPS_SOCK_MAP'] = json.dumps(gps_sock_map)
 
             process = subprocess.Popen(
                 cmd,
@@ -419,11 +422,13 @@ print(json.dumps({{'cert': item['certificatePem'], 'key': item['privateKey'], 't
                 print(f"⚠️ No cert for {vid}, skipping FWE: {e}")
                 continue
 
-            # Start FWE container with dedicated vcan
+            # Start FWE container with dedicated vcan and GPS socket
+            gps_sock_path = f"/tmp/fwe-gps/gps-{idx}.sock"
             subprocess.run(['docker', 'rm', '-f', container_name], capture_output=True)
             subprocess.run([
                 'docker', 'run', '--rm', '-d', '--name', container_name,
                 '--network', 'host', '--privileged',
+                '-e', f'FWE_GPS_SOCKET_PATH={gps_sock_path}',
                 '-v', '/tmp/fwe_e2e_certs:/var/aws-iot-fleetwise/',
                 '-v', 'fwe-gps-sock:/tmp/fwe-gps',
                 'public.ecr.aws/s0o2j8p0/cms-fwe-gps:latest',
@@ -438,9 +443,11 @@ print(json.dumps({{'cert': item['certificatePem'], 'key': item['privateKey'], 't
             ])
             print(f"🚗 FWE started for {vin} on {can_iface} (container: {container_name})")
 
-            # Store vcan mapping for the simulator
+            # Store vcan and GPS socket mapping for the simulator
             config.setdefault('_vcan_map', {})[vin] = can_iface
             config.setdefault('_vcan_map', {})[vid] = can_iface
+            config.setdefault('_gps_sock_map', {})[vin] = gps_sock_path
+            config.setdefault('_gps_sock_map', {})[vid] = gps_sock_path
 
     def _monitor_simulation(self, simulation_id: str):
         """Monitor simulation process"""

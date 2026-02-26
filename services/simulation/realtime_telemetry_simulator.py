@@ -1162,43 +1162,58 @@ class RealtimeTelemetrySimulator:
             sys.stdout.flush()
             return None
 
-    def _connect_gps_socket(self):
+    def _connect_gps_socket(self, vehicle_id=None):
         """Connect to FWE ExternalGpsSource Unix socket."""
         import socket as sock_mod
         import os
-        GPS_SOCKET_PATH = os.environ.get('FWE_GPS_SOCKET_PATH', '/tmp/fwe-gps/gps.sock')
+        # Per-vehicle GPS socket path from FWE_GPS_SOCK_MAP, or default
+        gps_sock_map_str = os.environ.get('FWE_GPS_SOCK_MAP', '')
+        sock_path = None
+        if gps_sock_map_str and vehicle_id:
+            import json as _json
+            gps_sock_map = _json.loads(gps_sock_map_str)
+            sock_path = gps_sock_map.get(vehicle_id)
+        if not sock_path:
+            sock_path = os.environ.get('FWE_GPS_SOCKET_PATH', '/tmp/fwe-gps/gps.sock')
         try:
             s = sock_mod.socket(sock_mod.AF_UNIX, sock_mod.SOCK_STREAM)
-            s.connect(GPS_SOCKET_PATH)
-            self._gps_socket = s
-            print(f"🛰️  Connected to FWE GPS socket at {GPS_SOCKET_PATH}")
+            s.connect(sock_path)
+            if not hasattr(self, '_gps_sockets'):
+                self._gps_sockets = {}
+            self._gps_sockets[vehicle_id or '_default'] = s
+            print(f"🛰️  Connected to FWE GPS socket at {sock_path} for {vehicle_id or 'default'}")
         except Exception as e:
-            self._gps_socket = None
-            print(f"⚠️  Could not connect to FWE GPS socket: {e}")
+            print(f"⚠️  Could not connect to FWE GPS socket ({sock_path}): {e}")
 
-    def _send_gps(self, lat: float, lng: float):
+    def _send_gps(self, lat: float, lng: float, vehicle_id=None):
         """Send GPS coordinates to FWE via Unix socket."""
         import json
-        if not hasattr(self, '_gps_socket') or self._gps_socket is None:
-            self._connect_gps_socket()
-        if self._gps_socket is None:
+        if not hasattr(self, '_gps_sockets'):
+            self._gps_sockets = {}
+        key = vehicle_id or '_default'
+        if key not in self._gps_sockets:
+            self._connect_gps_socket(vehicle_id)
+        sock = self._gps_sockets.get(key)
+        if sock is None:
             return
         try:
             line = json.dumps({"lat": lat, "lng": lng}) + "\n"
-            self._gps_socket.sendall(line.encode())
+            sock.sendall(line.encode())
         except Exception:
-            # Reconnect on next call
-            self._gps_socket = None
+            self._gps_sockets.pop(key, None)
 
-    def _disconnect_gps_socket(self):
+    def _disconnect_gps_socket(self, vehicle_id=None):
         """Disconnect GPS socket so FWE stops reporting stale coordinates."""
-        if hasattr(self, '_gps_socket') and self._gps_socket is not None:
+        if not hasattr(self, '_gps_sockets'):
+            return
+        key = vehicle_id or '_default'
+        sock = self._gps_sockets.pop(key, None)
+        if sock:
             try:
-                self._gps_socket.close()
+                sock.close()
             except Exception:
                 pass
-            self._gps_socket = None
-            print("🛰️  Disconnected FWE GPS socket")
+            print(f"🛰️  Disconnected FWE GPS socket for {vehicle_id or 'default'}")
 
     def create_mqtt_connection(self, vehicle_id: str, vin: str = None):
         """Create MQTT connection using vehicle's X.509 certificate"""
@@ -1405,7 +1420,7 @@ class RealtimeTelemetrySimulator:
 
         # GPS via FWE ExternalGpsSource Unix socket
         if all(k in telemetry_data for k in ('lat', 'lng')):
-            self._send_gps(telemetry_data['lat'], telemetry_data['lng'])
+            self._send_gps(telemetry_data['lat'], telemetry_data['lng'], vehicle_id)
 
         # Trip lifecycle events via MQTT (not in CAN/protobuf)
         if mqtt_client and telemetry_data.get('engineEvent') in ('ENGINE_START', 'ENGINE_STOP'):
@@ -1429,7 +1444,7 @@ class RealtimeTelemetrySimulator:
                 print(f"⚠️ Failed to publish trip event: {e}")
             # Disconnect GPS socket on trip end so FWE stops reporting stale coordinates
             if telemetry_data['engineEvent'] == 'ENGINE_STOP':
-                self._disconnect_gps_socket()
+                self._disconnect_gps_socket(vehicle_id)
 
         print(f"📡 {vehicle_id}: {len(frames)} CAN frames + GPS via FWE socket")
 
