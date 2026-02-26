@@ -1167,6 +1167,16 @@ class RealtimeTelemetrySimulator:
             # Reconnect on next call
             self._gps_socket = None
 
+    def _disconnect_gps_socket(self):
+        """Disconnect GPS socket so FWE stops reporting stale coordinates."""
+        if hasattr(self, '_gps_socket') and self._gps_socket is not None:
+            try:
+                self._gps_socket.close()
+            except Exception:
+                pass
+            self._gps_socket = None
+            print("🛰️  Disconnected FWE GPS socket")
+
     def create_mqtt_connection(self, vehicle_id: str, vin: str = None):
         """Create MQTT connection using vehicle's X.509 certificate"""
         if not MQTT_AVAILABLE:
@@ -1393,6 +1403,9 @@ class RealtimeTelemetrySimulator:
                 print(f"📤 {vehicle_id}: {telemetry_data['engineEvent']} sent via MQTT (driver: {telemetry_data.get('driverId')})")
             except Exception as e:
                 print(f"⚠️ Failed to publish trip event: {e}")
+            # Disconnect GPS socket on trip end so FWE stops reporting stale coordinates
+            if telemetry_data['engineEvent'] == 'ENGINE_STOP':
+                self._disconnect_gps_socket()
 
         print(f"📡 {vehicle_id}: {len(frames)} CAN frames + GPS via FWE socket")
 
