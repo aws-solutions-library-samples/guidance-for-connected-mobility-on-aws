@@ -82,15 +82,14 @@ setup_docker_mac() {
 setup_vcan() {
     step "Setting up virtual CAN bus (vcan0)"
 
-    # Check if vcan0 exists inside Docker (host network)
+    # Check if vcan0 exists
     if docker run --rm --network host --privileged alpine ip link show vcan0 &>/dev/null; then
         info "vcan0 already exists"
         return 0
     fi
 
     echo "Creating vcan0 interface..."
-    docker run --rm --network host --privileged public.ecr.aws/ubuntu/ubuntu:22.04 bash -c "
-        apt-get update -qq && apt-get install -y -qq iproute2 kmod >/dev/null 2>&1
+    docker run --rm --network host --privileged alpine sh -c "
         modprobe vcan 2>/dev/null || true
         ip link add dev vcan0 type vcan 2>/dev/null || true
         ip link set vcan0 up
@@ -241,18 +240,24 @@ cmd_start() {
         # Setup vcan0
         setup_vcan
 
-        # Ask which vehicle to run FWE for
-        echo ""
-        echo "Which vehicle should FWE run for?"
-        echo "(Enter the VIN or vehicleId — must already exist with a certificate)"
-        read -p "Vehicle: " fwe_vehicle
-        if [ -z "$fwe_vehicle" ]; then
-            err "Vehicle ID required"
-            exit 1
+        # Pull FWE image
+        step "Pulling FleetWise Edge Agent image"
+        if docker image inspect "$FWE_IMAGE" &>/dev/null; then
+            info "FWE image already available"
+        else
+            echo "Downloading FWE image (first time only, ~88MB)..."
+            docker pull "$FWE_IMAGE"
+            info "FWE image pulled"
         fi
 
-        # Setup FWE container
-        setup_fwe_container "$fwe_vehicle"
+        # Fix DNS for AWS endpoints in Colima
+        colima ssh -- sudo bash -c '
+            mkdir -p /etc/systemd/resolved.conf.d
+            echo -e "[Resolve]\nDNS=8.8.8.8\nFallbackDNS=8.8.4.4" > /etc/systemd/resolved.conf.d/dns.conf
+            systemctl restart systemd-resolved
+        ' 2>/dev/null || true
+
+        info "FWE infrastructure ready. Select vehicles in the UI when starting a simulation."
     fi
 
     # Start the simulation API service

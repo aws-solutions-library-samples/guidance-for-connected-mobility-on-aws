@@ -289,6 +289,8 @@ class SimulationManager:
         mode = config.get('mode', 'mqtt_direct')
         if mode == 'fwe':
             cmd.extend(['--mode', 'can'])  # FWE uses CAN mode (CAN frames + GPS socket → FWE → protobuf)
+            # Start FWE container for each selected vehicle
+            self._start_fwe_containers(config)
         elif mode in ('can', 'mqtt_direct'):
             cmd.extend(['--mode', mode])
 
@@ -351,6 +353,79 @@ class SimulationManager:
         except Exception as e:
             raise Exception(f"Failed to start simulation: {str(e)}")
     
+    def _start_fwe_containers(self, config):
+        """Start FWE container for selected vehicles."""
+        import subprocess, json as _json
+        vehicles = config.get('vehicles', config.get('selected_vehicles', []))
+        if isinstance(vehicles, int):
+            return  # Generated vehicles, not real — skip FWE
+
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        iot_endpoint = subprocess.check_output(
+            ['aws', 'iot', 'describe-endpoint', '--endpoint-type', 'iot:Data-ATS',
+             '--query', 'endpointAddress', '--output', 'text'],
+            text=True
+        ).strip()
+
+        for v in vehicles:
+            vid = v.get('vehicleId', v) if isinstance(v, dict) else v
+            vin = v.get('vin', vid) if isinstance(v, dict) else vid
+            container_name = f"cms-fwe-{vin[:12]}"
+
+            # Skip if already running
+            result = subprocess.run(['docker', 'ps', '--filter', f'name={container_name}', '-q'],
+                                    capture_output=True, text=True)
+            if result.stdout.strip():
+                continue
+
+            # Get cert from DDB
+            try:
+                cert_json = subprocess.check_output([
+                    sys.executable, '-c', f"""
+import boto3, json, sys
+ddb = boto3.Session().resource('dynamodb')
+t = ddb.Table('cms-dev-storage-vehicle-certificates')
+resp = t.get_item(Key={{'vehicleId': '{vid}'}})
+if 'Item' not in resp:
+    resp = t.scan(FilterExpression='vin = :v OR thingName = :v', ExpressionAttributeValues={{':v': '{vin}'}}, Limit=1)
+    if not resp.get('Items'): sys.exit(1)
+    item = resp['Items'][0]
+else:
+    item = resp['Item']
+print(json.dumps({{'cert': item['certificatePem'], 'key': item['privateKey'], 'thing': item.get('thingName', item.get('vin', '{vin}'))}}))
+"""
+                ], text=True).strip()
+                cert_data = _json.loads(cert_json)
+            except Exception as e:
+                print(f"⚠️ No cert for {vid}, skipping FWE: {e}")
+                continue
+
+            # Generate persistency if needed
+            persistency_dir = '/tmp/fwe_e2e_certs/FWE_Persistency'
+            if not os.path.exists(f'{persistency_dir}/DecoderManifest.bin'):
+                subprocess.run([sys.executable, os.path.join(script_dir, 'generate_fwe_persistency.py'),
+                                '--profile', os.environ.get('AWS_PROFILE', 'default'), '--region', 'us-east-1'],
+                               cwd=script_dir)
+
+            # Start FWE container
+            subprocess.run(['docker', 'rm', '-f', container_name], capture_output=True)
+            subprocess.run([
+                'docker', 'run', '--rm', '-d', '--name', container_name,
+                '--network', 'host', '--privileged',
+                '-v', '/tmp/fwe_e2e_certs:/var/aws-iot-fleetwise/',
+                '-v', 'fwe-gps-sock:/tmp/fwe-gps',
+                'public.ecr.aws/s0o2j8p0/cms-fwe-gps:latest',
+                '--vehicle-name', cert_data['thing'],
+                '--endpoint-url', iot_endpoint,
+                '--iotfleetwise-topic-prefix', 'cms/fleetwise/',
+                '--can-bus0', 'vcan0',
+                '--certificate', cert_data['cert'],
+                '--private-key', cert_data['key'],
+                '--log-level', 'Info',
+                '--persistency-path', '/var/aws-iot-fleetwise/'
+            ])
+            print(f"🚗 FWE started for {vin} (container: {container_name})")
+
     def _monitor_simulation(self, simulation_id: str):
         """Monitor simulation process"""
         simulation = self.simulations.get(simulation_id)
