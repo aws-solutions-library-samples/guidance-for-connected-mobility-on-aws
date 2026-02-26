@@ -285,9 +285,11 @@ class SimulationManager:
         if not config.get('cleanup', True):
             cmd.append('--no-cleanup')
 
-        # Add mode parameter (mqtt_direct or can)
+        # Add mode parameter (mqtt_direct, can, or fwe)
         mode = config.get('mode', 'mqtt_direct')
-        if mode in ('can', 'mqtt_direct'):
+        if mode == 'fwe':
+            cmd.extend(['--mode', 'can'])  # FWE uses CAN mode (CAN frames + GPS socket → FWE → protobuf)
+        elif mode in ('can', 'mqtt_direct'):
             cmd.extend(['--mode', mode])
 
         # Add safety rate parameter
