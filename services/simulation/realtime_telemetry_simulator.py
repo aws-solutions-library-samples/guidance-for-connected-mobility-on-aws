@@ -1363,7 +1363,8 @@ class RealtimeTelemetrySimulator:
 
     def publish_can(self, vehicle_id: str, telemetry_data: Dict, mqtt_client=None):
         """Publish telemetry as CAN frames to virtual CAN bus.
-        GPS goes via Unix socket to FWE ExternalGpsSource (injected into protobuf stream)."""
+        GPS goes via Unix socket to FWE ExternalGpsSource (injected into protobuf stream).
+        Trip lifecycle events (ENGINE_START/STOP, driverId) go via MQTT since they're not CAN signals."""
         # Encode telemetry → CAN frames
         frames = self.can_encoder.encode(telemetry_data)
         self.can_writer.send(frames)
@@ -1371,6 +1372,27 @@ class RealtimeTelemetrySimulator:
         # GPS via FWE ExternalGpsSource Unix socket
         if all(k in telemetry_data for k in ('lat', 'lng')):
             self._send_gps(telemetry_data['lat'], telemetry_data['lng'])
+
+        # Trip lifecycle events via MQTT (not in CAN/protobuf)
+        if mqtt_client and telemetry_data.get('engineEvent') in ('ENGINE_START', 'ENGINE_STOP'):
+            try:
+                import gzip, base64
+                lifecycle = {
+                    'vehicleId': vehicle_id,
+                    'timestamp': telemetry_data.get('timestamp', int(time.time() * 1000)),
+                    'engineEvent': telemetry_data['engineEvent'],
+                    'driverId': telemetry_data.get('driverId'),
+                    'tripId': telemetry_data.get('tripId'),
+                    'lat': telemetry_data.get('lat'),
+                    'lng': telemetry_data.get('lng'),
+                    'ignition_on': telemetry_data['engineEvent'] == 'ENGINE_START',
+                }
+                payload = gzip.compress(json.dumps(lifecycle).encode())
+                topic = f"$aws/rules/cms_dev_iot_msk_rule/{vehicle_id}"
+                mqtt_client.publish(topic, base64.b64encode(payload).decode(), qos=1)
+                print(f"📤 {vehicle_id}: {telemetry_data['engineEvent']} sent via MQTT (driver: {telemetry_data.get('driverId')})")
+            except Exception as e:
+                print(f"⚠️ Failed to publish trip event: {e}")
 
         print(f"📡 {vehicle_id}: {len(frames)} CAN frames + GPS via FWE socket")
 
