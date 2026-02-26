@@ -4,3 +4,5 @@ paho-mqtt>=2.0.0
 flask>=3.0.0
 flask-cors>=4.0.0
 requests>=2.28.0
+cantools>=39.0.0
+python-can>=4.0.0
