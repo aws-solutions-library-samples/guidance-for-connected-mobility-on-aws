@@ -1201,7 +1201,7 @@ class RealtimeTelemetrySimulator:
             # Create MQTT client
             import ssl
             
-            client_id = vin
+            client_id = f"{vin}-sim"  # Suffix to avoid conflict with FWE using same VIN
             client = mqtt.Client(
                 callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
                 client_id=client_id, 
@@ -1274,7 +1274,7 @@ class RealtimeTelemetrySimulator:
             import ssl
             import time
             
-            client_id = vin  # Use VIN directly as client ID to match IoT Thing name
+            client_id = f"{vin}-sim"  # Suffix to avoid conflict with FWE using same VIN
             print(f"🔗 Using client ID: {client_id}")
             sys.stdout.flush()
             
