@@ -1117,9 +1117,19 @@ class RealtimeTelemetrySimulator:
             
             response = table.get_item(Key={'vehicleId': vehicle_id})
             if 'Item' not in response:
-                print(f"❌ Certificate not found for vehicleId: {vehicle_id} in table: {table_name}")
-                sys.stdout.flush()
-                return None
+                # Fallback: vehicle_id might be a VIN — scan for matching vin field
+                scan_resp = table.scan(
+                    FilterExpression='vin = :v OR thingName = :v',
+                    ExpressionAttributeValues={':v': vehicle_id},
+                    Limit=1
+                )
+                if scan_resp.get('Items'):
+                    response = {'Item': scan_resp['Items'][0]}
+                    print(f"✅ Certificate found via VIN/thingName lookup for: {vehicle_id}")
+                else:
+                    print(f"❌ Certificate not found for vehicleId: {vehicle_id} in table: {table_name}")
+                    sys.stdout.flush()
+                    return None
                 
             cert_data = response['Item']
             print(f"✅ Certificate found for vehicleId: {vehicle_id}")
