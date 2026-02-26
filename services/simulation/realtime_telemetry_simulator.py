@@ -85,10 +85,23 @@ class RealtimeTelemetrySimulator:
         # CAN encoder/writer for can mode
         self.can_encoder = None
         self.can_writer = None
+        self.can_writers = {}  # per-vehicle writers for multi-vehicle FWE (vcan0, vcan1, etc.)
         if mode == 'can':
             from can_encoder import CANEncoder
             from can_bus_writer import CANBusWriter
             self.can_encoder = CANEncoder()
+            # Create per-vehicle CAN writers from FWE_VCAN_MAP env var
+            vcan_map_str = os.environ.get('FWE_VCAN_MAP', '')
+            if vcan_map_str:
+                import json as _json
+                vcan_map = _json.loads(vcan_map_str)
+                for vehicle_key, iface in vcan_map.items():
+                    if iface not in [w.channel for w in self.can_writers.values()]:
+                        writer = CANBusWriter(interface='socketcan', channel=iface)
+                        writer.open()
+                        self.can_writers[vehicle_key] = writer
+                        print(f"🔌 CAN writer for {vehicle_key}: {iface}")
+            # Default writer (vcan0 or udp_multicast)
             self.can_writer = CANBusWriter()
             self.can_writer.open()
             print(f"🔌 CAN mode: {self.can_writer.interface}/{self.can_writer.channel} ({self.can_encoder.signal_count} signals mapped)")
@@ -1387,7 +1400,8 @@ class RealtimeTelemetrySimulator:
         Trip lifecycle events (ENGINE_START/STOP, driverId) go via MQTT since they're not CAN signals."""
         # Encode telemetry → CAN frames
         frames = self.can_encoder.encode(telemetry_data)
-        self.can_writer.send(frames)
+        writer = self.can_writers.get(vehicle_id, self.can_writer)
+        writer.send(frames)
 
         # GPS via FWE ExternalGpsSource Unix socket
         if all(k in telemetry_data for k in ('lat', 'lng')):

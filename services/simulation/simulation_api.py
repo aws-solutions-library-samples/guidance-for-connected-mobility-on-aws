@@ -312,6 +312,11 @@ class SimulationManager:
             # Use current workspace directory instead of hardcoded path
             workspace_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             
+            # Pass vcan mapping for multi-vehicle FWE
+            vcan_map = config.get('_vcan_map')
+            if vcan_map:
+                env['FWE_VCAN_MAP'] = _json.dumps(vcan_map) if not isinstance(vcan_map, str) else vcan_map
+
             process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
@@ -354,7 +359,7 @@ class SimulationManager:
             raise Exception(f"Failed to start simulation: {str(e)}")
     
     def _start_fwe_containers(self, config):
-        """Start FWE container for selected vehicles."""
+        """Start FWE container per vehicle with dedicated vcan interfaces."""
         import subprocess, json as _json
         vehicles = config.get('vehicles', config.get('selected_vehicles', []))
         if isinstance(vehicles, int):
@@ -367,10 +372,24 @@ class SimulationManager:
             text=True
         ).strip()
 
-        for v in vehicles:
+        # Generate persistency once
+        persistency_dir = '/tmp/fwe_e2e_certs/FWE_Persistency'
+        if not os.path.exists(f'{persistency_dir}/DecoderManifest.bin'):
+            subprocess.run([sys.executable, os.path.join(script_dir, 'generate_fwe_persistency.py'),
+                            '--profile', os.environ.get('AWS_PROFILE', 'default'), '--region', 'us-east-1'],
+                           cwd=script_dir)
+
+        for idx, v in enumerate(vehicles):
             vid = v.get('vehicleId', v) if isinstance(v, dict) else v
             vin = v.get('vin', vid) if isinstance(v, dict) else vid
+            can_iface = f"vcan{idx}"
             container_name = f"cms-fwe-{vin[:12]}"
+
+            # Create vcan interface if needed
+            subprocess.run(['docker', 'run', '--rm', '--network', 'host', '--privileged',
+                            'alpine', 'sh', '-c',
+                            f'ip link show {can_iface} 2>/dev/null || (ip link add dev {can_iface} type vcan && ip link set {can_iface} up)'],
+                           capture_output=True)
 
             # Skip if already running
             result = subprocess.run(['docker', 'ps', '--filter', f'name={container_name}', '-q'],
@@ -400,14 +419,7 @@ print(json.dumps({{'cert': item['certificatePem'], 'key': item['privateKey'], 't
                 print(f"⚠️ No cert for {vid}, skipping FWE: {e}")
                 continue
 
-            # Generate persistency if needed
-            persistency_dir = '/tmp/fwe_e2e_certs/FWE_Persistency'
-            if not os.path.exists(f'{persistency_dir}/DecoderManifest.bin'):
-                subprocess.run([sys.executable, os.path.join(script_dir, 'generate_fwe_persistency.py'),
-                                '--profile', os.environ.get('AWS_PROFILE', 'default'), '--region', 'us-east-1'],
-                               cwd=script_dir)
-
-            # Start FWE container
+            # Start FWE container with dedicated vcan
             subprocess.run(['docker', 'rm', '-f', container_name], capture_output=True)
             subprocess.run([
                 'docker', 'run', '--rm', '-d', '--name', container_name,
@@ -418,13 +430,17 @@ print(json.dumps({{'cert': item['certificatePem'], 'key': item['privateKey'], 't
                 '--vehicle-name', cert_data['thing'],
                 '--endpoint-url', iot_endpoint,
                 '--iotfleetwise-topic-prefix', 'cms/fleetwise/',
-                '--can-bus0', 'vcan0',
+                '--can-bus0', can_iface,
                 '--certificate', cert_data['cert'],
                 '--private-key', cert_data['key'],
                 '--log-level', 'Info',
                 '--persistency-path', '/var/aws-iot-fleetwise/'
             ])
-            print(f"🚗 FWE started for {vin} (container: {container_name})")
+            print(f"🚗 FWE started for {vin} on {can_iface} (container: {container_name})")
+
+            # Store vcan mapping for the simulator
+            config.setdefault('_vcan_map', {})[vin] = can_iface
+            config.setdefault('_vcan_map', {})[vid] = can_iface
 
     def _monitor_simulation(self, simulation_id: str):
         """Monitor simulation process"""
