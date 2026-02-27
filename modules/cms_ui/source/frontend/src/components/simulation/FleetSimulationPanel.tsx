@@ -54,7 +54,7 @@ interface SimulationConfig {
   fleet_prefix: string;
   cleanup: boolean;
   vehicle_source: 'generated' | 'real_vehicles';
-  mode: 'mqtt_direct' | 'can';
+  mode: 'mqtt_direct' | 'fwe';
   selected_vehicles?: Vehicle[];
   use_real_vehicles?: boolean;
   use_certificates?: boolean;
@@ -648,10 +648,10 @@ export default function FleetSimulationPanel() {
             >
               <Select
                 selectedOption={{
-                  label: config.mode === 'mqtt_direct' ? 'MQTT Direct (JSON → IoT Core → Kafka)' : 'Virtual CAN Bus (CAN frames + GPS via MQTT)',
+                  label: config.mode === 'mqtt_direct' ? 'MQTT Direct (JSON → IoT Core → Kafka)' : 'FleetWise Edge (CAN + GPS → Protobuf → IoT Core)',
                   value: config.mode
                 }}
-                onChange={({ detail }) => setConfig({ ...config, mode: detail.selectedOption.value as 'mqtt_direct' | 'can' })}
+                onChange={({ detail }) => setConfig({ ...config, mode: detail.selectedOption.value as 'mqtt_direct' | 'fwe' })}
                 options={[
                   { 
                     label: 'MQTT Direct (JSON → IoT Core → Kafka)', 
@@ -659,9 +659,9 @@ export default function FleetSimulationPanel() {
                     description: 'Publishes compressed JSON telemetry directly to IoT Core via MQTT'
                   },
                   { 
-                    label: 'Virtual CAN Bus (CAN frames + GPS via MQTT)', 
-                    value: 'can',
-                    description: 'Encodes telemetry as CAN frames via DBC. GPS sent separately via MQTT. Requires FWE to bridge to cloud.'
+                    label: 'FleetWise Edge (CAN + GPS → Protobuf → IoT Core)', 
+                    value: 'fwe',
+                    description: 'CAN frames + GPS via FWE protobuf pipeline. Requires Docker.'
                   }
                 ]}
               />

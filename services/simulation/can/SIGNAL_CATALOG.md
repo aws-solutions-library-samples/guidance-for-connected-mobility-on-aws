@@ -155,9 +155,9 @@
 | Field | JSON Field | Notes |
 |---|---|---|
 | Message Type | `messageType` | Always `TELEMETRY` |
-| Vehicle ID | `vehicleId` | `VEH-XXXXXXXXXX` |
+| Vehicle ID | `vehicleId` | `5YJ3E1EA1PF721240` |
 | Timestamp | `timestamp` | Epoch milliseconds |
-| Trip ID | `tripId` | `VEH-XXX-timestamp-uuid` |
+| Trip ID | `tripId` | `5YJ3E1EA1PF721240-timestamp-uuid` |
 | Driver ID | `driverId` | `DRV-XXXXXXXXXX` |
 | Engine Event | `engineEvent` | `ENGINE_START` / `ENGINE_STOP` |
 

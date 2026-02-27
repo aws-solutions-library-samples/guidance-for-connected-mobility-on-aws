@@ -1,0 +1,344 @@
+package com.aws.cms;
+
+import org.apache.flink.api.common.state.*;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.util.Collector;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.*;
+import software.amazon.awssdk.services.iotdataplane.IotDataPlaneClient;
+import software.amazon.awssdk.services.iotdataplane.model.PublishRequest;
+import software.amazon.awssdk.core.SdkBytes;
+
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+
+/**
+ * Flink job for FleetWise campaign sync
+ * Processes both FleetWise and custom heartbeats
+ * Publishes directly to IoT Core
+ */
+public class FleetWiseCampaignSync {
+    
+    public static void main(String[] args) throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.enableCheckpointing(60000);
+        
+        // Read FleetWise heartbeats
+        DataStream<FleetWiseHeartbeat> fwHeartbeats = env
+            .addSource(KafkaSourceBuilder.buildFleetWiseHeartbeatSource())
+            .name("fleetwise-heartbeat-source");
+        
+        // Read custom heartbeats
+        DataStream<CustomHeartbeat> customHeartbeats = env
+            .addSource(KafkaSourceBuilder.buildCustomHeartbeatSource())
+            .name("custom-heartbeat-source");
+        
+        // Convert both to common format
+        DataStream<VehicleHeartbeat> allHeartbeats = fwHeartbeats
+            .map(fw -> VehicleHeartbeat.fromFleetWise(fw))
+            .union(customHeartbeats.map(custom -> VehicleHeartbeat.fromCustom(custom)));
+        
+        // Process and publish directly to IoT Core
+        allHeartbeats
+            .keyBy(VehicleHeartbeat::getVehicleId)
+            .process(new CampaignSyncWithIoTPublish())
+            .name("campaign-sync-with-iot-publish");
+        
+        env.execute("FleetWise Campaign Sync");
+    }
+}
+
+/**
+ * Unified heartbeat format
+ */
+class VehicleHeartbeat {
+    private String vehicleId;
+    private long timestamp;
+    private Set<String> activeCampaigns;
+    private Map<String, Object> telemetry;
+    private HeartbeatType type;
+    
+    public static VehicleHeartbeat fromFleetWise(FleetWiseHeartbeat fw) {
+        VehicleHeartbeat hb = new VehicleHeartbeat();
+        hb.vehicleId = fw.getVehicleId();
+        hb.timestamp = fw.getTimestamp() / 1000;  // Convert ms to seconds
+        hb.activeCampaigns = new HashSet<>();
+        
+        // Extract campaign IDs from activeCollectionSchemes
+        if (fw.getActiveCollectionSchemes() != null) {
+            for (Map<String, Object> scheme : fw.getActiveCollectionSchemes()) {
+                hb.activeCampaigns.add((String) scheme.get("schemeId"));
+            }
+        }
+        
+        hb.telemetry = fw.getTelemetry();
+        hb.type = HeartbeatType.FLEETWISE;
+        return hb;
+    }
+    
+    public static VehicleHeartbeat fromCustom(CustomHeartbeat custom) {
+        VehicleHeartbeat hb = new VehicleHeartbeat();
+        hb.vehicleId = custom.getVehicleId();
+        hb.timestamp = custom.getTimestamp();
+        hb.activeCampaigns = custom.getActiveCampaigns();
+        hb.telemetry = custom.getTelemetry();
+        hb.type = HeartbeatType.CUSTOM;
+        return hb;
+    }
+    
+    public String getVehicleId() { return vehicleId; }
+    public long getTimestamp() { return timestamp; }
+    public Set<String> getActiveCampaigns() { return activeCampaigns; }
+    public HeartbeatType getType() { return type; }
+}
+
+enum HeartbeatType {
+    FLEETWISE,
+    CUSTOM
+}
+
+/**
+ * Campaign sync processor with direct IoT Core publishing
+ */
+class CampaignSyncWithIoTPublish extends KeyedProcessFunction<String, VehicleHeartbeat, Void> {
+    
+    private transient DynamoDbClient dynamoDb;
+    private transient IotDataPlaneClient iotClient;
+    private transient ValueState<Set<String>> assignedCampaignsState;
+    private transient ValueState<Long> lastSyncTimeState;
+    
+    private static final long SYNC_INTERVAL_MS = 300000;  // 5 minutes
+    private String campaignsTableName;
+    private String vehicleCampaignsTableName;
+    
+    @Override
+    public void open(Configuration parameters) {
+        dynamoDb = DynamoDbClient.builder().build();
+        iotClient = IotDataPlaneClient.builder().build();
+        
+        campaignsTableName = System.getenv("CAMPAIGNS_TABLE");
+        vehicleCampaignsTableName = System.getenv("VEHICLE_CAMPAIGNS_TABLE");
+        
+        ValueStateDescriptor<Set<String>> assignedDescriptor = new ValueStateDescriptor<>(
+            "assigned-campaigns",
+            Set.class
+        );
+        assignedCampaignsState = getRuntimeContext().getState(assignedDescriptor);
+        
+        ValueStateDescriptor<Long> syncTimeDescriptor = new ValueStateDescriptor<>(
+            "last-sync-time",
+            Long.class
+        );
+        lastSyncTimeState = getRuntimeContext().getState(syncTimeDescriptor);
+    }
+    
+    @Override
+    public void processElement(
+        VehicleHeartbeat heartbeat,
+        Context ctx,
+        Collector<Void> out
+    ) throws Exception {
+        
+        String vehicleId = heartbeat.getVehicleId();
+        Set<String> activeCampaigns = heartbeat.getActiveCampaigns();
+        long currentTime = ctx.timestamp();
+        
+        // Get assigned campaigns (from state or DynamoDB)
+        Set<String> assignedCampaigns = getAssignedCampaigns(vehicleId, currentTime);
+        
+        // Calculate diff
+        Set<String> toAdd = new HashSet<>(assignedCampaigns);
+        toAdd.removeAll(activeCampaigns);
+        
+        Set<String> toRemove = new HashSet<>(activeCampaigns);
+        toRemove.removeAll(assignedCampaigns);
+        
+        // Only publish if there are changes
+        if (!toAdd.isEmpty() || !toRemove.isEmpty()) {
+            CampaignSyncResponse response = new CampaignSyncResponse(
+                vehicleId,
+                toAdd,
+                toRemove,
+                currentTime
+            );
+            
+            // Publish directly to IoT Core
+            publishToIoTCore(vehicleId, response, heartbeat.getType());
+        }
+        
+        // Update vehicle state in DynamoDB
+        updateVehicleState(vehicleId, activeCampaigns, currentTime);
+    }
+    
+    private Set<String> getAssignedCampaigns(String vehicleId, long currentTime) throws Exception {
+        Long lastSyncTime = lastSyncTimeState.value();
+        
+        if (lastSyncTime == null || (currentTime - lastSyncTime) > SYNC_INTERVAL_MS) {
+            Set<String> assigned = queryAssignedCampaigns(vehicleId);
+            assignedCampaignsState.update(assigned);
+            lastSyncTimeState.update(currentTime);
+            return assigned;
+        }
+        
+        Set<String> cached = assignedCampaignsState.value();
+        return cached != null ? cached : new HashSet<>();
+    }
+    
+    private Set<String> queryAssignedCampaigns(String vehicleId) {
+        Set<String> assigned = new HashSet<>();
+        
+        // Query vehicle-specific campaigns
+        QueryRequest vehicleQuery = QueryRequest.builder()
+            .tableName(vehicleCampaignsTableName)
+            .keyConditionExpression("vehicleId = :vid")
+            .filterExpression("#status IN (:pending, :active)")
+            .expressionAttributeNames(Map.of("#status", "status"))
+            .expressionAttributeValues(Map.of(
+                ":vid", AttributeValue.builder().s(vehicleId).build(),
+                ":pending", AttributeValue.builder().s("pending").build(),
+                ":active", AttributeValue.builder().s("active").build()
+            ))
+            .build();
+        
+        QueryResponse vehicleResponse = dynamoDb.query(vehicleQuery);
+        for (Map<String, AttributeValue> item : vehicleResponse.items()) {
+            assigned.add(item.get("campaignId").s());
+        }
+        
+        // Add broadcast campaigns
+        assigned.addAll(getBroadcastCampaigns());
+        
+        return assigned;
+    }
+    
+    private static Set<String> broadcastCampaignsCache = new HashSet<>();
+    private static long broadcastCacheTime = 0;
+    
+    private Set<String> getBroadcastCampaigns() {
+        long currentTime = System.currentTimeMillis();
+        
+        if (currentTime - broadcastCacheTime > SYNC_INTERVAL_MS) {
+            QueryRequest broadcastQuery = QueryRequest.builder()
+                .tableName(campaignsTableName)
+                .indexName("status-targetType-index")
+                .keyConditionExpression("#status = :active AND targetType = :broadcast")
+                .expressionAttributeNames(Map.of("#status", "status"))
+                .expressionAttributeValues(Map.of(
+                    ":active", AttributeValue.builder().s("active").build(),
+                    ":broadcast", AttributeValue.builder().s("broadcast").build()
+                ))
+                .build();
+            
+            QueryResponse response = dynamoDb.query(broadcastQuery);
+            
+            broadcastCampaignsCache.clear();
+            for (Map<String, AttributeValue> item : response.items()) {
+                broadcastCampaignsCache.add(item.get("campaignId").s());
+            }
+            
+            broadcastCacheTime = currentTime;
+        }
+        
+        return new HashSet<>(broadcastCampaignsCache);
+    }
+    
+    private void publishToIoTCore(String vehicleId, CampaignSyncResponse response, HeartbeatType type) {
+        String topic;
+        
+        if (type == HeartbeatType.FLEETWISE) {
+            topic = String.format("$aws/things/%s/collectionSchemes", vehicleId);
+        } else {
+            topic = String.format("vehicle/%s/campaigns/sync", vehicleId);
+        }
+        
+        try {
+            PublishRequest request = PublishRequest.builder()
+                .topic(topic)
+                .qos(1)
+                .payload(SdkBytes.fromString(response.toJson(), StandardCharsets.UTF_8))
+                .build();
+            
+            iotClient.publish(request);
+        } catch (Exception e) {
+            System.err.println("Failed to publish to " + topic + ": " + e.getMessage());
+        }
+    }
+    
+    private void updateVehicleState(String vehicleId, Set<String> activeCampaigns, long timestamp) {
+        for (String campaignId : activeCampaigns) {
+            UpdateItemRequest updateRequest = UpdateItemRequest.builder()
+                .tableName(vehicleCampaignsTableName)
+                .key(Map.of(
+                    "vehicleId", AttributeValue.builder().s(vehicleId).build(),
+                    "campaignId", AttributeValue.builder().s(campaignId).build()
+                ))
+                .updateExpression("SET #status = :status, lastReportedAt = :ts")
+                .expressionAttributeNames(Map.of("#status", "status"))
+                .expressionAttributeValues(Map.of(
+                    ":status", AttributeValue.builder().s("active").build(),
+                    ":ts", AttributeValue.builder().n(String.valueOf(timestamp)).build()
+                ))
+                .build();
+            
+            dynamoDb.updateItem(updateRequest);
+        }
+    }
+    
+    @Override
+    public void close() {
+        if (dynamoDb != null) {
+            dynamoDb.close();
+        }
+        if (iotClient != null) {
+            iotClient.close();
+        }
+    }
+}
+
+/**
+ * Campaign sync response
+ */
+class CampaignSyncResponse {
+    private String vehicleId;
+    private Set<String> campaignsToAdd;
+    private Set<String> campaignsToRemove;
+    private long timestamp;
+    
+    public CampaignSyncResponse(String vehicleId, Set<String> toAdd, Set<String> toRemove, long timestamp) {
+        this.vehicleId = vehicleId;
+        this.campaignsToAdd = toAdd;
+        this.campaignsToRemove = toRemove;
+        this.timestamp = timestamp;
+    }
+    
+    public String toJson() {
+        StringBuilder json = new StringBuilder();
+        json.append("{");
+        json.append("\"vehicleId\":\"").append(vehicleId).append("\",");
+        json.append("\"campaignsToAdd\":[");
+        
+        boolean first = true;
+        for (String campaignId : campaignsToAdd) {
+            if (!first) json.append(",");
+            json.append("\"").append(campaignId).append("\"");
+            first = false;
+        }
+        
+        json.append("],\"campaignsToRemove\":[");
+        
+        first = true;
+        for (String campaignId : campaignsToRemove) {
+            if (!first) json.append(",");
+            json.append("\"").append(campaignId).append("\"");
+            first = false;
+        }
+        
+        json.append("],\"timestamp\":").append(timestamp);
+        json.append("}");
+        
+        return json.toString();
+    }
+}

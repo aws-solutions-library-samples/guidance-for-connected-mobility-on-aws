@@ -1,0 +1,64 @@
+package com.aws.cms;
+
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import software.amazon.awssdk.services.iotdataplane.IotDataPlaneClient;
+import software.amazon.awssdk.services.iotdataplane.model.PublishRequest;
+import software.amazon.awssdk.core.SdkBytes;
+
+import java.nio.charset.StandardCharsets;
+
+/**
+ * Flink sink that publishes directly to AWS IoT Core
+ * No Lambda needed!
+ */
+public class IoTCoreSink extends RichSinkFunction<CampaignSyncResponse> {
+    
+    private transient IotDataPlaneClient iotClient;
+    
+    @Override
+    public void open(Configuration parameters) {
+        // Initialize IoT Data Plane client
+        iotClient = IotDataPlaneClient.builder().build();
+    }
+    
+    @Override
+    public void invoke(CampaignSyncResponse syncResponse, Context context) {
+        String vehicleId = syncResponse.getVehicleId();
+        String payload = syncResponse.toJson();
+        
+        // Publish to FleetWise topic
+        publishToTopic(
+            String.format("$aws/things/%s/collectionSchemes", vehicleId),
+            payload
+        );
+        
+        // Publish to custom topic
+        publishToTopic(
+            String.format("vehicle/%s/campaigns/sync", vehicleId),
+            payload
+        );
+    }
+    
+    private void publishToTopic(String topic, String payload) {
+        try {
+            PublishRequest request = PublishRequest.builder()
+                .topic(topic)
+                .qos(1)
+                .payload(SdkBytes.fromString(payload, StandardCharsets.UTF_8))
+                .build();
+            
+            iotClient.publish(request);
+        } catch (Exception e) {
+            // Log error but don't fail the job
+            System.err.println("Failed to publish to " + topic + ": " + e.getMessage());
+        }
+    }
+    
+    @Override
+    public void close() {
+        if (iotClient != null) {
+            iotClient.close();
+        }
+    }
+}

@@ -4,7 +4,7 @@ version: '3.8'
 # Works on macOS, Linux, and Windows (Docker Desktop)
 #
 # Usage:
-#   1. Generate config: python3 setup_fwe.py --vehicle-id VEH-xxx --profile xxx
+#   1. Generate config: python3 setup_fwe.py --vehicle-id 5YJ3E1EA1PF721240 --profile givenand-CMS
 #   2. Generate persistency: python3 generate_fwe_persistency.py --profile xxx
 #   3. Start: docker compose up
 #   4. Simulator sends CAN frames → FWE reads → publishes to IoT Core
@@ -77,7 +77,7 @@ services:
           --vehicles 1
           --city seattle
           --mode can
-          --vehicle-config '[{\"vehicleId\":\"VEH-1771335115\",\"vin\":\"TEST123\"}]'
+          --vehicle-config '[{\"vehicleId\":\"2HGMY1W40ME5M4PVK\",\"vin\":\"2HGMY1W40ME5M4PVK\"}]'
       "
 
 volumes:

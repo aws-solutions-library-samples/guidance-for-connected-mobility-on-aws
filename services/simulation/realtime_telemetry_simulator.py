@@ -8,6 +8,7 @@ Triggered from the fleet management UI simulation service
 import json
 import time
 import random
+import os
 import boto3
 import threading
 import logging
@@ -376,7 +377,7 @@ class RealtimeTelemetrySimulator:
             else:
                 base_lat = float(vehicle.get('location', {}).get('latitude', 40.7128))
                 base_lon = float(vehicle.get('location', {}).get('longitude', -74.0060))
-            previous_state.route = self.generate_route_points(base_lat, base_lon)
+            previous_state.route = self.generate_route_points(base_lat, base_lon, num_points=30)
         
         # Get current route position first
         current_pos = previous_state.route[min(previous_state.route_index, len(previous_state.route) - 1)]

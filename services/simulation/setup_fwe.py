@@ -7,10 +7,10 @@ Image: public.ecr.aws/aws-iot-fleetwise-edge/aws-iot-fleetwise-edge
 
 Usage:
     # Generate config only
-    python3 setup_fwe.py --vehicle-id VEH-1771335115 --profile givenand-CMS
+    python3 setup_fwe.py --vehicle-id 5YJ3E1EA1PF721240 --profile givenand-CMS
 
     # Run FWE container
-    python3 setup_fwe.py --vehicle-id VEH-1771335115 --profile givenand-CMS --run
+    python3 setup_fwe.py --vehicle-id 5YJ3E1EA1PF721240 --profile givenand-CMS --run
 """
 
 import argparse

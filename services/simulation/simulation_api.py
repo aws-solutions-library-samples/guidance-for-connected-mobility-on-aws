@@ -288,9 +288,56 @@ class SimulationManager:
         # Add mode parameter (mqtt_direct, can, or fwe)
         mode = config.get('mode', 'mqtt_direct')
         if mode == 'fwe':
-            cmd.extend(['--mode', 'can'])  # FWE uses CAN mode (CAN frames + GPS socket → FWE → protobuf)
-            # Start FWE container for each selected vehicle
+            # Add CAN mode to the simulator command
+            cmd.extend(['--mode', 'can'])
+            # Start FWE containers first
             self._start_fwe_containers(config)
+            
+            # Build docker run command — simulator must run in Docker for vcan + GPS socket access
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            docker_cmd = [
+                'docker', 'run', '--rm', '--name', f'cms-sim-{simulation_id[:8]}',
+                '--network', 'host', '--privileged',
+                '-v', f'{script_dir}:/app',
+                '-v', f'{os.path.expanduser("~/.aws")}:/root/.aws:ro',
+                '-v', 'fwe-gps-sock:/tmp/fwe-gps',
+                '-w', '/app',
+                '-e', f'AWS_PROFILE={AWS_PROFILE or "default"}',
+                '-e', 'AWS_DEFAULT_REGION=us-east-1',
+            ]
+            # Pass vcan/GPS mappings as env vars
+            vcan_map = config.get('_vcan_map')
+            if vcan_map:
+                docker_cmd.extend(['-e', f'FWE_VCAN_MAP={json.dumps(vcan_map)}'])
+            gps_sock_map = config.get('_gps_sock_map')
+            if gps_sock_map:
+                docker_cmd.extend(['-e', f'FWE_GPS_SOCK_MAP={json.dumps(gps_sock_map)}'])
+            
+            # Check if pre-built sim image exists, otherwise fall back to apt-get/pip
+            import subprocess as _sp
+            has_sim_image = _sp.run(['docker', 'image', 'inspect', 'cms-sim-local'], capture_output=True).returncode == 0
+            
+            if has_sim_image:
+                docker_cmd.extend([
+                    'cms-sim-local', 'python3',
+                    *[f'/app/{os.path.basename(a)}' if a.endswith('.py') else a for a in cmd[1:]]
+                ])
+            else:
+                # Build inner command — replace host script path with container path
+                inner_args = []
+                for a in cmd[1:]:
+                    if a.endswith('.py'):
+                        inner_args.append(f'/app/{os.path.basename(a)}')
+                    else:
+                        inner_args.append(a)
+                
+                docker_cmd.extend([
+                    'public.ecr.aws/ubuntu/ubuntu:22.04', 'bash', '-c',
+                    'apt-get update -qq && apt-get install -y -qq python3 python3-pip iproute2 >/dev/null 2>&1 && '
+                    'pip3 install -q python-can cantools msgpack paho-mqtt boto3 && '
+                    'python3 ' + ' '.join(f"'{a}'" for a in inner_args)
+                ])
+            cmd = docker_cmd
         elif mode in ('can', 'mqtt_direct'):
             cmd.extend(['--mode', mode])
 
@@ -313,12 +360,7 @@ class SimulationManager:
             workspace_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             
             # Pass vcan and GPS socket mapping for multi-vehicle FWE
-            vcan_map = config.get('_vcan_map')
-            if vcan_map:
-                env['FWE_VCAN_MAP'] = json.dumps(vcan_map)
-            gps_sock_map = config.get('_gps_sock_map')
-            if gps_sock_map:
-                env['FWE_GPS_SOCK_MAP'] = json.dumps(gps_sock_map)
+            # (only needed for non-Docker mode; FWE mode passes them via docker -e)
 
             process = subprocess.Popen(
                 cmd,
@@ -375,18 +417,38 @@ class SimulationManager:
             text=True
         ).strip()
 
-        # Generate persistency once
+        # Generate persistency and populate Docker volume (survives Colima restarts)
         persistency_dir = '/tmp/fwe_e2e_certs/FWE_Persistency'
         if not os.path.exists(f'{persistency_dir}/DecoderManifest.bin'):
             subprocess.run([sys.executable, os.path.join(script_dir, 'generate_fwe_persistency.py'),
-                            '--profile', os.environ.get('AWS_PROFILE', 'default'), '--region', 'us-east-1'],
+                            '--profile', os.environ.get('AWS_PROFILE', 'default'), '--output-dir', persistency_dir],
                            cwd=script_dir)
+        # Ensure Docker volume has persistency files (use docker cp for Colima compatibility)
+        subprocess.run(['docker', 'volume', 'create', 'fwe-persistency'], capture_output=True)
+        helper = subprocess.run(
+            ['docker', 'run', '-d', '--name', 'fwe-vol-helper', '-v', 'fwe-persistency:/data',
+             'public.ecr.aws/ubuntu/ubuntu:22.04', 'sleep', '30'], capture_output=True)
+        if helper.returncode == 0:
+            subprocess.run(['docker', 'exec', 'fwe-vol-helper', 'mkdir', '-p', '/data/FWE_Persistency'], capture_output=True)
+            for f in ['DecoderManifest.bin', 'CollectionSchemeList.bin']:
+                src = os.path.join(persistency_dir, f)
+                if os.path.exists(src):
+                    subprocess.run(['docker', 'cp', src, f'fwe-vol-helper:/data/FWE_Persistency/{f}'], capture_output=True)
+            subprocess.run(['docker', 'stop', 'fwe-vol-helper'], capture_output=True)
+            subprocess.run(['docker', 'rm', 'fwe-vol-helper'], capture_output=True)
 
         for idx, v in enumerate(vehicles):
             vid = v.get('vehicleId', v) if isinstance(v, dict) else v
             vin = v.get('vin', vid) if isinstance(v, dict) else vid
             can_iface = f"vcan{idx}"
+            gps_sock_path = f"/tmp/fwe-gps/gps-{idx}.sock"
             container_name = f"cms-fwe-{vin[:12]}"
+
+            # Always populate mappings (simulator needs them even if FWE is already running)
+            config.setdefault('_vcan_map', {})[vin] = can_iface
+            config.setdefault('_vcan_map', {})[vid] = can_iface
+            config.setdefault('_gps_sock_map', {})[vin] = gps_sock_path
+            config.setdefault('_gps_sock_map', {})[vid] = gps_sock_path
 
             # Create vcan interface if needed
             subprocess.run(['docker', 'run', '--rm', '--network', 'host', '--privileged',
@@ -398,6 +460,7 @@ class SimulationManager:
             result = subprocess.run(['docker', 'ps', '--filter', f'name={container_name}', '-q'],
                                     capture_output=True, text=True)
             if result.stdout.strip():
+                print(f"🚗 FWE already running for {vin} on {can_iface} (container: {container_name})")
                 continue
 
             # Get cert from DDB
@@ -423,13 +486,22 @@ print(json.dumps({{'cert': item['certificatePem'], 'key': item['privateKey'], 't
                 continue
 
             # Start FWE container with dedicated vcan and GPS socket
-            gps_sock_path = f"/tmp/fwe-gps/gps-{idx}.sock"
+            # Resolve IoT endpoint IP to work around DNS hanging in Colima QEMU VM
+            import socket as _socket
+            try:
+                iot_ip = _socket.gethostbyname(iot_endpoint)
+            except Exception:
+                iot_ip = None
             subprocess.run(['docker', 'rm', '-f', container_name], capture_output=True)
-            subprocess.run([
+            docker_args = [
                 'docker', 'run', '--rm', '-d', '--name', container_name,
                 '--network', 'host', '--privileged',
+            ]
+            if iot_ip:
+                docker_args.extend(['--add-host', f'{iot_endpoint}:{iot_ip}'])
+            docker_args.extend([
                 '-e', f'FWE_GPS_SOCKET_PATH={gps_sock_path}',
-                '-v', '/tmp/fwe_e2e_certs:/var/aws-iot-fleetwise/',
+                '-v', 'fwe-persistency:/var/aws-iot-fleetwise/',
                 '-v', 'fwe-gps-sock:/tmp/fwe-gps',
                 'public.ecr.aws/s0o2j8p0/cms-fwe-gps:latest',
                 '--vehicle-name', cert_data['thing'],
@@ -441,13 +513,25 @@ print(json.dumps({{'cert': item['certificatePem'], 'key': item['privateKey'], 't
                 '--log-level', 'Info',
                 '--persistency-path', '/var/aws-iot-fleetwise/'
             ])
+            subprocess.run(docker_args)
             print(f"🚗 FWE started for {vin} on {can_iface} (container: {container_name})")
 
-            # Store vcan and GPS socket mapping for the simulator
-            config.setdefault('_vcan_map', {})[vin] = can_iface
-            config.setdefault('_vcan_map', {})[vid] = can_iface
-            config.setdefault('_gps_sock_map', {})[vin] = gps_sock_path
-            config.setdefault('_gps_sock_map', {})[vid] = gps_sock_path
+        # Wait for FWE containers to activate collection schemes before sim sends data
+        import time as _time
+        started_containers = [f"cms-fwe-{(v.get('vin', v) if isinstance(v, dict) else v)[:12]}" for v in vehicles]
+        for attempt in range(30):
+            all_ready = True
+            for cname in started_containers:
+                result = subprocess.run(['docker', 'logs', cname], capture_output=True, text=True)
+                if 'activated collection schemes' not in result.stdout:
+                    all_ready = False
+                    break
+            if all_ready:
+                print(f"✅ All FWE containers ready (took ~{attempt * 2}s)")
+                break
+            _time.sleep(2)
+        else:
+            print("⚠️ FWE readiness timeout — proceeding anyway")
 
     def _monitor_simulation(self, simulation_id: str):
         """Monitor simulation process"""

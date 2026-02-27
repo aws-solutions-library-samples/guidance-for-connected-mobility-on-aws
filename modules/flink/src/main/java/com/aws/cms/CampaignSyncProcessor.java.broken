@@ -1,0 +1,304 @@
+package com.aws.cms;
+
+import org.apache.flink.api.common.state.*;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.util.Collector;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.*;
+
+import java.util.*;
+
+/**
+ * Flink job for campaign sync processing
+ * Processes vehicle heartbeats and generates campaign sync responses
+ */
+public class CampaignSyncProcessor {
+    
+    public static void main(String[] args) throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.enableCheckpointing(60000); // Checkpoint every minute
+        
+        // Read from Kafka (vehicle-heartbeats topic)
+        DataStream<VehicleHeartbeat> heartbeats = env
+            .addSource(KafkaSourceBuilder.buildHeartbeatSource())
+            .name("vehicle-heartbeats-source");
+        
+        // Process heartbeats and generate sync responses
+        DataStream<CampaignSyncResponse> syncResponses = heartbeats
+            .keyBy(VehicleHeartbeat::getVehicleId)
+            .process(new CampaignSyncFunction())
+            .name("campaign-sync-processor");
+        
+        // Write to Kafka (campaign-sync-responses topic)
+        syncResponses
+            .addSink(KafkaSinkBuilder.buildSyncResponseSink())
+            .name("campaign-sync-responses-sink");
+        
+        env.execute("Campaign Sync Processor");
+    }
+}
+
+/**
+ * Stateful function that processes heartbeats and generates sync responses
+ */
+class CampaignSyncFunction extends KeyedProcessFunction<String, VehicleHeartbeat, CampaignSyncResponse> {
+    
+    // Flink state: tracks campaigns assigned to this vehicle
+    private transient ValueState<Set<String>> assignedCampaignsState;
+    
+    // Flink state: tracks last sync time to avoid excessive DynamoDB queries
+    private transient ValueState<Long> lastSyncTimeState;
+    
+    // DynamoDB client
+    private transient DynamoDbClient dynamoDb;
+    
+    // Configuration
+    private static final long SYNC_INTERVAL_MS = 300000; // 5 minutes
+    private String campaignsTableName;
+    private String vehicleCampaignsTableName;
+    
+    @Override
+    public void open(Configuration parameters) {
+        // Initialize DynamoDB client
+        dynamoDb = DynamoDbClient.builder().build();
+        
+        // Get table names from environment
+        campaignsTableName = System.getenv("CAMPAIGNS_TABLE");
+        vehicleCampaignsTableName = System.getenv("VEHICLE_CAMPAIGNS_TABLE");
+        
+        // Initialize Flink state
+        ValueStateDescriptor<Set<String>> assignedDescriptor = new ValueStateDescriptor<>(
+            "assigned-campaigns",
+            Set.class
+        );
+        assignedCampaignsState = getRuntimeContext().getState(assignedDescriptor);
+        
+        ValueStateDescriptor<Long> syncTimeDescriptor = new ValueStateDescriptor<>(
+            "last-sync-time",
+            Long.class
+        );
+        lastSyncTimeState = getRuntimeContext().getState(syncTimeDescriptor);
+    }
+    
+    @Override
+    public void processElement(
+        VehicleHeartbeat heartbeat,
+        Context ctx,
+        Collector<CampaignSyncResponse> out
+    ) throws Exception {
+        
+        String vehicleId = heartbeat.getVehicleId();
+        Set<String> activeCampaigns = heartbeat.getActiveCampaigns();
+        long currentTime = ctx.timestamp();
+        
+        // Get assigned campaigns (from state or DynamoDB)
+        Set<String> assignedCampaigns = getAssignedCampaigns(vehicleId, currentTime);
+        
+        // Calculate diff
+        Set<String> toAdd = new HashSet<>(assignedCampaigns);
+        toAdd.removeAll(activeCampaigns);
+        
+        Set<String> toRemove = new HashSet<>(activeCampaigns);
+        toRemove.removeAll(assignedCampaigns);
+        
+        // Only emit if there are changes
+        if (!toAdd.isEmpty() || !toRemove.isEmpty()) {
+            CampaignSyncResponse response = CampaignSyncResponse.builder()
+                .vehicleId(vehicleId)
+                .campaignsToAdd(toAdd)
+                .campaignsToRemove(toRemove)
+                .timestamp(currentTime)
+                .build();
+            
+            out.collect(response);
+        }
+        
+        // Update vehicle state in DynamoDB (async)
+        updateVehicleState(vehicleId, activeCampaigns, currentTime);
+    }
+    
+    /**
+     * Get assigned campaigns for vehicle
+     * Uses Flink state to cache and reduce DynamoDB queries
+     */
+    private Set<String> getAssignedCampaigns(String vehicleId, long currentTime) throws Exception {
+        Long lastSyncTime = lastSyncTimeState.value();
+        
+        // Check if we need to refresh from DynamoDB
+        if (lastSyncTime == null || (currentTime - lastSyncTime) > SYNC_INTERVAL_MS) {
+            // Query DynamoDB
+            Set<String> assigned = queryAssignedCampaigns(vehicleId);
+            
+            // Update state
+            assignedCampaignsState.update(assigned);
+            lastSyncTimeState.update(currentTime);
+            
+            return assigned;
+        }
+        
+        // Return cached value from state
+        Set<String> cached = assignedCampaignsState.value();
+        return cached != null ? cached : new HashSet<>();
+    }
+    
+    /**
+     * Query DynamoDB for assigned campaigns
+     */
+    private Set<String> queryAssignedCampaigns(String vehicleId) {
+        Set<String> assigned = new HashSet<>();
+        
+        // 1. Get vehicle-specific campaigns
+        QueryRequest vehicleQuery = QueryRequest.builder()
+            .tableName(vehicleCampaignsTableName)
+            .keyConditionExpression("vehicleId = :vid")
+            .filterExpression("#status IN (:pending, :active)")
+            .expressionAttributeNames(Map.of("#status", "status"))
+            .expressionAttributeValues(Map.of(
+                ":vid", AttributeValue.builder().s(vehicleId).build(),
+                ":pending", AttributeValue.builder().s("pending").build(),
+                ":active", AttributeValue.builder().s("active").build()
+            ))
+            .build();
+        
+        QueryResponse vehicleResponse = dynamoDb.query(vehicleQuery);
+        for (Map<String, AttributeValue> item : vehicleResponse.items()) {
+            assigned.add(item.get("campaignId").s());
+        }
+        
+        // 2. Get broadcast campaigns (cached globally)
+        assigned.addAll(getBroadcastCampaigns());
+        
+        return assigned;
+    }
+    
+    /**
+     * Get broadcast campaigns (cached in Flink state)
+     */
+    private static Set<String> broadcastCampaignsCache = new HashSet<>();
+    private static long broadcastCacheTime = 0;
+    
+    private Set<String> getBroadcastCampaigns() {
+        long currentTime = System.currentTimeMillis();
+        
+        // Refresh cache every 5 minutes
+        if (currentTime - broadcastCacheTime > SYNC_INTERVAL_MS) {
+            QueryRequest broadcastQuery = QueryRequest.builder()
+                .tableName(campaignsTableName)
+                .indexName("status-targetType-index")
+                .keyConditionExpression("#status = :active AND targetType = :broadcast")
+                .expressionAttributeNames(Map.of("#status", "status"))
+                .expressionAttributeValues(Map.of(
+                    ":active", AttributeValue.builder().s("active").build(),
+                    ":broadcast", AttributeValue.builder().s("broadcast").build()
+                ))
+                .build();
+            
+            QueryResponse response = dynamoDb.query(broadcastQuery);
+            
+            broadcastCampaignsCache.clear();
+            for (Map<String, AttributeValue> item : response.items()) {
+                broadcastCampaignsCache.add(item.get("campaignId").s());
+            }
+            
+            broadcastCacheTime = currentTime;
+        }
+        
+        return new HashSet<>(broadcastCampaignsCache);
+    }
+    
+    /**
+     * Update vehicle state in DynamoDB
+     */
+    private void updateVehicleState(String vehicleId, Set<String> activeCampaigns, long timestamp) {
+        // Update each active campaign
+        for (String campaignId : activeCampaigns) {
+            UpdateItemRequest updateRequest = UpdateItemRequest.builder()
+                .tableName(vehicleCampaignsTableName)
+                .key(Map.of(
+                    "vehicleId", AttributeValue.builder().s(vehicleId).build(),
+                    "campaignId", AttributeValue.builder().s(campaignId).build()
+                ))
+                .updateExpression("SET #status = :status, lastReportedAt = :ts")
+                .expressionAttributeNames(Map.of("#status", "status"))
+                .expressionAttributeValues(Map.of(
+                    ":status", AttributeValue.builder().s("active").build(),
+                    ":ts", AttributeValue.builder().n(String.valueOf(timestamp)).build()
+                ))
+                .build();
+            
+            dynamoDb.updateItem(updateRequest);
+        }
+    }
+    
+    @Override
+    public void close() {
+        if (dynamoDb != null) {
+            dynamoDb.close();
+        }
+    }
+}
+
+/**
+ * Vehicle heartbeat data model
+ */
+class VehicleHeartbeat {
+    private String vehicleId;
+    private long timestamp;
+    private Set<String> activeCampaigns;
+    private Map<String, Object> telemetry;
+    
+    public String getVehicleId() { return vehicleId; }
+    public long getTimestamp() { return timestamp; }
+    public Set<String> getActiveCampaigns() { return activeCampaigns; }
+}
+
+/**
+ * Campaign sync response data model
+ */
+class CampaignSyncResponse {
+    private String vehicleId;
+    private Set<String> campaignsToAdd;
+    private Set<String> campaignsToRemove;
+    private long timestamp;
+    
+    public static Builder builder() { return new Builder(); }
+    
+    public static class Builder {
+        private String vehicleId;
+        private Set<String> campaignsToAdd;
+        private Set<String> campaignsToRemove;
+        private long timestamp;
+        
+        public Builder vehicleId(String vehicleId) {
+            this.vehicleId = vehicleId;
+            return this;
+        }
+        
+        public Builder campaignsToAdd(Set<String> campaigns) {
+            this.campaignsToAdd = campaigns;
+            return this;
+        }
+        
+        public Builder campaignsToRemove(Set<String> campaigns) {
+            this.campaignsToRemove = campaigns;
+            return this;
+        }
+        
+        public Builder timestamp(long timestamp) {
+            this.timestamp = timestamp;
+            return this;
+        }
+        
+        public CampaignSyncResponse build() {
+            CampaignSyncResponse response = new CampaignSyncResponse();
+            response.vehicleId = this.vehicleId;
+            response.campaignsToAdd = this.campaignsToAdd;
+            response.campaignsToRemove = this.campaignsToRemove;
+            response.timestamp = this.timestamp;
+            return response;
+        }
+    }
+}

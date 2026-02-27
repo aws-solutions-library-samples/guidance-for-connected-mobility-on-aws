@@ -240,9 +240,8 @@ cmd_start() {
         fi
 
         colima ssh -- sudo bash -c '
-            mkdir -p /etc/systemd/resolved.conf.d
-            echo -e "[Resolve]\nDNS=8.8.8.8\nFallbackDNS=8.8.4.4" > /etc/systemd/resolved.conf.d/dns.conf
-            systemctl restart systemd-resolved
+            rm -f /etc/resolv.conf
+            echo "nameserver 8.8.8.8" > /etc/resolv.conf
         ' 2>/dev/null || true
 
         info "FWE infrastructure ready. Both MQTT Direct and FleetWise Edge modes available in the UI."
