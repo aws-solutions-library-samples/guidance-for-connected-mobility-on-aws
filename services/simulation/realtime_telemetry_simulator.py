@@ -1686,12 +1686,14 @@ class RealtimeTelemetrySimulator:
         print(f"🚀 Starting telemetry loop for {vehicle_id}")
         self.logger.info(f"🚀 Starting telemetry loop for {vehicle_id}")
         print(f"🔍 DEBUG: self.running = {self.running}, trips_count = {trips_count}")
+        self.logger.info(f"🔍 DEBUG: self.running = {self.running}, trips_count = {trips_count}")
         sys.stdout.flush()
         
         try:
             completed_trips = 0
             
             print(f"🔍 DEBUG: About to enter while loop - self.running={self.running}, completed_trips={completed_trips}, trips_count={trips_count}")
+            self.logger.info(f"🔍 DEBUG: About to enter while loop - self.running={self.running}, completed_trips={completed_trips}, trips_count={trips_count}")
             sys.stdout.flush()
             
             while self.running and completed_trips < trips_count:

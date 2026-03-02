@@ -286,6 +286,13 @@ class FlinkStack(Stack):
             retention=logs.RetentionDays.TWO_WEEKS,
         )
         
+        self.simulator_preprocessor_log_group = logs.LogGroup(
+            self, "SimulatorPreprocessorLogGroup",
+            log_group_name=f"/aws/kinesis-analytics/{construct_id}-simulator-preprocessor",
+            removal_policy=RemovalPolicy.DESTROY,
+            retention=logs.RetentionDays.TWO_WEEKS,
+        )
+        
         self.telemetry_enhanced_log_group = logs.LogGroup(
             self, "TelemetryEnhancedLogGroup",
             log_group_name=f"/aws/kinesis-analytics/{construct_id}-telemetry-enhanced-final",
@@ -312,7 +319,7 @@ class FlinkStack(Stack):
         
         # Create log streams for each log group
         for log_group in [self.event_driven_telemetry_log_group, self.oem_telemetry_log_group,
-                         self.fw_telemetry_log_group,
+                         self.fw_telemetry_log_group, self.simulator_preprocessor_log_group,
                          self.telemetry_enhanced_log_group, 
                          self.trip_log_group, self.safety_log_group, self.maintenance_log_group]:
             logs.LogStream(
@@ -541,20 +548,19 @@ def lambda_handler(event, context):
                 "SecurityGroupIds": [msk_security_group.security_group_id]
             }
 
-        # 1. Event-Driven Telemetry Processor (matches cms-event-driven-telemetry-processor)
+        # 1. Event-Driven Telemetry Router (reads preprocessed, routes to domain topics)
         app_config = {
             "EnvironmentPropertyDescriptions": {
                 "PropertyGroupDescriptions": [{
                     "PropertyGroupId": "consumer.config.0",
                     "PropertyMap": {
                         "PROCESSOR_TYPE": "EventDrivenTelemetryProcessor",
-                        "auto.offset.reset": "latest",
+                        "auto.offset.reset": "earliest",
                         "enable.auto.commit": "false",
                         "aws.region": self.region,
-                        "KAFKA_TOPIC": "cms-telemetry-raw",
+                        "KAFKA_TOPIC": "cms-telemetry-preprocessed",
                         "group.id": f"{construct_id}-event-driven-telemetry-consumer",
-                        "TABLE_NAME": storage_tables['telemetry'].table_name,
-                        "TELEMETRY_TABLE_NAME": storage_tables['telemetry'].table_name
+                        "TABLE_NAME": storage_tables['vehicles'].table_name,
                     }
                 }]
             }
@@ -609,7 +615,7 @@ def lambda_handler(event, context):
             )
         )
         
-        # 1c. FW Telemetry Processor (decodes FleetWise protobuf to CMS JSON)
+        # 1c. FW Telemetry Processor (decodes FleetWise protobuf → cms-telemetry-preprocessed)
         self.fw_telemetry_processor = kinesisanalytics.CfnApplication(
             self, "FWTelemetryProcessor",
             application_name=f"{construct_id}-fw-telemetry-processor",
@@ -620,7 +626,7 @@ def lambda_handler(event, context):
                 {
                     "group.id": "fw-telemetry-processor",
                     "input.topic": "fw-telemetry-raw",
-                    "output.topic": "cms-telemetry-raw",
+                    "output.topic": "cms-telemetry-preprocessed",
                     "VEHICLES_TABLE": storage_tables['vehicles'].table_name,
                     "DECODER_TABLE": f"{construct_id.replace('-flink', '')}-decoder-manifest",
                 }
@@ -633,6 +639,29 @@ def lambda_handler(event, context):
             application_name=self.fw_telemetry_processor.ref,
             cloud_watch_logging_option=kinesisanalytics.CfnApplicationCloudWatchLoggingOption.CloudWatchLoggingOptionProperty(
                 log_stream_arn=f"arn:aws:logs:{self.region}:{self.account}:log-group:{self.fw_telemetry_log_group.log_group_name}:log-stream:kinesis-analytics-log-stream"
+            )
+        )
+
+        # 1d. Simulator Preprocessor (decodes gzip+base64 from simulator → cms-telemetry-preprocessed)
+        self.simulator_preprocessor = kinesisanalytics.CfnApplication(
+            self, "SimulatorPreprocessor",
+            application_name=f"{construct_id}-simulator-preprocessor",
+            runtime_environment="FLINK-1_18",
+            service_execution_role=self.flink_role.role_arn,
+            application_configuration=create_flink_app_config(
+                "SimulatorPreprocessor",
+                {
+                    "group.id": "simulator-preprocessor",
+                }
+            ),
+            application_description="Simulator preprocessor (gzip+base64 → CMS JSON)"
+        )
+
+        kinesisanalytics.CfnApplicationCloudWatchLoggingOption(
+            self, "SimulatorPreprocessorLogging",
+            application_name=self.simulator_preprocessor.ref,
+            cloud_watch_logging_option=kinesisanalytics.CfnApplicationCloudWatchLoggingOption.CloudWatchLoggingOptionProperty(
+                log_stream_arn=f"arn:aws:logs:{self.region}:{self.account}:log-group:{self.simulator_preprocessor_log_group.log_group_name}:log-stream:kinesis-analytics-log-stream"
             )
         )
 
@@ -741,6 +770,7 @@ def lambda_handler(event, context):
         # Store applications for easy access (removed auto-start custom resources)
         # Note: Applications will be started manually after JAR upload
         self.applications = {
+            'simulator_preprocessor': self.simulator_preprocessor,
             'event_driven_telemetry_processor': self.event_driven_telemetry_processor,
             'telemetry_enhanced_processor': self.telemetry_enhanced_processor,
             'trip_processor': self.trip_processor, 

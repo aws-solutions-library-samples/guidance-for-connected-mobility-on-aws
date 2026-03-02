@@ -93,18 +93,16 @@ def lambda_handler(event, context):
         
         msk_bootstrap_servers = bootstrap_custom_resource.get_att_string("BootstrapServers")
         
-        # 1. Create VPC ENI role (exactly like CloudFormation)
+        # 1. Create VPC ENI role for IoT to MSK connectivity
         self.vpc_eni_role = iam.Role(
             self, "IoTCreateVpcENIRole",
-            role_name=f"IoTCreateVpcENIRole-{deployment_stage}",
-            path="/service-role/",
-            assumed_by=iam.ServicePrincipal("iot.amazonaws.com")
+            assumed_by=iam.ServicePrincipal("iot.amazonaws.com"),
+            description=f"IoT VPC ENI role for {deployment_stage} MSK connectivity"
         )
         
         # 2. Create VPC destination policy (with all required permissions)
         vpc_policy = iam.ManagedPolicy(
             self, "IoTVpcDestinationPolicy",
-            managed_policy_name=f"IoTVpcDestinationPolicy-{deployment_stage}",
             statements=[
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW,
@@ -183,18 +181,16 @@ def lambda_handler(event, context):
             roles=[self.vpc_eni_role]
         )
         
-        # 3. Create MSK secret access role (match CloudFormation pattern)
+        # 3. Create MSK secret access role
         self.msk_secret_role = iam.Role(
             self, "IoTMSKSecretRuleRole",
-            role_name=f"IoT-Rule-MSK-Role-{deployment_stage}",
-            description="Role for the AWS IoT Rules engine to use when accessing Amazon MSK credentials in AWS Secrets Manager",
+            description=f"IoT Rules MSK SCRAM role for {deployment_stage}",
             assumed_by=iam.ServicePrincipal("iot.amazonaws.com")
         )
         
-        # 4. Create MSK secret policy (reference existing secret)
+        # 4. Create MSK secret policy
         secret_policy = iam.ManagedPolicy(
-            self, "IoTMSKSecretPolicy", 
-            managed_policy_name=f"IoTMSKSecretPolicy-{deployment_stage}",
+            self, "IoTMSKSecretPolicy",
             statements=[
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW,

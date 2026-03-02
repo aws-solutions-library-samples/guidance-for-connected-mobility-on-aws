@@ -108,8 +108,10 @@ def main():
     prefix = f"cms-{stage}-"
 
     # Deletion order: leaf stacks first, then dependencies
+    # fleetwise must delete before flink (cross-stack export dependency)
     tiers = [
-        [f"{prefix}fleetwise", f"{prefix}flink"],
+        [f"{prefix}fleetwise"],
+        [f"{prefix}flink"],
         [f"{prefix}telemetry-integration"],
         [f"{prefix}ui", f"{prefix}iot", f"{prefix}data-processing"],
         [f"{prefix}storage", f"{prefix}msk"],

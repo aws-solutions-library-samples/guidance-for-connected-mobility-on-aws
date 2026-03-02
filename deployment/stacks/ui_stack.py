@@ -52,9 +52,14 @@ class UIStack(Stack):
             pricing_plan="RequestBasedUsage"
         )
         
-        # Route calculator - reference existing one instead of creating new
-        # The simulator expects 'cms-route-calculator' to exist
-        self.route_calculator_name = "cms-route-calculator"
+        # Route calculator for simulation routing
+        self.route_calculator = location.CfnRouteCalculator(
+            self, "CMSRouteCalculator",
+            calculator_name="cms-route-calculator",
+            data_source="Esri",
+            description="Route calculator for Connected Mobility Solution simulation"
+        )
+        self.route_calculator_name = self.route_calculator.calculator_name
         
         # Use actual table names from storage stack (with suffixes)
         table_names = {

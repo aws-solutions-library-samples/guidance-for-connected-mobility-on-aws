@@ -192,7 +192,7 @@ class SimulationManager:
         script_dir = os.path.dirname(os.path.abspath(__file__))
         table_suffix = None
         
-        if config.get('vehicle_source') in ('real_vehicles', 'real') or config.get('use_real_vehicles') or isinstance(config.get('vehicles'), list):
+        if config.get('vehicle_source') in ('real_vehicles', 'real', 'database') or config.get('use_real_vehicles') or isinstance(config.get('vehicles'), list):
             # Use realtime telemetry simulator for real vehicles
             vehicle_count = len(config['vehicles']) if isinstance(config.get('vehicles'), list) else config.get('vehicles', 10)
             

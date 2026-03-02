@@ -73,7 +73,7 @@ public class TelemetryDataProcessor {
             .setBootstrapServers(bootstrapServers)
             .setTopics("cms-telemetry-processed")
             .setGroupId(groupId)
-            .setStartingOffsets(OffsetsInitializer.latest())
+            .setStartingOffsets(OffsetsInitializer.earliest())
             .setValueOnlyDeserializer(new SimpleStringSchema())
             .setProperties(kafkaProps)
             .build();

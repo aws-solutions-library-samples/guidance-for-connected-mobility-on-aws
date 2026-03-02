@@ -123,7 +123,7 @@ public class TelemetryProcessor {
         LOG.info("🔴 Using Redis endpoint: {}", redisEndpoint);
 
         // Add DynamoDB sink
-        processedStream.addSink(new DynamoDBTelemetrySink(tableName, "cms-631ca2-591631-trips-new"))
+        processedStream.addSink(new DynamoDBTelemetrySink(tableName, tableName.replace("-telemetry", "-trips")))
             .name("DynamoDB Telemetry Sink");
 
         // Add Redis sink for vehicle state caching
@@ -322,7 +322,6 @@ public class TelemetryProcessor {
         public void open(org.apache.flink.configuration.Configuration parameters) throws Exception {
             super.open(parameters);
             this.dynamoDbClient = DynamoDbClient.builder()
-                .region(Region.US_EAST_1)
                 .build();
             
             LOG.info("✅ DynamoDB client initialized for table: {}", tableName);

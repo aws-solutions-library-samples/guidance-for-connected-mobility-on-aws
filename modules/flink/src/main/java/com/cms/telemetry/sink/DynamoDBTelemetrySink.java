@@ -54,7 +54,8 @@ public class DynamoDBTelemetrySink implements SinkFunction<String> {
             dynamoDbClient.putItem(request);
         } catch (Exception e) {
             // Log error but don't fail the stream
-            System.err.println("Failed to write to DynamoDB: " + e.getMessage());
+            System.err.println("Failed to write to DynamoDB table " + tableName + ": " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }

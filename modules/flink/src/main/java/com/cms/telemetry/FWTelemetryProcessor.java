@@ -73,7 +73,7 @@ public class FWTelemetryProcessor {
         String saslJaasConfig = params.get("sasl.jaas.config");
         String groupId = params.get("group.id", "fw-telemetry-processor");
         String inputTopic = params.get("input.topic", "fw-telemetry-raw");
-        String outputTopic = params.get("output.topic", "cms-telemetry-raw");
+        String outputTopic = params.get("output.topic", "cms-telemetry-preprocessed");
         vehiclesTableName = params.get("VEHICLES_TABLE", "cms-prod-storage-vehicles");
         decoderTableName = params.get("DECODER_TABLE", "cms-prod-decoder-manifest");
         region = params.get("aws.region", "us-west-2");
@@ -304,17 +304,13 @@ public class FWTelemetryProcessor {
                 signals.getOrDefault("Vehicle.OBD.CoolantTemperature", null));
         if (engTemp instanceof Double) cmsJson.put("engineTemp", (Double) engTemp);
 
-        // Location
+        // Location - output flat lat/lng to match simulator format
         Object lat = signals.getOrDefault("Vehicle.Location.Latitude",
                 signals.getOrDefault("Vehicle.CurrentLocation.Latitude", null));
         Object lng = signals.getOrDefault("Vehicle.Location.Longitude",
                 signals.getOrDefault("Vehicle.CurrentLocation.Longitude", null));
-        if (lat instanceof Double && lng instanceof Double) {
-            ObjectNode loc = MAPPER.createObjectNode();
-            loc.put("latitude", (Double) lat);
-            loc.put("longitude", (Double) lng);
-            cmsJson.set("location", loc);
-        }
+        if (lat instanceof Double) cmsJson.put("lat", (Double) lat);
+        if (lng instanceof Double) cmsJson.put("lng", (Double) lng);
 
         // Ignition (critical for trip detection)
         Object ignition = signals.getOrDefault("Vehicle.Powertrain.IsRunning",

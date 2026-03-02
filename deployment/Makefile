@@ -285,16 +285,22 @@ configure-flink: ## Configure Flink applications
 	TRIPS_TABLE=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-storage --query 'Stacks[0].Outputs[?OutputKey==`TripsTableName`].OutputValue' --output text --profile $(AWS_PROFILE)); \
 	SAFETY_TABLE=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-storage --query 'Stacks[0].Outputs[?OutputKey==`SafetyEventsTableName`].OutputValue' --output text --profile $(AWS_PROFILE)); \
 	MAINTENANCE_TABLE=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-storage --query 'Stacks[0].Outputs[?OutputKey==`MaintenanceEventsTableName`].OutputValue' --output text --profile $(AWS_PROFILE)); \
+	VEHICLES_TABLE=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-storage --query 'Stacks[0].Outputs[?OutputKey==`VehiclesTableName`].OutputValue' --output text --profile $(AWS_PROFILE)); \
 	REDIS_ENDPOINT=$$(aws cloudformation describe-stacks --stack-name cms-$(DEPLOYMENT_STAGE)-infrastructure --query 'Stacks[0].Outputs[?OutputKey==`RedisEndpoint`].OutputValue' --output text --profile $(AWS_PROFILE)); \
 	echo '{"ApplicationCodeConfigurationUpdate":{"CodeContentUpdate":{"S3ContentLocationUpdate":{"BucketARNUpdate":"arn:aws:s3:::'$$BUCKET_NAME'","FileKeyUpdate":"jars/cms-telemetry-processor-1.0.0.zip"}},"CodeContentTypeUpdate":"ZIPFILE"}}' > /tmp/flink-jar-update.json; \
 	aws kinesisanalyticsv2 list-applications --region $(AWS_REGION) --profile $(AWS_PROFILE) --query 'ApplicationSummaries[?contains(ApplicationName, `cms-$(DEPLOYMENT_STAGE)-flink`)].ApplicationName' --output text | tr '\t' '\n' | while read app; do \
 		if [ -n "$$app" ]; then \
 			echo "Configuring application: $$app"; \
 			case "$$app" in \
+				*simulator-preprocessor) \
+					PROCESSOR_TYPE="SimulatorPreprocessor"; \
+					GROUP_ID="simulator-preprocessor"; \
+					TABLE_NAME="$$TELEMETRY_TABLE"; \
+					;; \
 				*event-driven-telemetry-processor) \
 					PROCESSOR_TYPE="EventDrivenTelemetryProcessor"; \
 					GROUP_ID="cms-event-driven-telemetry-processor-consumer"; \
-					TABLE_NAME="$$TELEMETRY_TABLE"; \
+					TABLE_NAME="$$VEHICLES_TABLE"; \
 					;; \
 				*telemetry-enhanced-final) \
 					PROCESSOR_TYPE="TelemetryDataProcessor"; \
