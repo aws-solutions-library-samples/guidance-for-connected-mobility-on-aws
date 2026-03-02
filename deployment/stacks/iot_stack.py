@@ -42,6 +42,33 @@ class IoTStack(Stack):
                 resources=["*"]
             )
         )
+
+        # Add permissions for MSK SCRAM authentication (SecretsManager + KMS)
+        # Required for IoT rules that use Kafka actions with SCRAM-SHA-512
+        self.iot_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "secretsmanager:GetSecretValue",
+                    "secretsmanager:DescribeSecret"
+                ],
+                resources=[
+                    f"arn:aws:secretsmanager:{Stack.of(self).region}:{Stack.of(self).account}:secret:AmazonMSK_cms-{deployment_stage}-*"
+                ]
+            )
+        )
+        self.iot_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "kms:Decrypt",
+                    "kms:DescribeKey"
+                ],
+                resources=[
+                    f"arn:aws:kms:{Stack.of(self).region}:{Stack.of(self).account}:key/*"
+                ]
+            )
+        )
         
         # SQS Queue for IoT Events
         self.iot_events_queue = sqs.Queue(

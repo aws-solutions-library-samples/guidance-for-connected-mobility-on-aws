@@ -33,35 +33,24 @@ class UIStack(Stack):
                  **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
         
-        # Amazon Location Services - not available in all regions
-        location_supported_regions = [
-            'us-east-1', 'us-east-2', 'us-west-2', 'eu-central-1', 'eu-west-1',
-            'eu-west-2', 'eu-north-1', 'ap-southeast-1', 'ap-southeast-2',
-            'ap-northeast-1', 'ap-south-1', 'ca-central-1', 'sa-east-1'
-        ]
-        self.location_enabled = self.region in location_supported_regions
-
-        if self.location_enabled:
-            self.map = location.CfnMap(
-                self, "CMSVehicleMap",
-                map_name="cms-vehicle-map",
-                configuration=location.CfnMap.MapConfigurationProperty(
-                    style="VectorEsriStreets"
-                ),
-                description="Map for Connected Mobility Solution vehicle tracking",
-                pricing_plan="RequestBasedUsage"
-            )
-
-            self.place_index = location.CfnPlaceIndex(
-                self, "CMSPlaceIndex",
-                index_name="cms-place-index",
-                data_source="Esri",
-                description="Place index for Connected Mobility Solution",
-                pricing_plan="RequestBasedUsage"
-            )
-        else:
-            self.map = None
-            self.place_index = None
+        # Amazon Location Services resources
+        self.map = location.CfnMap(
+            self, "CMSVehicleMap",
+            map_name="cms-vehicle-map",
+            configuration=location.CfnMap.MapConfigurationProperty(
+                style="VectorEsriStreets"
+            ),
+            description="Map for Connected Mobility Solution vehicle tracking",
+            pricing_plan="RequestBasedUsage"
+        )
+        
+        self.place_index = location.CfnPlaceIndex(
+            self, "CMSPlaceIndex",
+            index_name="cms-place-index",
+            data_source="Esri",
+            description="Place index for Connected Mobility Solution",
+            pricing_plan="RequestBasedUsage"
+        )
         
         # Route calculator - reference existing one instead of creating new
         # The simulator expects 'cms-route-calculator' to exist
@@ -152,8 +141,7 @@ class UIStack(Stack):
                                 f"arn:aws:geo-maps:{self.region}::provider/default/*"
                             ]
                         ),
-                    ] + ([
-                        # Legacy geo actions (only when Location Service is available)
+                        # Legacy geo actions for backward compatibility
                         iam.PolicyStatement(
                             effect=iam.Effect.ALLOW,
                             actions=[
@@ -164,7 +152,7 @@ class UIStack(Stack):
                                 self.map.attr_arn
                             ]
                         )
-                    ] if self.location_enabled else [])
+                    ]
                 )
             }
         )
@@ -463,15 +451,15 @@ class UIStack(Stack):
             "awsRegion": self.region,
             "mapAuth": {
                 "identityPoolClient": f"cognito-idp.{self.region}.amazonaws.com/{self.user_pool.user_pool_id}",
-                "mapName": self.map.map_name if self.location_enabled else "",
+                "mapName": self.map.map_name,
                 "identityPoolId": self.identity_pool.ref
             },
             "locationServices": {
-                "mapName": self.map.map_name if self.location_enabled else "",
-                "placeIndexName": self.place_index.index_name if self.location_enabled else "",
+                "mapName": self.map.map_name,
+                "placeIndexName": self.place_index.index_name, 
                 "routeCalculatorName": self.route_calculator_name,
                 "region": self.region,
-                "enabled": self.location_enabled
+                "enabled": True
             },
             "isDemoMode": "false",
             "apiEndpoint": self.api.url,
@@ -606,18 +594,17 @@ class UIStack(Stack):
             description="Location Services route calculator name for telemetry simulation"
         )
         
-        # Location Services outputs (only in supported regions)
-        if self.location_enabled:
-            CfnOutput(
-                self, "LocationServicesMapName",
-                value=self.map.map_name,
-                description="Amazon Location Services Map name",
-                export_name=f"{construct_id}-map-name"
-            )
-
-            CfnOutput(
-                self, "LocationServicesPlaceIndexName", 
-                value=self.place_index.index_name,
-                description="Amazon Location Services Place Index name",
-                export_name=f"{construct_id}-place-index-name"
-            )
+        # Location Services outputs
+        CfnOutput(
+            self, "LocationServicesMapName",
+            value=self.map.map_name,
+            description="Amazon Location Services Map name",
+            export_name=f"{construct_id}-map-name"
+        )
+        
+        CfnOutput(
+            self, "LocationServicesPlaceIndexName", 
+            value=self.place_index.index_name,
+            description="Amazon Location Services Place Index name",
+            export_name=f"{construct_id}-place-index-name"
+        )

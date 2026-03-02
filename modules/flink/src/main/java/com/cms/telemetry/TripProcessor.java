@@ -150,6 +150,8 @@ public class TripProcessor {
     public static class TripDynamoDBSink implements SinkFunction<String> {
         private transient DynamoDbClient dynamoDbClient;
         private final String tripsTable;
+        // In-memory cache of active tripId per vehicle (avoids GSI eventual consistency issues)
+        private transient java.util.concurrent.ConcurrentHashMap<String, String> activeTrips;
         
         public TripDynamoDBSink(String tableName) {
             this.tripsTable = tableName;
@@ -159,6 +161,7 @@ public class TripProcessor {
         public void invoke(String json, Context context) throws Exception {
             if (dynamoDbClient == null) {
                 dynamoDbClient = DynamoDbClient.builder().build();
+                activeTrips = new java.util.concurrent.ConcurrentHashMap<>();
             }
             
             try {
@@ -178,9 +181,33 @@ public class TripProcessor {
                 if ("ENGINE_START".equals(data.engineEvent) || (data.ignitionOn != null && data.ignitionOn)) {
                     // Generate tripId if not present (for OEM data without tripId)
                     if (data.tripId == null && data.vehicleId != null) {
+                        // Check in-memory cache first (instant, no GSI lag)
+                        String cachedTripId = activeTrips.get(data.vehicleId);
+                        if (cachedTripId != null && !"ENGINE_START".equals(data.engineEvent)) {
+                            data.tripId = cachedTripId;
+                            Map<String, AttributeValue> activeTrip = getExistingTrip(cachedTripId);
+                            LOG.info("📍 FOUND ACTIVE TRIP IN CACHE - tripId: {}, vehicleId: {}", data.tripId, data.vehicleId);
+                            if (activeTrip != null) {
+                                updateTripRoute(data, activeTrip);
+                            }
+                            return;
+                        }
+                        // Fallback to DDB GSI lookup
+                        Map<String, AttributeValue> activeTrip = getActiveTripForVehicle(data.vehicleId);
+                        if (activeTrip != null && !"ENGINE_START".equals(data.engineEvent)) {
+                            data.tripId = activeTrip.get("tripId").s();
+                            activeTrips.put(data.vehicleId, data.tripId);
+                            LOG.info("📍 FOUND ACTIVE TRIP IN DDB - tripId: {}, vehicleId: {}", data.tripId, data.vehicleId);
+                            updateTripRoute(data, activeTrip);
+                            return;
+                        }
                         data.tripId = data.vehicleId + "-" + data.timestamp + "-" + 
                             Integer.toHexString((int)(Math.random() * 0xFFFFFF));
                         LOG.info("🆕 GENERATED TRIP ID: {} for vehicle: {}", data.tripId, data.vehicleId);
+                    }
+                    // Cache the active trip
+                    if (data.vehicleId != null && data.tripId != null) {
+                        activeTrips.put(data.vehicleId, data.tripId);
                     }
                     LOG.info("🚗 CREATING/UPDATING TRIP - tripId: {}, engineEvent: {}, ignitionOn: {}", 
                         data.tripId, data.engineEvent, data.ignitionOn);
@@ -188,10 +215,21 @@ public class TripProcessor {
                 } else if ("ENGINE_STOP".equals(data.engineEvent) || (data.ignitionOn != null && !data.ignitionOn)) {
                     // For ignition OFF, find active trip for this vehicle
                     if (data.tripId == null && data.vehicleId != null) {
-                        existingTrip = getActiveTripForVehicle(data.vehicleId);
-                        if (existingTrip != null) {
-                            data.tripId = existingTrip.get("tripId").s();
+                        // Check cache first
+                        String cachedTripId = activeTrips.get(data.vehicleId);
+                        if (cachedTripId != null) {
+                            data.tripId = cachedTripId;
+                            existingTrip = getExistingTrip(cachedTripId);
+                        } else {
+                            existingTrip = getActiveTripForVehicle(data.vehicleId);
+                            if (existingTrip != null) {
+                                data.tripId = existingTrip.get("tripId").s();
+                            }
                         }
+                    }
+                    // Clear cache on trip end
+                    if (data.vehicleId != null) {
+                        activeTrips.remove(data.vehicleId);
                     }
                     LOG.info("🏁 COMPLETING TRIP - tripId: {}, engineEvent: {}, ignitionOn: {}", 
                         data.tripId, data.engineEvent, data.ignitionOn);
@@ -244,25 +282,32 @@ public class TripProcessor {
             if (vehicleId == null) return null;
             
             try {
-                // Query GSI to find active trip for this vehicle
+                // Query GSI for all trips for this vehicle, filter ACTIVE in code
+                // NOTE: limit + filterExpression is broken in DynamoDB — limit applies BEFORE filter
                 software.amazon.awssdk.services.dynamodb.model.QueryRequest queryRequest = 
                     software.amazon.awssdk.services.dynamodb.model.QueryRequest.builder()
                         .tableName(tripsTable)
                         .indexName("vehicleId-index")
                         .keyConditionExpression("vehicleId = :vehicleId")
-                        .filterExpression("#status = :status")
-                        .expressionAttributeNames(Map.of("#status", "status"))
                         .expressionAttributeValues(Map.of(
-                            ":vehicleId", AttributeValue.builder().s(vehicleId).build(),
-                            ":status", AttributeValue.builder().s("ACTIVE").build()
+                            ":vehicleId", AttributeValue.builder().s(vehicleId).build()
                         ))
-                        .scanIndexForward(false)
-                        .limit(1)
                         .build();
                 
                 software.amazon.awssdk.services.dynamodb.model.QueryResponse queryResponse = dynamoDbClient.query(queryRequest);
                 
-                return queryResponse.items().isEmpty() ? null : queryResponse.items().get(0);
+                // Find most recent ACTIVE trip
+                Map<String, AttributeValue> latest = null;
+                long latestTs = 0;
+                for (Map<String, AttributeValue> item : queryResponse.items()) {
+                    AttributeValue status = item.get("status");
+                    if (status != null && "ACTIVE".equals(status.s())) {
+                        long ts = 0;
+                        try { ts = Long.parseLong(item.getOrDefault("startTime", AttributeValue.builder().n("0").build()).n()); } catch (Exception ignored) {}
+                        if (ts > latestTs) { latestTs = ts; latest = item; }
+                    }
+                }
+                return latest;
             } catch (Exception e) {
                 LOG.error("FAILED TO GET ACTIVE TRIP FOR VEHICLE - vehicleId: {}, error: {}", vehicleId, e.getMessage());
                 return null;
@@ -365,12 +410,20 @@ public class TripProcessor {
                     double currentSpeed = data.speed != null ? data.speed : 0.0;
                     double newMaxSpeed = Math.max(existingMaxSpeed, currentSpeed);
                     
-                    // Calculate distance increment (simple approximation)
+                    // Calculate distance increment from GPS (Haversine)
                     double distanceIncrement = 0.0;
-                    if (existingTelemetryCount > 0 && durationMs > 0) {
-                        // Estimate distance based on current speed and time since last update (assume ~15 second intervals)
-                        double timeHours = 15.0 / 3600.0; // 15 seconds in hours
-                        distanceIncrement = (currentSpeed * 0.621371) * timeHours; // Convert km/h to miles
+                    if (updatedRoute.size() >= 2) {
+                        Map<String, AttributeValue> prevPoint = updatedRoute.get(updatedRoute.size() - 2).m();
+                        double lat1 = Double.parseDouble(prevPoint.get("lat").s());
+                        double lng1 = Double.parseDouble(prevPoint.get("lng").s());
+                        double lat2 = data.lat;
+                        double lng2 = data.lng;
+                        double dLat = Math.toRadians(lat2 - lat1);
+                        double dLng = Math.toRadians(lng2 - lng1);
+                        double a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                                   Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                                   Math.sin(dLng/2) * Math.sin(dLng/2);
+                        distanceIncrement = 2 * 6371.0 * Math.asin(Math.sqrt(a)); // km
                     }
                     double newTotalDistance = existingTotalDistance + distanceIncrement;
                     
@@ -391,8 +444,10 @@ public class TripProcessor {
                     updateItem.put("maxSpeed", AttributeValue.builder().n(String.format("%.1f", newMaxSpeed)).build());
                     updateItem.put("averageSpeed", AttributeValue.builder().n(String.format("%.1f", averageSpeed)).build());
                     updateItem.put("totalDistance", AttributeValue.builder().n(String.format("%.2f", newTotalDistance)).build());
+                    updateItem.put("distance", AttributeValue.builder().n(String.format("%.2f", newTotalDistance)).build());
                     updateItem.put("durationMs", AttributeValue.builder().n(String.valueOf(durationMs)).build());
                     updateItem.put("driverScore", AttributeValue.builder().n(String.format("%.1f", driverScore)).build());
+                    updateItem.put("avgSpeed", AttributeValue.builder().n(String.format("%.1f", averageSpeed)).build());
                     updateItem.put("telemetryCount", AttributeValue.builder().n(String.valueOf(existingTelemetryCount + 1)).build());
                     updateItem.put("lastUpdated", AttributeValue.builder().n(String.valueOf(currentTime)).build());
                     
@@ -424,27 +479,29 @@ public class TripProcessor {
         }
         
         private double calculateDriverScore(TelemetryData data, Map<String, AttributeValue> existingTrip) {
-            double score = parseDouble(existingTrip.getOrDefault("driverScore", AttributeValue.builder().n("100").build()).n(), 100.0);
+            double score = 100.0; // Always start fresh from 100
             
             // === SAFETY EVENT BASED SCORING ===
-            // Query safety events for this trip from DynamoDB to calculate accurate score
             try {
                 String tripId = data.tripId;
                 if (tripId != null && !tripId.isEmpty()) {
-                    // Get safety events for this trip
                     List<Map<String, AttributeValue>> safetyEvents = getSafetyEventsForTrip(tripId);
                     
-                    // Calculate deductions based on safety event severity
+                    // Use unique event types to avoid double-counting repeated events
+                    java.util.Set<String> countedTypes = new java.util.HashSet<>();
                     for (Map<String, AttributeValue> event : safetyEvents) {
                         String severity = event.getOrDefault("severity", AttributeValue.builder().s("MEDIUM").build()).s();
                         String eventType = event.getOrDefault("eventType", AttributeValue.builder().s("UNKNOWN").build()).s();
+                        String key = eventType + "-" + severity;
                         
-                        double deduction = calculateSafetyEventDeduction(severity, eventType);
-                        score -= deduction;
-                        
-                        LOG.info("DRIVER SCORE DEDUCTION - tripId: {}, event: {}, severity: {}, deduction: {}", 
-                            tripId, eventType, severity, deduction);
+                        if (!countedTypes.contains(key)) {
+                            double deduction = calculateSafetyEventDeduction(severity, eventType);
+                            score -= deduction;
+                            countedTypes.add(key);
+                        }
                     }
+                    LOG.info("DRIVER SCORE - tripId: {}, unique event types: {}, total events: {}, score: {}",
+                        tripId, countedTypes.size(), safetyEvents.size(), score);
                 }
             } catch (Exception e) {
                 LOG.warn("Failed to get safety events for trip scoring: {}", e.getMessage());
@@ -547,7 +604,7 @@ public class TripProcessor {
                 
                 // Query safety events by vehicleId and filter by tripId in application
                 QueryRequest request = QueryRequest.builder()
-                    .tableName("cms-dev-storage-safety-events")
+                    .tableName(tripsTable.replace("-trips", "-safety-events"))
                     .indexName("vehicleId-index") // Use existing GSI
                     .keyConditionExpression("vehicleId = :vehicleId")
                     .expressionAttributeValues(Map.of(
@@ -557,12 +614,32 @@ public class TripProcessor {
                 
                 QueryResponse response = dynamoDbClient.query(request);
                 
-                // Filter results by tripId in application code
+                // Filter results by tripId OR by timestamp within trip window
                 List<Map<String, AttributeValue>> filteredEvents = new ArrayList<>();
+                
+                // Get trip start/end times for time-window matching
+                long tripStart = 0, tripEnd = Long.MAX_VALUE;
+                try {
+                    Map<String, AttributeValue> trip = getExistingTrip(tripId);
+                    if (trip != null) {
+                        tripStart = Long.parseLong(trip.getOrDefault("startTime", AttributeValue.builder().n("0").build()).n());
+                        String endStr = trip.containsKey("endTime") ? trip.get("endTime").n() : null;
+                        if (endStr != null) tripEnd = Long.parseLong(endStr);
+                    }
+                } catch (Exception ignored) {}
+                
                 for (Map<String, AttributeValue> item : response.items()) {
                     AttributeValue itemTripId = item.get("tripId");
                     if (itemTripId != null && tripId.equals(itemTripId.s())) {
                         filteredEvents.add(item);
+                    } else if (itemTripId == null || itemTripId.s() == null || itemTripId.s().isEmpty()) {
+                        // No tripId — match by timestamp within trip window
+                        try {
+                            long eventTs = Long.parseLong(item.getOrDefault("timestamp", AttributeValue.builder().n("0").build()).n());
+                            if (eventTs >= tripStart && eventTs <= tripEnd) {
+                                filteredEvents.add(item);
+                            }
+                        } catch (Exception ignored) {}
                     }
                 }
                 
@@ -582,13 +659,20 @@ public class TripProcessor {
                 return null;
             }
             
-            // TripId format: VEH-1759246434-1759255271163-70a87afd
-            // Extract: VEH-1759246434
-            String[] parts = tripId.split("-");
-            if (parts.length >= 2) {
-                return parts[0] + "-" + parts[1]; // VEH-1759246434
+            // TripId format: {vehicleId}-{timestamp}-{hash}
+            // e.g. 5NPR7TU00LBXKNS4Y-1772203398628-07c88232
+            // or   VEH-1759246434-1759255271163-70a87afd
+            // Find the timestamp portion (13-digit number) and take everything before it
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(.+)-\\d{13}-[0-9a-f]+$").matcher(tripId);
+            if (m.matches()) {
+                return m.group(1);
             }
-            
+            // Fallback: take first part before dash
+            int idx = tripId.lastIndexOf('-');
+            if (idx > 0) {
+                int idx2 = tripId.lastIndexOf('-', idx - 1);
+                if (idx2 > 0) return tripId.substring(0, idx2);
+            }
             return null;
         }
         
@@ -658,6 +742,10 @@ public class TripProcessor {
                     addOptionalNumericField(updateItem, data.rawJson, "lat");
                     addOptionalNumericField(updateItem, data.rawJson, "lng");
                     
+                    // Recalculate final driver score with all safety events
+                    double finalScore = calculateDriverScore(data, updateItem);
+                    updateItem.put("driverScore", AttributeValue.builder().n(String.format("%.1f", finalScore)).build());
+                    
                     // Get existing metrics for logging (don't overwrite them)
                     double existingDistance = parseDouble(existingTrip.getOrDefault("totalDistance", AttributeValue.builder().n("0").build()).n(), 0.0);
                     double existingAvgSpeed = parseDouble(existingTrip.getOrDefault("averageSpeed", AttributeValue.builder().n("0").build()).n(), 0.0);
@@ -673,6 +761,29 @@ public class TripProcessor {
                         
                     LOG.info("TRIP COMPLETED SUCCESSFULLY - tripId: {}, duration: {}ms, distance: {}, avgSpeed: {}, telemetryRecords: {}", 
                         data.tripId, durationMs, existingDistance, existingAvgSpeed, existingTelemetryCount);
+                    
+                    // Schedule delayed score recalculation (safety events may still be processing)
+                    final String tripIdForRescore = data.tripId;
+                    final String timestampForRescore = updateItem.containsKey("timestamp") ? updateItem.get("timestamp").n() : updateItem.getOrDefault("startTime", AttributeValue.builder().n("0").build()).n();
+                    final Map<String, AttributeValue> finalItem = new HashMap<>(updateItem);
+                    new Thread(() -> {
+                        try {
+                            Thread.sleep(30000); // Wait 30s for SafetyProcessor to finish
+                            double rescored = calculateDriverScore(data, finalItem);
+                            dynamoDbClient.updateItem(software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest.builder()
+                                .tableName(tripsTable)
+                                .key(Map.of(
+                                    "tripId", AttributeValue.builder().s(tripIdForRescore).build(),
+                                    "timestamp", AttributeValue.builder().n(timestampForRescore).build()
+                                ))
+                                .updateExpression("SET driverScore = :s")
+                                .expressionAttributeValues(Map.of(":s", AttributeValue.builder().n(String.format("%.1f", rescored)).build()))
+                                .build());
+                            LOG.info("RESCORED TRIP - tripId: {}, finalScore: {}", tripIdForRescore, rescored);
+                        } catch (Exception e) {
+                            LOG.warn("Delayed rescore failed for {}: {}", tripIdForRescore, e.getMessage());
+                        }
+                    }, "rescore-" + tripIdForRescore).start();
                 } else {
                     LOG.warn("TRIP NOT FOUND FOR COMPLETION - tripId: {}", data.tripId);
                 }

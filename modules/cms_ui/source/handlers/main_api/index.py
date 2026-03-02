@@ -142,13 +142,26 @@ def handler(event, context):
                                 "Action": ["iot:Publish"],
                                 "Resource": [
                                     "arn:aws:iot:*:*:topic/$aws/rules/cms_dev_iot_msk_rule/*",
+                                    "arn:aws:iot:*:*:topic/cms/fleetwise/vehicles/*/signals",
+                                    "arn:aws:iot:*:*:topic/cms/fleetwise/vehicles/*/checkins",
                                 ]
                             },
                             {
                                 "Effect": "Allow",
-                                "Action": ["iot:Subscribe", "iot:Receive"], 
+                                "Action": ["iot:Subscribe"],
                                 "Resource": [
-                                    "arn:aws:iot:*:*:topicfilter/fleet/vehicle/*/commands"
+                                    "arn:aws:iot:*:*:topicfilter/fleet/vehicle/*/commands",
+                                    "arn:aws:iot:*:*:topicfilter/cms/fleetwise/vehicles/*/decoder_manifests",
+                                    "arn:aws:iot:*:*:topicfilter/cms/fleetwise/vehicles/*/collection_schemes",
+                                ]
+                            },
+                            {
+                                "Effect": "Allow",
+                                "Action": ["iot:Receive"],
+                                "Resource": [
+                                    "arn:aws:iot:*:*:topic/fleet/vehicle/*/commands",
+                                    "arn:aws:iot:*:*:topic/cms/fleetwise/vehicles/*/decoder_manifests",
+                                    "arn:aws:iot:*:*:topic/cms/fleetwise/vehicles/*/collection_schemes",
                                 ]
                             }
                         ]

@@ -20,7 +20,7 @@ from stacks.fleetwise_stack import FleetWiseStack
 
 # Configuration
 AWS_ACCOUNT = os.environ.get('CDK_DEFAULT_ACCOUNT')
-AWS_REGION = os.environ.get('CDK_DEFAULT_REGION', 'us-east-1')
+AWS_REGION = os.environ.get('CDK_DEFAULT_REGION') or os.environ.get('AWS_REGION', 'us-west-2')
 DEPLOYMENT_STAGE = os.environ.get('DEPLOYMENT_STAGE', 'dev')
 MSK_CLUSTER_ARN = os.environ.get('MSK_CLUSTER_ARN')
 MSK_VPC_ID = os.environ.get('MSK_VPC_ID')
@@ -105,6 +105,15 @@ flink_stack = FlinkStack(
     description="Guidance for Connected Mobility (SO9618) - Flink Deployment"
 )
 
+# 5b. FleetWise Stack (FWE IoT rules, VPC endpoints, CampaignSyncProcessor)
+if os.environ.get('DEPLOY_FLEETWISE') == 'true':
+    fleetwise_stack = FleetWiseStack(
+        app,
+        f"{stack_prefix}-fleetwise",
+        env=env,
+        description="Guidance for Connected Mobility (SO9618) - FleetWise Integration"
+    )
+
 # 6. UI Stack (Frontend and API with Location Services)
 ui_stack = UIStack(
     app, 
@@ -114,16 +123,7 @@ ui_stack = UIStack(
     description="Guidance for Connected Mobility (SO9618) - Presentation Layer"
 )
 
-# 7. FleetWise Integration Stack (IoT rules, VPC endpoints, Flink CampaignSync)
-if os.environ.get('DEPLOY_FLEETWISE') == 'true':
-    fleetwise_stack = FleetWiseStack(
-        app,
-        f"{stack_prefix}-fleetwise",
-        env=env,
-        description="Guidance for Connected Mobility (SO9618) - FleetWise Integration"
-    )
-
-# 8. Predictive Maintenance Agent Stack (Optional - deploy separately if needed)
+# 7. Predictive Maintenance Agent Stack (Optional - deploy separately if needed)
 if os.environ.get('DEPLOY_PREDICTIVE_AGENT') == 'true':
     from stacks.predictive_agent_stack import PredictiveAgentStack
     
