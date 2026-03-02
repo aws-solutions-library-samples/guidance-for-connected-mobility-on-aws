@@ -267,13 +267,13 @@ configure-flink: ## Configure Flink applications
 		--output text | tr '\t' '\n' | while read app; do \
 		if [ -n "$$app" ]; then \
 			echo "  Stopping $$app..."; \
-			aws kinesisanalyticsv2 stop-application --application-name "$$app" --region $(AWS_REGION) --profile $(AWS_PROFILE) >/dev/null 2>&1 || true; \
+			aws kinesisanalyticsv2 stop-application --application-name "$$app" --force --region $(AWS_REGION) --profile $(AWS_PROFILE) >/dev/null 2>&1 || true; \
 		fi; \
 	done; \
 	echo "$(BLUE)⏳ Waiting for applications to stop...$(NC)"; \
 	for i in $$(seq 1 60); do \
 		STILL_RUNNING=$$(aws kinesisanalyticsv2 list-applications --region $(AWS_REGION) --profile $(AWS_PROFILE) \
-			--query 'ApplicationSummaries[?contains(ApplicationName, `cms-$(DEPLOYMENT_STAGE)-flink`) && (ApplicationStatus==`RUNNING` || ApplicationStatus==`STOPPING` || ApplicationStatus==`STARTING`)].ApplicationName' \
+			--query 'ApplicationSummaries[?contains(ApplicationName, `cms-$(DEPLOYMENT_STAGE)-flink`) && (ApplicationStatus==`RUNNING` || ApplicationStatus==`STOPPING` || ApplicationStatus==`STARTING` || ApplicationStatus==`FORCE_STOPPING`)].ApplicationName' \
 			--output text 2>/dev/null); \
 		if [ -z "$$STILL_RUNNING" ]; then \
 			echo "$(GREEN)✅ All applications stopped$(NC)"; \

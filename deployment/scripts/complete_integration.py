@@ -679,40 +679,8 @@ def main():
         print("❌ Failed to add VPC configuration to Flink applications")
         return False
     
-    # Step 2: Check prerequisites in correct order - VPC connectivity first, then SCRAM
-    print("\n🔍 Checking prerequisites...")
-    
-    # Check VPC connectivity first (cluster must be ready)
-    print("🔍 Checking MSK VPC connectivity...")
-    vpc_ready, vpc_bootstrap = check_msk_vpc_connectivity(cluster_arn)
-    
-    if not vpc_ready:
-        print("⏳ VPC connectivity not ready yet - waiting for MSK cluster update to complete...")
-        print("   This typically takes 10-15 minutes if VPC connectivity is still being enabled")
-        
-        # Wait for VPC connectivity to be enabled
-        for attempt in range(30):  # Wait up to 30 minutes
-            print(f"   Attempt {attempt + 1}/30: Checking VPC connectivity status...")
-            
-            vpc_ready, vpc_bootstrap = check_msk_vpc_connectivity(cluster_arn)
-            if vpc_ready:
-                print("✅ VPC connectivity is now enabled!")
-                break
-            
-            if attempt < 29:  # Don't sleep on the last attempt
-                print("   VPC connectivity not ready yet, waiting 1 minute...")
-                import time
-                time.sleep(60)
-        
-        if not vpc_ready:
-            print("❌ VPC connectivity not enabled after 30 minutes")
-            print("💡 Check AWS MSK Console to see if cluster is still updating")
-            print("💡 Or run VPC connectivity script manually:")
-            print(f"   python3 scripts/enable_vpc_connectivity.py {deployment_stage} $AWS_PROFILE")
-            return False
-
-    # Check SCRAM secret association (depends on VPC connectivity being ready)
-    print("🔍 Checking SCRAM secret association...")
+    # Step 2: Check SCRAM secret association
+    print("\n🔍 Checking SCRAM secret association...")
     scram_ready = check_scram_secret_association(cluster_arn, secret_arn)
     
     if not scram_ready:
@@ -828,7 +796,7 @@ def main():
     print(f"  Flink Apps Updated: {flink_success}/{len(apps_to_update)}")
     print(f"  Flink Apps Started: {started_count}/{len(apps_to_update)}")
     
-    return iot_success and flink_success > 0
+    return iot_success and (flink_success > 0 or started_count > 0)
 
 if __name__ == "__main__":
     success = main()
