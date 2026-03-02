@@ -250,9 +250,9 @@ def update_flink_app(app_name: str, bootstrap_servers: str, secret_arn: str):
                 'sasl.client.callback.handler.class': 'software.amazon.msk.auth.iam.IAMClientCallbackHandler',
                 'auto.offset.reset': 'earliest',
                 'enable.auto.commit': 'false',
-                'aws.region': 'us-east-1',
+                'aws.region': os.environ.get('AWS_REGION', 'us-east-1'),
                 'PROCESSOR_TYPE': processor_type,
-                'group.id': f'{app_name.replace("cms-dev-flink-", "cms-")}-consumer'
+                'group.id': f'{app_name.split("-flink-", 1)[-1]}-consumer' if '-flink-' in app_name else f'{app_name}-consumer'
             }
         }]
         
@@ -398,7 +398,7 @@ def wait_for_prerequisites(cluster_arn: str, max_wait_minutes: int = 15):
     return False, None, None
 
 def build_and_upload_flink_jar(deployment_stage: str):
-    """Build Flink JAR and upload to S3"""
+    """Build Flink JAR and upload to S3 (skips if JAR already exists in S3)"""
     import subprocess
     import os
     
@@ -411,28 +411,33 @@ def build_and_upload_flink_jar(deployment_stage: str):
             print("❌ Flink JAR bucket not found")
             return None
         
+        s3_key = "jars/cms-telemetry-processor-1.0.0.zip"
+        s3 = boto3.client('s3')
+        
+        # Check if JAR already exists in S3 (uploaded by phase5)
+        try:
+            s3.head_object(Bucket=bucket_name, Key=s3_key)
+            print(f"✅ JAR already exists in s3://{bucket_name}/{s3_key}, skipping build")
+            return f"arn:aws:s3:::{bucket_name}", s3_key
+        except:
+            pass
+        
         print("🔨 Building Flink JAR...")
         
-        # Build JAR
-        flink_dir = "/Users/givenand/connected-mobility-workspace/modules/flink"
-        result = subprocess.run([f"{flink_dir}/build.sh"], 
-                              cwd=flink_dir, 
-                              capture_output=True, 
-                              text=True)
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        flink_dir = os.path.normpath(os.path.join(script_dir, "../../modules/flink"))
+        result = subprocess.run(["bash", f"{flink_dir}/build.sh"], 
+                              cwd=flink_dir,
+                              timeout=300)
         
         if result.returncode != 0:
-            print(f"❌ JAR build failed: {result.stderr}")
+            print("❌ JAR build failed")
             return None
         
         print("✅ JAR built successfully")
         
-        # Upload to S3
         jar_path = f"{flink_dir}/target/cms-telemetry-processor-1.0.0.jar"
-        s3_key = "jars/cms-telemetry-processor-1.0.0.jar"
-        
         print(f"📤 Uploading JAR to s3://{bucket_name}/{s3_key}")
-        
-        s3 = boto3.client('s3')
         s3.upload_file(jar_path, bucket_name, s3_key)
         
         print("✅ JAR uploaded successfully")
@@ -777,27 +782,30 @@ def main():
         print("❌ Failed to create IoT rule")
         return False
     
-    # Step 4: Wait for prerequisites (VPC destination should now exist + MSK VPC connectivity)
-    print("\n🔍 Checking prerequisites...")
-    prereqs_ready, vpc_dest_arn, vpc_bootstrap_servers = wait_for_prerequisites(cluster_arn)
-    
-    if not prereqs_ready:
-        print("❌ Prerequisites not ready - cannot proceed with integration")
-        print("💡 Make sure MSK deployment completed and VPC connectivity is enabled")
+    # Step 4: Check VPC destination exists
+    print("\n🔍 Checking VPC destination...")
+    vpc_dest_arn = check_vpc_destination_exists()
+    if not vpc_dest_arn:
+        print("⚠️  VPC destination not found - IoT to MSK routing may not work")
+    else:
+        print(f"✅ VPC destination: {vpc_dest_arn}")
+
+    # Step 5: Get IAM bootstrap servers for Flink (regular, not VPC connectivity)
+    iam_bootstrap = get_msk_bootstrap_servers(cluster_arn)
+    if not iam_bootstrap:
+        print("❌ Could not get IAM bootstrap servers")
         return False
+    print(f"✅ IAM bootstrap servers (for Flink): {iam_bootstrap}")
+    print(f"✅ SCRAM bootstrap servers (for IoT): {regular_bootstrap_servers}")
     
-    # Step 5: Display bootstrap servers
-    print(f"✅ Regular bootstrap servers (for IoT): {regular_bootstrap_servers}")
-    print(f"✅ VPC connectivity servers (for Flink): {vpc_bootstrap_servers}")
-    
-    # Step 6: Update Flink applications with regular bootstrap servers (since they're in VPC)
+    # Step 6: Update Flink applications with IAM bootstrap servers (they're in the VPC)
     print("\n⚡ Updating Flink applications with regular bootstrap servers (VPC deployment)...")
     apps_to_update = [
-        'cms-dev-flink-event-driven-telemetry-processor',
-        'cms-dev-flink-telemetry-enhanced-final',
-        'cms-dev-flink-trip-processor',
-        'cms-dev-flink-safety-processor',
-        'cms-dev-flink-maintenance-processor'
+        f'cms-{deployment_stage}-flink-event-driven-telemetry-processor',
+        f'cms-{deployment_stage}-flink-telemetry-enhanced-final',
+        f'cms-{deployment_stage}-flink-trip-processor',
+        f'cms-{deployment_stage}-flink-safety-processor',
+        f'cms-{deployment_stage}-flink-maintenance-processor'
     ]
     
     flink_success = 0

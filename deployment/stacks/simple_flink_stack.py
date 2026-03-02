@@ -12,10 +12,12 @@ class SimpleFlinkStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
         
+        stage = construct_id.split('-')[1] if '-' in construct_id else 'dev'
+        
         # Get MSK VPC configuration from exports
-        msk_vpc_id = Fn.import_value("cms-dev-msk-vpc-id")
-        msk_subnet_ids = Fn.split(",", Fn.import_value("cms-dev-msk-private-subnet-ids"))
-        msk_sg_id = Fn.import_value("cms-dev-msk-security-group-id")
+        msk_vpc_id = Fn.import_value(f"cms-{stage}-msk-vpc-id")
+        msk_subnet_ids = Fn.split(",", Fn.import_value(f"cms-{stage}-msk-private-subnet-ids"))
+        msk_sg_id = Fn.import_value(f"cms-{stage}-msk-security-group-id")
         
         # Create S3 bucket for JAR files
         jar_bucket = s3.Bucket(

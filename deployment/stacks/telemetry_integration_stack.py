@@ -8,8 +8,7 @@ from aws_cdk import (
     aws_iot as iot,
     aws_iam as iam,
     aws_s3 as s3,
-    aws_lambda as lambda_,
-    CustomResource,
+    custom_resources as cr,
     RemovalPolicy,
     CfnOutput,
     Duration,
@@ -35,76 +34,41 @@ class TelemetryIntegrationStack(Stack):
         msk_security_group_id = Fn.import_value(f"{msk_stack_name}-security-group-id")
         msk_secret_arn = Fn.import_value(f"{msk_stack_name}-iot-user-secret-arn")
         
-        # Create Lambda to get MSK bootstrap servers
-        bootstrap_lambda_role = iam.Role(
-            self, "BootstrapLambdaRole",
-            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
-            managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
-            ],
-            inline_policies={
-                "MSKAccess": iam.PolicyDocument(
-                    statements=[
-                        iam.PolicyStatement(
-                            effect=iam.Effect.ALLOW,
-                            actions=["kafka:GetBootstrapBrokers", "kafka:DescribeCluster"],
-                            resources=[msk_cluster_arn]
-                        )
-                    ]
-                )
-            }
-        )
-        
-        bootstrap_lambda = lambda_.Function(
-            self, "GetBootstrapServers",
-            runtime=lambda_.Runtime.PYTHON_3_9,
-            handler="index.lambda_handler",
-            role=bootstrap_lambda_role,
-            timeout=Duration.minutes(2),
-            code=lambda_.Code.from_inline("""
-import boto3
-import cfnresponse
-import json
-
-def lambda_handler(event, context):
-    try:
-        cluster_arn = event['ResourceProperties']['ClusterArn']
-        kafka = boto3.client('kafka')
-        
-        response = kafka.get_bootstrap_brokers(ClusterArn=cluster_arn)
-        bootstrap_servers = response['BootstrapBrokerStringSaslScram']
-        
-        cfnresponse.send(event, context, cfnresponse.SUCCESS, {
-            'BootstrapServers': bootstrap_servers
-        })
-    except Exception as e:
-        print(f"Error: {e}")
-        cfnresponse.send(event, context, cfnresponse.FAILED, {})
-            """)
-        )
-        
-        bootstrap_custom_resource = CustomResource(
+        # Get MSK bootstrap servers via SDK call
+        bootstrap_custom_resource = cr.AwsCustomResource(
             self, "BootstrapServersResource",
-            service_token=bootstrap_lambda.function_arn,
-            properties={
-                "ClusterArn": msk_cluster_arn
-            }
+            on_create=cr.AwsSdkCall(
+                service="Kafka",
+                action="getBootstrapBrokers",
+                parameters={"ClusterArn": msk_cluster_arn},
+                physical_resource_id=cr.PhysicalResourceId.of("BootstrapServers"),
+            ),
+            policy=cr.AwsCustomResourcePolicy.from_sdk_calls(
+                resources=cr.AwsCustomResourcePolicy.ANY_RESOURCE,
+            ),
         )
         
-        msk_bootstrap_servers = bootstrap_custom_resource.get_att_string("BootstrapServers")
+        msk_bootstrap_servers = bootstrap_custom_resource.get_response_field("BootstrapBrokerStringSaslScram")
         
         # 1. Create VPC ENI role (exactly like CloudFormation)
         self.vpc_eni_role = iam.Role(
             self, "IoTCreateVpcENIRole",
-            role_name=f"IoTCreateVpcENIRole-{deployment_stage}",
+            role_name=f"IoTCreateVpcENIRole-{deployment_stage}-{self.region}",
             path="/service-role/",
             assumed_by=iam.ServicePrincipal("iot.amazonaws.com")
         )
         
-        # 2. Create VPC destination policy (with all required permissions)
+        # 2. Create S3 bucket for telemetry backup (before policy so it can be referenced)
+        self.telemetry_bucket = s3.Bucket(
+            self, "TelemetryBackupBucket",
+            removal_policy=RemovalPolicy.DESTROY,
+            auto_delete_objects=True
+        )
+
+        # 3. Create VPC destination policy (with all required permissions)
         vpc_policy = iam.ManagedPolicy(
             self, "IoTVpcDestinationPolicy",
-            managed_policy_name=f"IoTVpcDestinationPolicy-{deployment_stage}",
+            managed_policy_name=f"IoTVpcDestinationPolicy-{deployment_stage}-{self.region}",
             statements=[
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW,
@@ -156,8 +120,8 @@ def lambda_handler(event, context):
                         "s3:GetBucketLocation"
                     ],
                     resources=[
-                        f"arn:aws:s3:::cms-{deployment_stage}-telemetry-backup-{self.account}",
-                        f"arn:aws:s3:::cms-{deployment_stage}-telemetry-backup-{self.account}/*"
+                        self.telemetry_bucket.bucket_arn,
+                        f"{self.telemetry_bucket.bucket_arn}/*"
                     ]
                 ),
                 # Add Kafka cluster permissions (critical for VPC destination)
@@ -186,7 +150,7 @@ def lambda_handler(event, context):
         # 3. Create MSK secret access role (match CloudFormation pattern)
         self.msk_secret_role = iam.Role(
             self, "IoTMSKSecretRuleRole",
-            role_name=f"IoT-Rule-MSK-Role-{deployment_stage}",
+            role_name=f"IoT-Rule-MSK-Role-{deployment_stage}-{self.region}",
             description="Role for the AWS IoT Rules engine to use when accessing Amazon MSK credentials in AWS Secrets Manager",
             assumed_by=iam.ServicePrincipal("iot.amazonaws.com")
         )
@@ -194,7 +158,7 @@ def lambda_handler(event, context):
         # 4. Create MSK secret policy (reference existing secret)
         secret_policy = iam.ManagedPolicy(
             self, "IoTMSKSecretPolicy", 
-            managed_policy_name=f"IoTMSKSecretPolicy-{deployment_stage}",
+            managed_policy_name=f"IoTMSKSecretPolicy-{deployment_stage}-{self.region}",
             statements=[
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW,
@@ -217,15 +181,6 @@ def lambda_handler(event, context):
                 )
             ],
             roles=[self.msk_secret_role]
-        )
-        
-        # 5. Create S3 bucket for telemetry backup
-        bucket_name = f"cms-{deployment_stage}-telemetry-backup-{self.account}"
-        self.telemetry_bucket = s3.Bucket(
-            self, "TelemetryBackupBucket",
-            bucket_name=bucket_name,
-            removal_policy=RemovalPolicy.DESTROY,
-            auto_delete_objects=True
         )
         
         # 6. Create VPC destination (always create for proper integration)
@@ -267,7 +222,7 @@ def lambda_handler(event, context):
                     iot.CfnTopicRule.ActionProperty(
                         s3=iot.CfnTopicRule.S3ActionProperty(
                             role_arn=self.vpc_eni_role.role_arn,
-                            bucket_name=bucket_name,
+                            bucket_name=self.telemetry_bucket.bucket_name,
                             key="raw-telemetry/year=${timestamp(\"yyyy\")}/month=${timestamp(\"MM\")}/day=${timestamp(\"dd\")}/hour=${timestamp(\"HH\")}/${clientId()}-${timestamp()}.json"
                         )
                     )
@@ -282,63 +237,46 @@ def lambda_handler(event, context):
         )
         
         # Custom resource to update SCRAM secret KMS key policy for IoT role access
+        from aws_cdk import aws_lambda as lambda_
         kms_policy_lambda = lambda_.Function(
             self, "KMSPolicyUpdateFunction",
-            runtime=lambda_.Runtime.PYTHON_3_9,
+            runtime=lambda_.Runtime.PYTHON_3_12,
             handler="index.handler",
             timeout=Duration.minutes(5),
             code=lambda_.Code.from_inline("""
-import boto3
-import json
-import cfnresponse
+import boto3, json, urllib3
+http = urllib3.PoolManager()
+
+def send_cfn(event, context, status, data=None):
+    body = json.dumps({
+        'Status': status, 'Reason': f'See logs: {context.log_stream_name}',
+        'PhysicalResourceId': event.get('PhysicalResourceId', context.log_stream_name),
+        'StackId': event['StackId'], 'RequestId': event['RequestId'],
+        'LogicalResourceId': event['LogicalResourceId'], 'Data': data or {}
+    })
+    http.request('PUT', event['ResponseURL'], body=body, headers={'content-type': ''})
 
 def handler(event, context):
     try:
-        if event['RequestType'] == 'Create' or event['RequestType'] == 'Update':
+        if event['RequestType'] in ('Create', 'Update'):
             secrets_client = boto3.client('secretsmanager')
             kms_client = boto3.client('kms')
-            
             secret_arn = event['ResourceProperties']['SecretArn']
             iot_role_arn = event['ResourceProperties']['IoTRoleArn']
-            
-            # Get secret details to find KMS key
-            secret_details = secrets_client.describe_secret(SecretId=secret_arn)
-            key_id = secret_details['KmsKeyId']
-            
-            # Get current policy
-            current_policy = kms_client.get_key_policy(KeyId=key_id, PolicyName='default')
-            policy_doc = json.loads(current_policy['Policy'])
-            
-            # Add IoT role statement if not exists
-            iot_statement = {
+            key_id = secrets_client.describe_secret(SecretId=secret_arn)['KmsKeyId']
+            policy_doc = json.loads(kms_client.get_key_policy(KeyId=key_id, PolicyName='default')['Policy'])
+            iot_stmt = {
                 "Sid": "Allow IoT Core role direct access to decrypt SCRAM secrets",
-                "Effect": "Allow",
-                "Principal": {"AWS": iot_role_arn},
-                "Action": ["kms:Decrypt", "kms:DescribeKey"],
-                "Resource": "*"
+                "Effect": "Allow", "Principal": {"AWS": iot_role_arn},
+                "Action": ["kms:Decrypt", "kms:DescribeKey"], "Resource": "*"
             }
-            
-            # Check if statement already exists
-            exists = any(stmt.get('Sid') == iot_statement['Sid'] for stmt in policy_doc['Statement'])
-            
-            if not exists:
-                policy_doc['Statement'].append(iot_statement)
-                
-                # Update policy
-                kms_client.put_key_policy(
-                    KeyId=key_id,
-                    PolicyName='default',
-                    Policy=json.dumps(policy_doc)
-                )
-                print(f"Updated KMS key policy for {key_id}")
-            else:
-                print(f"IoT role already has access to KMS key {key_id}")
-                
-        cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
-        
+            if not any(s.get('Sid') == iot_stmt['Sid'] for s in policy_doc['Statement']):
+                policy_doc['Statement'].append(iot_stmt)
+                kms_client.put_key_policy(KeyId=key_id, PolicyName='default', Policy=json.dumps(policy_doc))
+        send_cfn(event, context, 'SUCCESS')
     except Exception as e:
-        print(f"Error: {str(e)}")
-        cfnresponse.send(event, context, cfnresponse.FAILED, {})
+        print(f"Error: {e}")
+        send_cfn(event, context, 'FAILED')
             """),
             initial_policy=[
                 iam.PolicyStatement(
@@ -370,6 +308,7 @@ def handler(event, context):
         )
         
         # Custom resource to update KMS policy
+        from aws_cdk import CustomResource
         kms_policy_custom_resource = CustomResource(
             self, "KMSPolicyUpdateResource",
             service_token=kms_policy_lambda.function_arn,
@@ -393,4 +332,16 @@ def handler(event, context):
             self, "IoTRuleName", 
             value=self.msk_rule.ref,
             export_name=f"{construct_id}-iot-rule-name"
+        )
+
+        CfnOutput(
+            self, "BootstrapServers",
+            value=msk_bootstrap_servers,
+            export_name=f"{construct_id}-bootstrap-servers"
+        )
+
+        CfnOutput(
+            self, "IoTRoleArn",
+            value=self.vpc_eni_role.role_arn,
+            export_name=f"{construct_id}-iot-role-arn"
         )

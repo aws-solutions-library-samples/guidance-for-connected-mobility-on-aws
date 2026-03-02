@@ -917,9 +917,9 @@ class EnhancedHistoricalDataInjector:
                         
                         # Signal values (structured data)
                         'signal_values': {
-                            'speed': float(event_speed),
-                            'deceleration': severity_details.get('deceleration', 0),
-                            'gForce': severity_details.get('gForce', 0)
+                            'speed': Decimal(str(event_speed)),
+                            'deceleration': Decimal(str(severity_details.get('deceleration', 0))),
+                            'gForce': Decimal(str(severity_details.get('gForce', 0)))
                         },
                         
                         # Legacy fields (for compatibility during transition)

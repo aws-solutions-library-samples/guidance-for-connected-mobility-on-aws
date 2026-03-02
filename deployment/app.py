@@ -16,6 +16,7 @@ from stacks.flink_stack import FlinkStack
 from stacks.storage_stack import StorageStack
 from stacks.ui_stack import UIStack
 from stacks.telemetry_integration_stack import TelemetryIntegrationStack
+from stacks.fleetwise_stack import FleetWiseStack
 
 # Configuration
 AWS_ACCOUNT = os.environ.get('CDK_DEFAULT_ACCOUNT')
@@ -113,7 +114,16 @@ ui_stack = UIStack(
     description="Guidance for Connected Mobility (SO9618) - Presentation Layer"
 )
 
-# 7. Predictive Maintenance Agent Stack (Optional - deploy separately if needed)
+# 7. FleetWise Integration Stack (IoT rules, VPC endpoints, Flink CampaignSync)
+if os.environ.get('DEPLOY_FLEETWISE') == 'true':
+    fleetwise_stack = FleetWiseStack(
+        app,
+        f"{stack_prefix}-fleetwise",
+        env=env,
+        description="Guidance for Connected Mobility (SO9618) - FleetWise Integration"
+    )
+
+# 8. Predictive Maintenance Agent Stack (Optional - deploy separately if needed)
 if os.environ.get('DEPLOY_PREDICTIVE_AGENT') == 'true':
     from stacks.predictive_agent_stack import PredictiveAgentStack
     

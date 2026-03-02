@@ -278,3 +278,9 @@ num.partitions=3""".strip()
             value=",".join([subnet.subnet_id for subnet in self.vpc.public_subnets]),
             export_name=f"{construct_id}-public-subnet-ids"
         )
+
+        CfnOutput(
+            self, "MSKPrivateRouteTableIds",
+            value=",".join(list({subnet.route_table.route_table_id for subnet in self.vpc.private_subnets})),
+            export_name=f"{construct_id}-private-route-table-ids"
+        )

@@ -721,6 +721,12 @@ def lambda_handler(event, context):
         )
         
         CfnOutput(
+            self, "FlinkJarS3Key",
+            value=jar_s3_key,
+            export_name=f"{construct_id}-jar-s3-key"
+        )
+        
+        CfnOutput(
             self, "FlinkRoleArn",
             value=self.flink_role.role_arn,
             export_name=f"{construct_id}-flink-role-arn"

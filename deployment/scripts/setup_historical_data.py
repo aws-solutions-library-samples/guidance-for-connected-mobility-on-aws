@@ -20,14 +20,16 @@ def detect_deployment_profile():
     except:
         profiles = ['default']
     
-    # Check each profile for cms-dev-storage stack
+    # Check each profile for storage stack
+    stage = os.environ.get('DEPLOYMENT_STAGE', 'dev')
+    region = os.environ.get('AWS_REGION', 'us-east-1')
     for profile in profiles:
         try:
             result = subprocess.run([
                 'aws', 'cloudformation', 'describe-stacks', 
-                '--stack-name', 'cms-dev-storage',
+                '--stack-name', f'cms-{stage}-storage',
                 '--profile', profile,
-                '--region', 'us-east-1'
+                '--region', region
             ], capture_output=True, text=True, check=True)
             
             if result.returncode == 0:
@@ -141,6 +143,10 @@ def main():
     default_profile = os.environ.get('AWS_PROFILE', detected_profile)
     default_stage = os.environ.get('DEPLOYMENT_STAGE', 'dev')
     default_region = os.environ.get('AWS_REGION', 'us-east-1')
+    batch_mode = os.environ.get('BATCH_MODE', 'false').lower() == 'true' or not sys.stdin.isatty()
+    
+    if batch_mode:
+        print("🤖 Running in batch mode (non-interactive)")
     
     print("📋 Configuration Parameters:")
     print()
@@ -153,102 +159,76 @@ def main():
     deployment_stage = default_stage
     print(f"✅ Using Deployment Stage: {deployment_stage}")
     
-    region = get_user_input("AWS Region", default_region)
-    
-    print()
-    print("📊 Data Generation Parameters:")
-    print()
-    
-    days = get_user_input("Days of historical data", 30, int)
-    num_fleets = get_user_input("Number of fleets", 5, int)
-    vehicles_per_fleet = get_user_input("Vehicles per fleet", 10, int)
-    
-    print()
-    print("🌍 Location Services Configuration:")
-    print()
-    
-    use_location_services = get_user_input("Use Amazon Location Services for realistic routes? (y/n)", "y")
-    use_location_services = use_location_services.lower().startswith('y')
-    
-    cities = [
-        "new_york (NYC area)",
-        "los_angeles (LA area)", 
-        "chicago (Chicago area)",
-        "houston (Houston area)",
-        "phoenix (Phoenix area)"
-    ]
-    
-    print("Available cities for route generation:")
-    for i, city in enumerate(cities, 1):
-        print(f"  {i}. {city}")
-    
-    city_selection = get_user_input("Select cities (comma-separated numbers, or 'all')", "all")
-    
-    if city_selection.lower() == 'all':
-        selected_cities = list(range(1, len(cities) + 1))
-    else:
-        try:
-            selected_cities = [int(x.strip()) for x in city_selection.split(',')]
-            selected_cities = [x for x in selected_cities if 1 <= x <= len(cities)]
-        except ValueError:
-            print("Invalid city selection. Using all cities.")
-            selected_cities = list(range(1, len(cities) + 1))
-    
-    print()
-    print("⚙️  Advanced Options:")
-    print()
-    
-    safety_event_probability = get_user_input("Safety event probability (0.0-1.0)", "0.05")
-    try:
-        safety_event_probability = float(safety_event_probability)
-        if not 0.0 <= safety_event_probability <= 1.0:
-            safety_event_probability = 0.05
-    except ValueError:
+    if batch_mode:
+        region = default_region
+        days = 30
+        num_fleets = 5
+        vehicles_per_fleet = 10
+        use_location_services = True
+        selected_cities = list(range(1, 6))
         safety_event_probability = 0.05
-    
-    maintenance_frequency = get_user_input("Maintenance alert frequency (days)", "30", int)
-    
-    # Calculate time estimate
-    estimated_seconds = calculate_time_estimate(days, num_fleets, vehicles_per_fleet, use_location_services)
-    time_estimate = format_time_estimate(estimated_seconds)
-    
-    # Summary
-    print()
-    print("📋 Configuration Summary:")
-    print("=" * 40)
-    print(f"AWS Profile: {aws_profile}")
-    print(f"Deployment Stage: {deployment_stage}")
-    print(f"Region: {region}")
-    print(f"Historical Data Days: {days}")
-    print(f"Number of Fleets: {num_fleets}")
-    print(f"Vehicles per Fleet: {vehicles_per_fleet}")
-    print(f"Total Vehicles: {num_fleets * vehicles_per_fleet}")
-    print(f"Amazon Location Services: {'✅ Enabled' if use_location_services else '❌ Disabled'}")
-    print(f"Selected Cities: {len(selected_cities)} cities")
-    print(f"Safety Event Probability: {safety_event_probability}")
-    print(f"Maintenance Frequency: {maintenance_frequency} days")
-    print()
-    print(f"⏱️  Estimated Execution Time: {time_estimate}")
-    
-    # Performance notes
-    if estimated_seconds > 300:  # 5 minutes
-        print("💡 Performance Notes:")
-        if use_location_services:
-            print("   • Amazon Location Services adds routing accuracy but increases time")
-            print("   • Consider reducing days or vehicles for faster execution")
-        if days > 60:
-            print("   • Large date ranges generate more trip data")
-        if num_fleets * vehicles_per_fleet > 100:
-            print("   • Large fleets generate more comprehensive data")
-        print("   • You can interrupt with Ctrl+C and resume later")
-    
-    print()
-    
-    # Confirmation
-    confirm = get_user_input("Proceed with data generation? (y/n)", "y")
-    if not confirm.lower().startswith('y'):
-        print("❌ Operation cancelled.")
-        return
+        maintenance_frequency = 30
+    else:
+        region = get_user_input("AWS Region", default_region)
+
+        print()
+        print("📊 Data Generation Parameters:")
+        print()
+
+        days = get_user_input("Days of historical data", 30, int)
+        num_fleets = get_user_input("Number of fleets", 5, int)
+        vehicles_per_fleet = get_user_input("Vehicles per fleet", 10, int)
+
+        print()
+        print("🌍 Location Services Configuration:")
+        print()
+
+        use_location_services = get_user_input("Use Amazon Location Services for realistic routes? (y/n)", "y")
+        use_location_services = use_location_services.lower().startswith('y')
+
+        cities = [
+            "new_york (NYC area)",
+            "los_angeles (LA area)", 
+            "chicago (Chicago area)",
+            "houston (Houston area)",
+            "phoenix (Phoenix area)"
+        ]
+
+        print("Available cities for route generation:")
+        for i, city in enumerate(cities, 1):
+            print(f"  {i}. {city}")
+
+        city_selection = get_user_input("Select cities (comma-separated numbers, or 'all')", "all")
+
+        if city_selection.lower() == 'all':
+            selected_cities = list(range(1, len(cities) + 1))
+        else:
+            try:
+                selected_cities = [int(x.strip()) for x in city_selection.split(',')]
+                selected_cities = [x for x in selected_cities if 1 <= x <= len(cities)]
+            except ValueError:
+                print("Invalid city selection. Using all cities.")
+                selected_cities = list(range(1, len(cities) + 1))
+
+        print()
+        print("⚙️  Advanced Options:")
+        print()
+
+        safety_event_probability = get_user_input("Safety event probability (0.0-1.0)", "0.05")
+        try:
+            safety_event_probability = float(safety_event_probability)
+            if not 0.0 <= safety_event_probability <= 1.0:
+                safety_event_probability = 0.05
+        except ValueError:
+            safety_event_probability = 0.05
+
+        maintenance_frequency = get_user_input("Maintenance alert frequency (days)", "30", int)
+
+        # Confirmation
+        confirm = get_user_input("Proceed with data generation? (y/n)", "y")
+        if not confirm.lower().startswith('y'):
+            print("❌ Operation cancelled.")
+            return
     
     print()
     print("🚀 Starting historical data generation...")

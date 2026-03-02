@@ -11,10 +11,8 @@ from aws_cdk import (
     aws_ec2 as ec2,
     aws_logs as logs,
     aws_kinesisanalyticsv2 as kinesisanalytics,
-    aws_lambda as lambda_,
-    CustomResource,
+    custom_resources as cr,
     CfnOutput,
-    Duration,
     Fn,
     RemovalPolicy,
 )
@@ -29,80 +27,56 @@ class FleetWiseStack(Stack):
         stage = construct_id.split('-')[1] if '-' in construct_id else 'dev'
         msk_stack = f"cms-{stage}-msk"
         flink_stack = f"cms-{stage}-flink"
-        storage_stack = f"cms-{stage}-storage"
         telemetry_stack = f"cms-{stage}-telemetry-integration"
 
         # ── Imports from other stacks ─────────────────────────────────────
-        msk_cluster_arn = Fn.import_value(f"{msk_stack}-cluster-arn")
         msk_vpc_id = Fn.import_value(f"{msk_stack}-vpc-id")
         msk_subnet_ids = Fn.split(",", Fn.import_value(f"{msk_stack}-private-subnet-ids"))
         msk_sg_id = Fn.import_value(f"{msk_stack}-security-group-id")
         msk_secret_arn = Fn.import_value(f"{msk_stack}-iot-user-secret-arn")
-        msk_bootstrap = Fn.import_value(f"{msk_stack}-bootstrap-servers")
+        msk_route_table_ids = Fn.split(",", Fn.import_value(f"{msk_stack}-private-route-table-ids"))
+        msk_bootstrap = Fn.import_value(f"{telemetry_stack}-bootstrap-servers")
         flink_role_arn = Fn.import_value(f"{flink_stack}-flink-role-arn")
-        flink_jar_bucket = Fn.import_value(f"{flink_stack}-jar-bucket-name")
+        flink_jar_bucket = Fn.import_value(f"{flink_stack}-jar-bucket")
         flink_jar_key = Fn.import_value(f"{flink_stack}-jar-s3-key")
         vpc_destination_arn = Fn.import_value(f"{telemetry_stack}-vpc-destination-arn")
         iot_role_arn = Fn.import_value(f"{telemetry_stack}-iot-role-arn")
 
-        vpc = ec2.Vpc.from_lookup(self, "Vpc", vpc_id=Fn.import_value(f"{msk_stack}-vpc-id").to_string()) if False else None
-        # We use Fn references instead of lookup for cross-stack compatibility
-
-        # ── Discover IoT ATS endpoint via Lambda ──────────────────────────
-        iot_endpoint_role = iam.Role(
-            self, "IoTEndpointRole",
-            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
-            managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
-            ],
-            inline_policies={
-                "IoTDescribe": iam.PolicyDocument(statements=[
-                    iam.PolicyStatement(actions=["iot:DescribeEndpoint"], resources=["*"])
-                ])
-            }
+        # ── Discover IoT ATS endpoint via SDK call ─────────────────────────
+        iot_endpoint_cr = cr.AwsCustomResource(
+            self, "IoTEndpointCR",
+            on_create=cr.AwsSdkCall(
+                service="IoT",
+                action="describeEndpoint",
+                parameters={"endpointType": "iot:Data-ATS"},
+                physical_resource_id=cr.PhysicalResourceId.of("IoTEndpoint"),
+            ),
+            policy=cr.AwsCustomResourcePolicy.from_sdk_calls(
+                resources=cr.AwsCustomResourcePolicy.ANY_RESOURCE,
+            ),
         )
-
-        iot_endpoint_fn = lambda_.Function(
-            self, "IoTEndpointFn",
-            runtime=lambda_.Runtime.PYTHON_3_9,
-            handler="index.handler",
-            role=iot_endpoint_role,
-            timeout=Duration.seconds(30),
-            code=lambda_.Code.from_inline("""
-import boto3, cfnresponse
-def handler(event, context):
-    try:
-        endpoint = boto3.client('iot').describe_endpoint(endpointType='iot:Data-ATS')['endpointAddress']
-        cfnresponse.send(event, context, cfnresponse.SUCCESS, {'Endpoint': endpoint})
-    except Exception as e:
-        cfnresponse.send(event, context, cfnresponse.FAILED, {'Error': str(e)})
-""")
-        )
-
-        iot_endpoint_cr = CustomResource(self, "IoTEndpointCR",
-            service_token=iot_endpoint_fn.function_arn)
-        iot_ats_endpoint = iot_endpoint_cr.get_att_string("Endpoint")
+        iot_ats_endpoint = iot_endpoint_cr.get_response_field("endpointAddress")
 
         # ── VPC Endpoint: IoT Data Plane ──────────────────────────────────
         # Needed for Flink (in VPC) to publish to IoT Core
         iot_data_vpce = ec2.CfnVPCEndpoint(
             self, "IoTDataVpcEndpoint",
-            vpc_id=Fn.import_value(f"{msk_stack}-vpc-id"),
+            vpc_id=msk_vpc_id,
             service_name=f"com.amazonaws.{self.region}.iot.data",
             vpc_endpoint_type="Interface",
-            subnet_ids=[Fn.select(0, msk_subnet_ids)],  # Use first subnet (AZ-a)
+            subnet_ids=[Fn.select(0, msk_subnet_ids)],
             security_group_ids=[msk_sg_id],
             private_dns_enabled=False,
         )
 
         # ── VPC Endpoint: S3 Gateway ──────────────────────────────────────
         # Needed for Flink to read campaign configs from S3
-        # Note: Gateway endpoints need route table IDs. We create via CfnVPCEndpoint.
         s3_vpce = ec2.CfnVPCEndpoint(
             self, "S3GatewayEndpoint",
-            vpc_id=Fn.import_value(f"{msk_stack}-vpc-id"),
+            vpc_id=msk_vpc_id,
             service_name=f"com.amazonaws.{self.region}.s3",
             vpc_endpoint_type="Gateway",
+            route_table_ids=msk_route_table_ids,
         )
 
         # ── Security Group: allow HTTPS from Flink to VPC endpoints ───────
@@ -171,7 +145,7 @@ def handler(event, context):
         # ── IAM: Flink CampaignSync permissions ──────────────────────────
         campaign_sync_policy = iam.CfnManagedPolicy(
             self, "FlinkCampaignSyncPolicy",
-            managed_policy_name=f"FlinkCampaignSyncAccess-{stage}",
+            managed_policy_name=f"FlinkCampaignSyncAccess-{stage}-{self.region}",
             roles=[Fn.select(1, Fn.split("/", flink_role_arn))],  # Extract role name from ARN
             policy_document={
                 "Version": "2012-10-17",
@@ -238,7 +212,7 @@ def handler(event, context):
                 "ApplicationCodeConfiguration": {
                     "CodeContent": {
                         "S3ContentLocation": {
-                            "BucketARN": f"arn:aws:s3:::{flink_jar_bucket}",
+                            "BucketARN": Fn.join("", ["arn:aws:s3:::", flink_jar_bucket]),
                             "FileKey": flink_jar_key
                         }
                     },
