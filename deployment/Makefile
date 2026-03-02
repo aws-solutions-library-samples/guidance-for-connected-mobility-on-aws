@@ -333,6 +333,16 @@ configure-flink: ## Configure Flink applications
 					GROUP_ID="cms-campaign-sync-processor-consumer"; \
 					TABLE_NAME=""; \
 					;; \
+				*oem-telemetry-processor) \
+					PROCESSOR_TYPE="OEMTelemetryProcessor"; \
+					GROUP_ID="oem-telemetry-processor"; \
+					TABLE_NAME="$$TELEMETRY_TABLE"; \
+					;; \
+				*fw-telemetry-processor) \
+					PROCESSOR_TYPE="FWTelemetryProcessor"; \
+					GROUP_ID="fw-telemetry-processor"; \
+					TABLE_NAME="$$TELEMETRY_TABLE"; \
+					;; \
 				*) \
 					echo "  ⏭️  Skipping unknown app: $$app"; \
 					continue; \

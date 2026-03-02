@@ -278,6 +278,13 @@ class FlinkStack(Stack):
             log_group_name=f"/aws/kinesis-analytics/{construct_id}-oem-telemetry-processor",
             removal_policy=RemovalPolicy.RETAIN
         )
+
+        self.fw_telemetry_log_group = logs.LogGroup(
+            self, "FWTelemetryProcessorLogGroup",
+            log_group_name=f"/aws/kinesis-analytics/{construct_id}-fw-telemetry-processor",
+            removal_policy=RemovalPolicy.DESTROY,
+            retention=logs.RetentionDays.TWO_WEEKS,
+        )
         
         self.telemetry_enhanced_log_group = logs.LogGroup(
             self, "TelemetryEnhancedLogGroup",
@@ -305,6 +312,7 @@ class FlinkStack(Stack):
         
         # Create log streams for each log group
         for log_group in [self.event_driven_telemetry_log_group, self.oem_telemetry_log_group,
+                         self.fw_telemetry_log_group,
                          self.telemetry_enhanced_log_group, 
                          self.trip_log_group, self.safety_log_group, self.maintenance_log_group]:
             logs.LogStream(
@@ -601,6 +609,33 @@ def lambda_handler(event, context):
             )
         )
         
+        # 1c. FW Telemetry Processor (decodes FleetWise protobuf to CMS JSON)
+        self.fw_telemetry_processor = kinesisanalytics.CfnApplication(
+            self, "FWTelemetryProcessor",
+            application_name=f"{construct_id}-fw-telemetry-processor",
+            runtime_environment="FLINK-1_18",
+            service_execution_role=self.flink_role.role_arn,
+            application_configuration=create_flink_app_config(
+                "FWTelemetryProcessor",
+                {
+                    "group.id": "fw-telemetry-processor",
+                    "input.topic": "fw-telemetry-raw",
+                    "output.topic": "cms-telemetry-raw",
+                    "VEHICLES_TABLE": storage_tables['vehicles'].table_name,
+                    "DECODER_TABLE": f"{construct_id.replace('-flink', '')}-decoder-manifest",
+                }
+            ),
+            application_description="FleetWise protobuf decoder (FWE binary → CMS JSON)"
+        )
+
+        kinesisanalytics.CfnApplicationCloudWatchLoggingOption(
+            self, "FWTelemetryLogging",
+            application_name=self.fw_telemetry_processor.ref,
+            cloud_watch_logging_option=kinesisanalytics.CfnApplicationCloudWatchLoggingOption.CloudWatchLoggingOptionProperty(
+                log_stream_arn=f"arn:aws:logs:{self.region}:{self.account}:log-group:{self.fw_telemetry_log_group.log_group_name}:log-stream:kinesis-analytics-log-stream"
+            )
+        )
+
         # 2. Telemetry Enhanced Final Processor (matches cms-telemetry-enhanced-final)
         self.telemetry_enhanced_processor = kinesisanalytics.CfnApplication(
             self, "TelemetryEnhancedProcessor",
@@ -710,7 +745,8 @@ def lambda_handler(event, context):
             'telemetry_enhanced_processor': self.telemetry_enhanced_processor,
             'trip_processor': self.trip_processor, 
             'safety_processor': self.safety_processor,
-            'maintenance_processor': self.maintenance_processor
+            'maintenance_processor': self.maintenance_processor,
+            'fw_telemetry_processor': self.fw_telemetry_processor,
         }
         
         # Outputs
