@@ -9,6 +9,7 @@ import json
 import time
 import random
 import os
+import sys
 import boto3
 import threading
 import logging
@@ -72,7 +73,7 @@ class VehicleState:
         self.high_speed_time = 0  # Track time at high speeds
 
 class RealtimeTelemetrySimulator:
-    def __init__(self, profile_name: str = "default", region: str = "us-east-1", certificates_table_name: str = None, mode: str = "mqtt_direct", **alert_params):
+    def __init__(self, profile_name: str = "default", region: str = "us-east-1", certificates_table_name: str = None, mode: str = "mqtt_direct", iot_rule_name: str = "cms_dev_iot_msk_rule", **alert_params):
         """Initialize the real-time telemetry simulator
         mode: 'mqtt_direct' (MQTT to IoT Core) or 'can' (CAN bus + GPS via MQTT)
         """
@@ -80,6 +81,7 @@ class RealtimeTelemetrySimulator:
         self.region = region
         self.certificates_table_name = certificates_table_name
         self.mode = mode
+        self.iot_rule_name = iot_rule_name
         self.running = False
         self.simulation_threads = []
 
@@ -1359,7 +1361,7 @@ class RealtimeTelemetrySimulator:
     def publish_to_iot_core(self, vehicle_id: str, telemetry_data: Dict):
         """Publish telemetry data to AWS IoT Core using paho-mqtt"""
         vin = telemetry_data.get('vin', vehicle_id)
-        topic = f"$aws/rules/cms_dev_iot_msk_rule/{vehicle_id}"
+        topic = f"$aws/rules/{self.iot_rule_name}/{vehicle_id}"
         
         try:
             # Create MQTT connection
@@ -1416,7 +1418,7 @@ class RealtimeTelemetrySimulator:
                     'ignition_on': telemetry_data['engineEvent'] == 'ENGINE_START',
                 }
                 payload = gzip.compress(json.dumps(lifecycle).encode())
-                topic = f"$aws/rules/cms_dev_iot_msk_rule/{vehicle_id}"
+                topic = f"$aws/rules/{self.iot_rule_name}/{vehicle_id}"
                 mqtt_client.publish(topic, base64.b64encode(payload).decode(), qos=1)
                 print(f"📤 {vehicle_id}: {telemetry_data['engineEvent']} sent via MQTT (driver: {telemetry_data.get('driverId')})")
             except Exception as e:
@@ -1725,7 +1727,7 @@ class RealtimeTelemetrySimulator:
                             self.publish_can(vehicle_id, final_telemetry, mqtt_client)
                         else:
                             compressed_payload = self.compress_telemetry(final_telemetry)
-                            topic = f"$aws/rules/cms_dev_iot_msk_rule/{vehicle_id}"
+                            topic = f"$aws/rules/{self.iot_rule_name}/{vehicle_id}"
                             mqtt_client.publish(topic, compressed_payload, qos=1)
                         message_count += 1
                         print(f"🏁 Final telemetry sent with ignitionOn: {final_telemetry['ignitionOn']}")
@@ -1768,7 +1770,7 @@ class RealtimeTelemetrySimulator:
                             break
                     else:
                         # MQTT direct mode: publish compressed JSON to IoT Core
-                        topic = f"$aws/rules/cms_dev_iot_msk_rule/{vehicle_id}"
+                        topic = f"$aws/rules/{self.iot_rule_name}/{vehicle_id}"
                         compressed_payload = self.compress_telemetry(telemetry_data)
 
                         try:
@@ -2263,6 +2265,8 @@ def main():
     parser.add_argument('--no-progressive-degradation', action='store_true', help='Disable intelligent condition progression')
     parser.add_argument('--mode', default='mqtt_direct', choices=['mqtt_direct', 'can'],
                        help='Output mode: mqtt_direct (JSON to IoT Core) or can (CAN bus + GPS via MQTT)')
+    parser.add_argument('--rule-name', default='cms_dev_iot_msk_rule',
+                       help='IoT Rule name for basic ingest (default: cms_dev_iot_msk_rule)')
 
     args = parser.parse_args()
     
@@ -2303,6 +2307,7 @@ def main():
         region=args.region,
         certificates_table_name=args.certificates_table,
         mode=args.mode,
+        iot_rule_name=args.rule_name,
         **alert_params
     )
     

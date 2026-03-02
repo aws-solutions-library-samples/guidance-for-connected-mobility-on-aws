@@ -117,7 +117,7 @@ export default function FleetSimulationPanel() {
     cleanup: true,
     vehicle_source: 'real_vehicles',
     mode: 'mqtt_direct',
-    aws_region: 'us-east-1',
+    aws_region: (window as any).runtimeConfig?.awsRegion || 'us-east-1',
     force_maintenance_alert: false,
     driver_selection: 'random',
     driver_id: undefined

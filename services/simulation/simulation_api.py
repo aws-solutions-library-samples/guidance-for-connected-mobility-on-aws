@@ -190,28 +190,25 @@ class SimulationManager:
         
         # Prepare simulation command based on vehicle source
         script_dir = os.path.dirname(os.path.abspath(__file__))
+        table_suffix = None
         
         if config.get('vehicle_source') in ('real_vehicles', 'real') or config.get('use_real_vehicles') or isinstance(config.get('vehicles'), list):
             # Use realtime telemetry simulator for real vehicles
             vehicle_count = len(config['vehicles']) if isinstance(config.get('vehicles'), list) else config.get('vehicles', 10)
             
-            # Get table suffix dynamically from API endpoint
+            # Derive table suffix from DEPLOYMENT_STAGE env var
             try:
+                deploy_stage = os.environ.get('DEPLOYMENT_STAGE', 'dev')
+                table_suffix = f'{deploy_stage}-storage'
+                # Verify the table exists
                 import boto3
                 session = boto3.Session(profile_name=AWS_PROFILE or 'default')
-                lambda_client = session.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-                
-                # Get Lambda function environment variables
-                response = lambda_client.get_function_configuration(
-                    FunctionName=f'cms-{os.environ.get('DEPLOYMENT_STAGE', 'dev')}-iot-IoTAPIFunction'
-                )
-                
-                vehicles_table = response['Environment']['Variables'].get('VEHICLES_TABLE_NAME', '')
-                if vehicles_table.startswith('cms-') and vehicles_table.endswith('-vehicles'):
-                    table_suffix = vehicles_table[4:-9]  # Extract suffix
-                    print(f"🔍 Detected table suffix from Lambda: {table_suffix}")
-                else:
-                    raise Exception("Could not extract suffix from Lambda environment")
+                ddb_client = session.client('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+                ddb_client.describe_table(TableName=f'cms-{table_suffix}-vehicles')
+                print(f"🔍 Detected table suffix: {table_suffix}")
+            except Exception as e:
+                print(f"⚠️ Could not verify table suffix, using auto-detection: {e}")
+                table_suffix = None
                     
             except Exception as e:
                 print(f"⚠️ Could not get table suffix from Lambda, using auto-detection: {e}")
@@ -229,9 +226,7 @@ class SimulationManager:
             if table_suffix:
                 cmd.extend(['--table-suffix', table_suffix])
             
-            # Add certificates table if provided
-            if config.get('certificates_table_name'):
-                cmd.extend(['--certificates-table', config['certificates_table_name']])
+            # Certificates table derived from DEPLOYMENT_STAGE in simulator — don't pass UI override
             
             # Add city configuration
             city = config.get('city', 'nyc')
@@ -267,7 +262,7 @@ class SimulationManager:
             # Add driver configuration
             if config.get('driver_selection'):
                 cmd.extend(['--driver-selection', config['driver_selection']])
-            if config.get('driver_id'):
+            if config.get('driver_id') and config['driver_id'] not in ('None', 'none', ''):
                 cmd.extend(['--driver-id', config['driver_id']])
         else:
             # Use realtime telemetry simulator for generated vehicles too
@@ -284,6 +279,16 @@ class SimulationManager:
         
         if not config.get('cleanup', True):
             cmd.append('--no-cleanup')
+
+        # Add region and IoT rule name — env var takes priority over UI config
+        aws_region = os.environ.get('AWS_REGION') or config.get('aws_region') or 'us-east-1'
+        cmd.extend(['--region', aws_region])
+        # Derive rule name from stage: cms_{stage}_iot_msk_rule
+        if table_suffix:
+            stage = table_suffix.split('-')[0] if '-' in table_suffix else table_suffix
+        else:
+            stage = os.environ.get('DEPLOYMENT_STAGE', 'dev')
+        cmd.extend(['--rule-name', f'cms_{stage}_iot_msk_rule'])
 
         # Add mode parameter (mqtt_direct, can, or fwe)
         mode = config.get('mode', 'mqtt_direct')
@@ -364,6 +369,7 @@ class SimulationManager:
             # Pass vcan and GPS socket mapping for multi-vehicle FWE
             # (only needed for non-Docker mode; FWE mode passes them via docker -e)
 
+            print(f"🚀 Launching simulator: {' '.join(cmd)}", flush=True)
             process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,

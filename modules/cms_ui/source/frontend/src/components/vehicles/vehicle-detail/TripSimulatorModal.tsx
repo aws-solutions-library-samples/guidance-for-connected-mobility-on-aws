@@ -53,6 +53,7 @@ const TripSimulatorModal: React.FC<TripSimulatorModalProps> = ({ visible, vehicl
         force_safety_event: forceSafety ? 'hard_braking' : null,
         force_engine_overheat: forceMaintenance,
         progressive_degradation: forceMaintenance,
+        aws_region: (window as any).runtimeConfig?.awsRegion || 'us-east-1',
       };
 
       const resp = await fetch('http://localhost:5001/api/simulation/start', {
