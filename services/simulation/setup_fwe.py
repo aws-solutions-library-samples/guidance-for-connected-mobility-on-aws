@@ -30,7 +30,7 @@ def get_iot_endpoint(session):
 
 
 def get_vehicle_certificate(session, vehicle_id):
-    table = session.resource('dynamodb', region_name=REGION).Table('cms-dev-storage-vehicle-certificates')
+    table = session.resource('dynamodb', region_name=REGION).Table(f'cms-{os.environ.get('DEPLOYMENT_STAGE', 'dev')}-storage-vehicle-certificates')
     resp = table.get_item(Key={'vehicleId': vehicle_id})
     if 'Item' not in resp:
         print(f"❌ No certificate found for {vehicle_id}")

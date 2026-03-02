@@ -101,7 +101,7 @@ class EnhancedHistoricalDataInjector:
             # Get table names from CloudFormation stack outputs
             cf_client = boto3.Session(profile_name=self.profile_name).client('cloudformation', region_name=self.region)
             
-            response = cf_client.describe_stacks(StackName='cms-dev-storage')
+            response = cf_client.describe_stacks(StackName=f'cms-{os.environ.get('DEPLOYMENT_STAGE', 'dev')}-storage')
             outputs = response['Stacks'][0]['Outputs']
             
             table_names = {}
@@ -160,7 +160,7 @@ class EnhancedHistoricalDataInjector:
         """Load real drivers from DynamoDB drivers table"""
         try:
             # Use the known drivers table name for current deployment
-            drivers_table_name = "cms-dev-storage-drivers"
+            drivers_table_name = f"cms-{os.environ.get('DEPLOYMENT_STAGE', 'dev')}-storage-drivers"
             
             # Try default profile first for DynamoDB access
             try:

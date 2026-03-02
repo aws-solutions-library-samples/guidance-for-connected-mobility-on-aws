@@ -163,38 +163,16 @@ class RealtimeTelemetrySimulator:
         self.ENGINE_CRITICAL_TEMP = 240
     
     def _detect_table_names(self) -> Dict[str, str]:
-        """Detect CMS UI table names"""
-        dynamodb_client = boto3.Session(profile_name=self.profile_name).client('dynamodb', region_name=self.region)
+        """Detect CMS UI table names using deployment stage"""
+        stage = os.environ.get('DEPLOYMENT_STAGE', 'dev')
+        prefix = f"cms-{stage}-storage"
+        self.table_suffix = f"{stage}-storage"
         
-        try:
-            tables = dynamodb_client.list_tables()['TableNames']
-            table_names = {}
-            
-            for table in tables:
-                if 'vehicles' in table.lower():
-                    table_names['vehicles'] = table
-                    # Extract table suffix from vehicles table name
-                    # Format: cms-{suffix}-vehicles
-                    if table.startswith('cms-') and table.endswith('-vehicles'):
-                        self.table_suffix = table[4:-9]  # Remove 'cms-' and '-vehicles'
-                elif 'trips' in table.lower():
-                    table_names['trips'] = table
-                elif 'telemetry' in table.lower():
-                    table_names['telemetry'] = table
-            
-            # If table_suffix wasn't set, try to extract from any cms table
-            if not hasattr(self, 'table_suffix'):
-                for table in tables:
-                    if table.startswith('cms-'):
-                        parts = table.split('-')
-                        if len(parts) >= 3:
-                            self.table_suffix = '-'.join(parts[1:-1])
-                            break
-            
-            return table_names
-        except Exception as e:
-            print(f"❌ Error detecting tables: {e}")
-            return {}
+        return {
+            'vehicles': f"{prefix}-vehicles",
+            'trips': f"{prefix}-trips",
+            'telemetry': f"{prefix}-telemetry",
+        }
     
     def _get_iot_endpoint(self) -> str:
         """Get IoT Core endpoint"""
@@ -212,7 +190,7 @@ class RealtimeTelemetrySimulator:
             
         try:
             # Use the known drivers table name for current deployment
-            drivers_table_name = "cms-dev-storage-drivers"
+            drivers_table_name = f"cms-{os.environ.get('DEPLOYMENT_STAGE', 'dev')}-storage-drivers"
             
             # Try default profile first for DynamoDB access
             try:
@@ -246,7 +224,7 @@ class RealtimeTelemetrySimulator:
         first, last = names[idx]
         driver_id = f"DRV-{int(_time.time())}-{vehicle_id[-4:]}"
         try:
-            table_name = "cms-dev-storage-drivers"
+            table_name = f"cms-{os.environ.get('DEPLOYMENT_STAGE', 'dev')}-storage-drivers"
             try:
                 table = boto3.resource('dynamodb', region_name=self.region).Table(table_name)
             except:
@@ -986,12 +964,12 @@ class RealtimeTelemetrySimulator:
             import boto3
             import os
             
-            # Use instance variable, environment variable, or default
+            _stage = os.environ.get('DEPLOYMENT_STAGE', 'dev')
             table_name = (self.certificates_table_name or 
                          os.environ.get('VEHICLE_CERTIFICATES_TABLE_NAME') or 
-                         'cms-631ca2-591631-vehicle-certificates')
+                         f'cms-{_stage}-storage-vehicle-certificates')
             
-            dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+            dynamodb = boto3.resource('dynamodb', region_name=self.region)
             certificates_table = dynamodb.Table(table_name)
             
             print(f"🔍 Querying certificates table: {table_name}")
@@ -1119,7 +1097,7 @@ class RealtimeTelemetrySimulator:
         """Get vehicle certificate from DynamoDB table"""
         try:
             # Force the correct certificate table name
-            table_name = "cms-dev-storage-vehicle-certificates"
+            table_name = f"cms-{os.environ.get('DEPLOYMENT_STAGE', 'dev')}-storage-vehicle-certificates"
             
             print(f"🔍 Looking up certificate for vehicleId: {vehicle_id} in table: {table_name}")
             print(f"🔍 Using profile: {self.profile_name}")
@@ -2256,7 +2234,7 @@ def main():
     
     parser = argparse.ArgumentParser(description='Real-time telemetry simulator for CMS UI')
     parser.add_argument('--profile', default='default', help='AWS profile name')
-    parser.add_argument('--region', default='us-east-1', help='AWS region')
+    parser.add_argument('--region', default=os.environ.get('AWS_REGION', 'us-east-1'), help='AWS region')
     parser.add_argument('--trips', type=int, default=3, help='Number of trips per vehicle to simulate')
     parser.add_argument('--vehicles', type=int, default=10, help='Maximum number of vehicles to simulate')
     parser.add_argument('--vehicle-config', help='JSON string with vehicle configuration')

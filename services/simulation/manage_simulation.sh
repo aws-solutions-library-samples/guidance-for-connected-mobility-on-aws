@@ -56,6 +56,21 @@ check_docker() {
     return 1
 }
 
+check_docker_network() {
+    # Verify containers can reach the internet (Colima QEMU networking breaks after sleep/wake)
+    if ! docker run --rm --network host alpine sh -c "nc -zv -w3 8.8.8.8 53 2>&1" &>/dev/null; then
+        warn "Docker container networking is broken (common after sleep/wake)"
+        echo "  Restarting Colima to fix networking..."
+        colima restart
+        colima ssh -- sudo bash -c '
+            mkdir -p /etc/systemd/resolved.conf.d
+            echo -e "[Resolve]\nDNS=8.8.8.8\nFallbackDNS=8.8.4.4" > /etc/systemd/resolved.conf.d/dns.conf
+            systemctl restart systemd-resolved 2>/dev/null || true
+        '
+        info "Colima restarted — networking restored"
+    fi
+}
+
 setup_docker_mac() {
     step "Setting up Docker via Colima"
 
@@ -226,6 +241,7 @@ cmd_start() {
 
     # Set up FWE infrastructure if Docker is available
     if check_docker; then
+        check_docker_network
         setup_vcan
 
         step "Pulling FleetWise Edge Agent image"

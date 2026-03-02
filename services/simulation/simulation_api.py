@@ -31,8 +31,8 @@ def get_available_drivers():
         # Try to get drivers from database
         try:
             # Try default profile first
-            dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
-            drivers_table = dynamodb.Table('cms-dev-storage-drivers')
+            dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+            drivers_table = dynamodb.Table(f'cms-{os.environ.get('DEPLOYMENT_STAGE', 'dev')}-storage-drivers')
             
             response = drivers_table.scan(
                 FilterExpression='#status = :status',
@@ -199,11 +199,11 @@ class SimulationManager:
             try:
                 import boto3
                 session = boto3.Session(profile_name=AWS_PROFILE or 'default')
-                lambda_client = session.client('lambda', region_name='us-east-1')
+                lambda_client = session.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
                 
                 # Get Lambda function environment variables
                 response = lambda_client.get_function_configuration(
-                    FunctionName='cms-631ca2-591631-api-lambda'
+                    FunctionName=f'cms-{os.environ.get('DEPLOYMENT_STAGE', 'dev')}-iot-IoTAPIFunction'
                 )
                 
                 vehicles_table = response['Environment']['Variables'].get('VEHICLES_TABLE_NAME', '')
@@ -303,7 +303,9 @@ class SimulationManager:
                 '-v', 'fwe-gps-sock:/tmp/fwe-gps',
                 '-w', '/app',
                 '-e', f'AWS_PROFILE={AWS_PROFILE or "default"}',
-                '-e', 'AWS_DEFAULT_REGION=us-east-1',
+                '-e', 'AWS_DEFAULT_REGION=' + os.environ.get('AWS_REGION', 'us-east-1'),
+                '-e', 'DEPLOYMENT_STAGE=' + os.environ.get('DEPLOYMENT_STAGE', 'dev'),
+                '-e', 'AWS_REGION=' + os.environ.get('AWS_REGION', 'us-east-1'),
             ]
             # Pass vcan/GPS mappings as env vars
             vcan_map = config.get('_vcan_map')
@@ -469,7 +471,7 @@ class SimulationManager:
                     sys.executable, '-c', f"""
 import boto3, json, sys
 ddb = boto3.Session().resource('dynamodb')
-t = ddb.Table('cms-dev-storage-vehicle-certificates')
+t = ddb.Table(f'cms-{os.environ.get('DEPLOYMENT_STAGE', 'dev')}-storage-vehicle-certificates')
 resp = t.get_item(Key={{'vehicleId': '{vid}'}})
 if 'Item' not in resp:
     resp = t.scan(FilterExpression='vin = :v OR thingName = :v', ExpressionAttributeValues={{':v': '{vin}'}}, Limit=1)
@@ -793,7 +795,7 @@ def discover_iot_endpoint():
         import boto3
         
         # Get region from query parameter or default to us-east-1
-        region = request.args.get('region', 'us-east-1')
+        region = request.args.get('region', os.environ.get('AWS_REGION', 'us-east-1'))
         
         # Create session with selected profile
         if AWS_PROFILE:
