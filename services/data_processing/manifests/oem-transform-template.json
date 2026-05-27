@@ -1,0 +1,158 @@
+{
+  "manifest_version": "1.0.0",
+  "transform_type": "cloud_to_cloud",
+  "source_name": "CUSTOMER_OEM_NAME",
+  "source_format": "json",
+  "description": "Template for OEM cloud-to-cloud telemetry normalization",
+
+  "connection": {
+    "type": "rest_polling",
+    "polling_interval_seconds": 300
+  },
+
+  "authentication": {
+    "type": "oauth2",
+    "credentials_secret_arn": "arn:aws:secretsmanager:REGION:ACCOUNT:secret:oem-api-credentials",
+    "token_endpoint": "https://api.oem.com/oauth/token"
+  },
+
+  "vehicle_id_extraction": {
+    "strategy": "json_path",
+    "path": "vehicleId",
+    "transform": null
+  },
+
+  "timestamp_field": "timestamp",
+  "timestamp_format": "iso8601",
+
+  "signal_mappings": [
+    {
+      "source_signal": "SPEED",
+      "cms_field": "speed",
+      "source_path": "vehicle_data.speed_kmh",
+      "data_type": "float",
+      "unit_conversion": "kph_to_mph",
+      "required": true
+    },
+    {
+      "source_signal": "ENGINE_RPM",
+      "cms_field": "engineRPM",
+      "source_path": "vehicle_data.engine_rpm",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "ENGINE_TEMP",
+      "cms_field": "engineTemp",
+      "source_path": "vehicle_data.coolant_temp_celsius",
+      "data_type": "float",
+      "unit_conversion": "C_to_F"
+    },
+    {
+      "source_signal": "ODOMETER",
+      "cms_field": "odometer",
+      "source_path": "vehicle_data.odometer_km",
+      "data_type": "float",
+      "unit_conversion": "km_to_miles"
+    },
+    {
+      "source_signal": "FUEL_LEVEL",
+      "cms_field": "fuelLevel",
+      "source_path": "vehicle_data.fuel_level_percent",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "BATTERY_VOLTAGE",
+      "cms_field": "batteryVoltage",
+      "source_path": "vehicle_data.battery_voltage",
+      "data_type": "float",
+      "default_value": 12.0
+    },
+    {
+      "source_signal": "IGNITION",
+      "cms_field": "ignitionOn",
+      "source_path": "vehicle_data.ignition_status",
+      "data_type": "boolean",
+      "value_map": { "ON": true, "OFF": false, "ACCESSORY": false }
+    },
+    {
+      "source_signal": "GEAR",
+      "cms_field": "gearPosition",
+      "source_path": "vehicle_data.gear",
+      "data_type": "integer",
+      "value_map": { "P": 0, "R": 1, "N": 2, "D": 3 }
+    },
+    {
+      "source_signal": "HEADING",
+      "cms_field": "heading",
+      "source_path": "vehicle_data.heading_degrees",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "LATITUDE",
+      "cms_field": "lat",
+      "source_path": "gps.coordinates.latitude",
+      "data_type": "float",
+      "required": true
+    },
+    {
+      "source_signal": "LONGITUDE",
+      "cms_field": "lng",
+      "source_path": "gps.coordinates.longitude",
+      "data_type": "float",
+      "required": true
+    },
+    {
+      "source_signal": "OIL_PRESSURE",
+      "cms_field": "oilPressure",
+      "source_path": "vehicle_data.oil_pressure_psi",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "THROTTLE",
+      "cms_field": "throttle",
+      "source_path": "vehicle_data.throttle_percent",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "TIRE_FL",
+      "cms_field": "tire_fl",
+      "source_path": "tires.front_left.pressure_psi",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "TIRE_FR",
+      "cms_field": "tire_fr",
+      "source_path": "tires.front_right.pressure_psi",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "TIRE_RL",
+      "cms_field": "tire_rl",
+      "source_path": "tires.rear_left.pressure_psi",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "TIRE_RR",
+      "cms_field": "tire_rr",
+      "source_path": "tires.rear_right.pressure_psi",
+      "data_type": "float"
+    }
+  ],
+
+  "validation": {
+    "required_fields": ["speed", "lat", "lng"],
+    "range_checks": [
+      { "field": "speed", "min": 0, "max": 200 },
+      { "field": "lat", "min": -90, "max": 90 },
+      { "field": "lng", "min": -180, "max": 180 },
+      { "field": "engineRPM", "min": 0, "max": 8000 }
+    ]
+  },
+
+  "metadata": {
+    "created_by": "oem-integration-wizard",
+    "created_at": "2026-03-23T00:00:00Z",
+    "version": "1.0.0",
+    "description": "Template — replace source_name, paths, and conversions for your OEM"
+  }
+}

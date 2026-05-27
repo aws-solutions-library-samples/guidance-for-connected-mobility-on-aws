@@ -1,0 +1,72 @@
+# Patterns to strip from the staging tree before publishing to the public
+# GitHub mirror at aws-solutions-library-samples/guidance-for-connected-mobility-on-aws.
+#
+# Format: gitignore-syntax. Comments start with `#`. Trailing slash = directory.
+# scripts/publish-to-github.sh applies these via find -path during the
+# `strip` step (see scripts/publish-to-github.sh).
+
+# Internal-only directories
+.kiro/
+issues/
+.publish-history/
+
+# Internal CI / build artifacts
+.gitlab-ci.yml
+.gitlab/
+# .github/workflows/ — granular: strip the internal CI workflows but keep
+# the public CodeQL config (which IS meant to ship to public GitHub).
+.github/workflows/deploy.yml
+.github/workflows/evals.yml
+
+# Per-developer state
+.venv/
+node_modules/
+.yarn/
+deployment/cdk.out/
+deployment/cdk.context.json
+.bedrock_agentcore.yaml
+.bedrock_agentcore/
+
+# Eval baselines (contain staging endpoint URLs)
+evals/baselines/
+
+# iOS companion (internal product, not part of the guidance)
+clients/ios/
+
+# Internal docs
+docs/SECURITY-AUDIT-FINDINGS.md
+docs/RUNBOOK_clean_region_deploy.md
+docs/autonomous-session-status.md
+docs/PUBLISHING.md
+docs/mahindra-*.md
+docs/*-mahindra-*.md
+docs/engineer-persona-data-model.md
+docs/engineer-persona-demo-guide.md
+docs/manual-infra-*.md
+
+# Customer-tenant scripts (rebuild from template per customer)
+deployment/scripts/seed_driver_users.py
+deployment/scripts/seed_engineering_fleets.py
+deployment/scripts/backups
+deployment/scripts/bedrock_agents_snapshot
+
+# Per-developer / per-account config
+deployment/config/staging.env
+deployment/config/prod.env
+modules/cms_ui/.env-setup
+modules/cms_ui/source/.env
+
+# Internal quickstart docs
+modules/campaign_manager/QUICKSTART.md
+
+# Generated/per-developer simulation config (contains dev paths)
+services/simulation/fwe_config/static-config.json
+services/simulation/can_env
+services/simulation/sim_env
+
+# OS / editor cruft
+.DS_Store
+*.swp
+*.bak
+.vscode/
+.idea/

@@ -1,0 +1,517 @@
+# Guidance for Connected Mobility on AWS
+
+A comprehensive reference accelerator with CDK modules to help customers build fleet management, telematics, and connected vehicle applications on AWS using modern streaming analytics and IoT platforms.
+
+## Table of Contents
+
+1. [Overview](#overview)
+    - [Cost](#cost)
+2. [Prerequisites](#prerequisites)
+    - [Operating System](#operating-system)
+3. [Deployment Steps](#deployment-steps)
+4. [Deployment Validation](#deployment-validation)
+5. [Running the Guidance](#running-the-guidance)
+6. [Next Steps](#next-steps)
+7. [Cleanup](#cleanup)
+8. [FAQ, known issues, additional considerations, and limitations](#faq-known-issues-additional-considerations-and-limitations)
+9. [Notices](#notices)
+10. [Authors](#authors)
+
+## Overview
+
+This Guidance provides a modern, scalable telemetry architecture designed to handle high-volume, real-time data streams from connected vehicle fleets. It addresses the challenge of building enterprise-grade connected mobility platforms by providing pre-built, production-ready components that follow AWS Well-Architected principles.
+
+**Why did we build this Guidance?**
+Connected mobility applications require complex integration of IoT devices, real-time analytics, fleet management, and safety compliance systems. This Guidance accelerates development by providing tested, scalable components that customers can customize for their specific requirements.
+
+**What problem does this Guidance solve?**
+- Eliminates months of development time for core connected mobility infrastructure
+- Provides secure, scalable telemetry ingestion and processing
+- Implements industry best practices for fleet management and safety compliance
+- Offers realistic simulation capabilities for testing without physical vehicle fleets
+
+### Telemetry Source Modes
+
+The solution supports two telemetry ingestion modes that can operate independently or side-by-side:
+
+| Mode | Description | Data Path |
+|------|-------------|-----------|
+| **MQTT Direct** | Simulator publishes JSON telemetry directly to IoT Core via MQTT | IoT Core → MSK `cms-telemetry` → Flink processors → DynamoDB |
+| **FleetWise Edge (FWE)** | [AWS IoT FleetWise Edge Agent](https://github.com/aws/aws-iot-fleetwise-edge) (v1.3.2) collects CAN bus signals based on campaign collection schemes, encodes as protobuf, and uploads to the cloud | FWE Agent → IoT Core → MSK `fw-telemetry-raw` → FWTelemetryProcessor (protobuf decode + signal mapping) → MSK `cms-telemetry-preprocessed` → Flink processors → DynamoDB |
+
+### Dynamic Data Collection with FleetWise Edge
+
+In FWE mode, data collection is fully dynamic and campaign-driven — no code changes are needed to adjust what signals are collected, how often, or under what conditions:
+
+**Signal Catalog & Decoder Manifest**: The system maintains a signal catalog of 262 VSS-aligned signals (engine, ADAS, body, cabin, chassis, EV/charging, environment, fleet management, GPS, and more). Each signal maps to a CAN message/signal definition in the DBC file (`services/simulation/can/cms-fleet.dbc`). The decoder manifest (`cms-fleet-v3`) tells the FWE agent how to decode raw CAN frames into named signals.
+
+**Campaign-Driven Collection**: Campaigns define what to collect and when. A time-based campaign (e.g., `cms-fleet-telemetry-30s`) collects all signals every 30 seconds. Condition-based campaigns (e.g., `cms-safety-harsh-braking`) trigger collection only when specific signal thresholds are met (e.g., `signal(40) > 0.3`). Campaigns can target individual vehicles or the entire fleet.
+
+**CampaignSyncProcessor**: A Flink application that listens for FWE agent checkins on the `fw-checkin` Kafka topic. On each checkin, it queries DynamoDB for active campaigns assigned to the vehicle, builds CollectionSchemes protobuf dynamically, and publishes the decoder manifest + collection schemes to the agent via IoT Core MQTT. This means campaigns can be created, modified, or suspended in real-time without restarting the agent.
+
+**Connection Lifecycle**: The CampaignSyncProcessor also manages vehicle connection status in Redis. On checkin, it sets `connectionStatus: "connected"`. A periodic staleness check (configurable via `FWE_DISCONNECT_TIMEOUT_MS`, default 2 minutes) marks vehicles as `"disconnected"` if no checkin is received.
+
+**Architecture (FWE mode)**:
+1. Simulator generates telemetry → encodes as CAN frames via DBC → writes to `vcanN`
+2. FWE agent reads CAN frames from `vcanN`, decodes using decoder manifest, filters per campaign rules
+3. FWE agent uploads collected signals as protobuf to IoT Core → MSK `fw-telemetry-raw`
+4. FWTelemetryProcessor decodes protobuf, maps signal IDs to names via signal catalog → MSK `cms-telemetry-preprocessed`
+5. Standard Flink pipeline (trips, safety, maintenance, telemetry) processes the data → DynamoDB + Redis
+
+**Multi-Vehicle Simulation**: Each vehicle gets its own isolated virtual CAN bus (`vcan0`, `vcan1`, etc.) with a dedicated FWE agent task and simulator task. The Lambda automatically allocates the next available vcan interface when starting a new vehicle simulation.
+
+**Remote Commands** (in progress): FWE v1.3.2 supports native remote commands via the `commandsTopicPrefix` configuration. Commands are delivered as protobuf `CommandRequest` messages to `cms/commands/things/{VIN}/executions/{id}/request/protobuf`. Full CAN actuator dispatch via the Network Agnostic Data Collection (NADC) approach is planned.
+
+![Architecture Diagram](/documentation/architecture-overview.png)
+
+### Architecture Flow
+
+1. **Vehicle Connectivity**: Vehicles connect securely to AWS IoT Core using X.509 certificates and MQTT protocol. In FleetWise Edge mode, the FWE agent handles connectivity, authentication, and campaign-driven signal collection.
+2. **Data Ingestion**: Telemetry data flows through Amazon MSK (Kafka) for high-throughput processing. MQTT Direct telemetry lands on `cms-telemetry`; FleetWise protobuf telemetry lands on `fw-telemetry-raw` and is decoded by the FWTelemetryProcessor before joining the standard pipeline.
+3. **Campaign Management**: In FWE mode, the CampaignSyncProcessor monitors agent checkins, resolves active campaigns from DynamoDB, and pushes decoder manifests and collection schemes to the edge agent via IoT Core MQTT.
+4. **Real-time Processing**: Apache Flink on Amazon Kinesis Data Analytics processes streams to generate trips, safety events, and maintenance alerts
+4. **Data Storage**: Processed data is stored in DynamoDB with automatic scaling and backup
+5. **Real-time State Management**: Amazon ElastiCache for Redis implements the Last Known State (LKS) pattern — the Flink telemetry processor writes every signal value to Redis hashes on each message, providing sub-millisecond vehicle state lookups. Redis geospatial indexing (GEOADD/GEOSEARCH) powers the map view, and Redis streams provide capped time-series for sparkline charts. Vehicle state expires automatically when telemetry stops.
+6. **Location Services**: Amazon Location Service provides maps, geocoding, and route calculation for vehicle tracking and trip planning
+7. **Fleet Management**: Web application provides comprehensive fleet management, driver tracking, and analytics dashboards with real-time map visualization
+8. **Simulation**: Integrated fleet simulator generates realistic telemetry for testing and development. Supports both MQTT Direct mode (JSON over MQTT) and FleetWise Edge mode (CAN signal generation → FWE agent → protobuf upload). In FWE mode, separate ECS tasks run the FWE agent (long-lived) and simulator (per-trip) with isolated virtual CAN buses per vehicle, enabling multi-vehicle parallel simulation.
+
+### Cost
+
+_You are responsible for the cost of the AWS services used while running this Guidance. As of October 2024, the cost for running this Guidance with the default settings in the US East (N. Virginia) region is approximately $410.00 per month for processing 1,000 vehicles with moderate usage._
+
+_We recommend creating a [Budget](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html) through [AWS Cost Explorer](https://aws.amazon.com/aws-cost-management/aws-cost-explorer/) to help manage costs. Prices are subject to change. For full details, refer to the pricing webpage for each AWS service used in this Guidance._
+
+### Sample Cost Table
+
+The following table provides a sample cost breakdown for deploying this Guidance with the default parameters in the US East (N. Virginia) Region for one month.
+
+| AWS service | Dimensions | Cost [USD] |
+| ----------- | ------------ | ------------ |
+| Amazon MSK | 3 kafka.m5.large brokers, 100 GB storage each | $194.40 |
+| Amazon Kinesis Data Analytics | 1 KPU running 24/7 | $108.00 |
+| Amazon DynamoDB | 10 GB storage, 1M read/write requests | $3.50 |
+| Amazon ElastiCache for Redis | cache.t3.micro node | $12.41 |
+| Amazon Location Service | 100K map tile requests, 10K geocoding requests | $8.00 |
+| AWS IoT Core | 1M messages per month | $5.00 |
+| Amazon API Gateway | 1M REST API calls per month | $3.50 |
+| Amazon Cognito | 1,000 active users per month | $0.00 |
+| Amazon CloudFront | 100 GB data transfer | $8.50 |
+| AWS Lambda | 10M invocations, 512MB memory | $20.00 |
+| Amazon S3 | 50 GB storage, 1M requests | $1.50 |
+| Amazon VPC | NAT Gateway, data transfer | $45.60 |
+| **Total** | | **~$410.00** |
+
+## Prerequisites
+
+### Operating System
+
+These deployment instructions are optimized to best work on **Amazon Linux 2023 AMI**. Deployment on another OS may require additional steps.
+
+**Required packages:**
+- Node.js 18.x or later
+- Python 3.9 or later
+- AWS CLI v2
+- AWS CDK v2.100.0 or later
+
+**Installation commands for Amazon Linux 2023:**
+```bash
+# Install Node.js
+sudo dnf install -y nodejs npm
+
+# Install Python and pip
+sudo dnf install -y python3 python3-pip
+
+# Install AWS CLI v2
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+
+# Install AWS CDK
+npm install -g aws-cdk
+```
+
+### Third-party tools
+- **Git** - For cloning the repository
+- **Make** - For running deployment scripts (optional)
+
+### AWS account requirements
+- **AWS Account** with appropriate permissions for creating IAM roles, VPCs, and AWS services
+- **AWS CLI configured** with credentials that have administrative permissions
+- **Sufficient service quotas** for the services used (see Service limits section)
+
+### AWS CDK
+
+This Guidance uses AWS CDK. If you are using AWS CDK for the first time, please perform the following bootstrapping:
+
+```bash
+cdk bootstrap aws://ACCOUNT-NUMBER/REGION
+```
+
+Replace `ACCOUNT-NUMBER` with your AWS account ID and `REGION` with your preferred deployment region.
+
+### Service limits
+
+This Guidance may require increases to the following service limits:
+- **Amazon MSK**: Default limit of 3 clusters per region
+- **Amazon Kinesis Data Analytics**: Default limit of 8 applications per region
+- **AWS IoT Core**: Default limit of 500,000 things per region
+
+To request limit increases, visit the [AWS Service Quotas console](https://console.aws.amazon.com/servicequotas/).
+
+### Supported Regions
+
+This Guidance supports deployment in the following AWS Regions:
+- US East (N. Virginia) - us-east-1
+- US West (Oregon) - us-west-2
+- Europe (Ireland) - eu-west-1
+- Asia Pacific (Tokyo) - ap-northeast-1
+
+## Deployment Steps
+
+> **Modern deployment:** Use `make -C deployment staging-deploy` or `make -C deployment prod-deploy` for environment-aware deployments with built-in safety checks. The legacy phased deploy targets (`phase1`, `phase2`, etc.) remain available for advanced use cases and direct control.
+
+### Option 1: Interactive Deployment with Makefile (Recommended)
+
+The interactive deployment guides you through profile selection, environment configuration, and phased deployment.
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/aws-solutions-library-samples/guidance-for-connected-mobility-on-aws.git
+   cd guidance-for-connected-mobility-on-aws/deployment
+   ```
+
+2. Install dependencies:
+   ```bash
+   make install
+   ```
+
+3. Start interactive deployment:
+   ```bash
+   make deploy
+   ```
+
+4. Follow the prompts to:
+   - Select your AWS profile
+   - Choose deployment stage (dev, prod, or custom)
+   - Select deployment phase or deploy all phases
+
+Note: We recommend deploying one phase at a time to ensure no issues in the deployment
+
+5. When the deployment is complete, all necessary data will be available on the screen, URL, username/password.
+
+![Architecture Diagram](/documentation/deployment_options1.png)
+
+### Option 2: Automated Deployment with Makefile
+
+The Makefile automates environment setup, dependency installation, and phased deployment.
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/aws-solutions-library-samples/guidance-for-connected-mobility-on-aws.git
+   cd guidance-for-connected-mobility-on-aws/deployment
+   ```
+
+2. Install dependencies:
+   ```bash
+   make install
+   ```
+
+3. View available deployment options:
+   ```bash
+   make help
+   ```
+
+4. Deploy all phases sequentially:
+   ```bash
+   make deploy-all
+   ```
+
+   Or deploy individual phases:
+   ```bash
+   make infrastructure  # Phase 0: VPC, Subnets, ElastiCache
+   make phase1          # Phase 1: IoT, Storage, UI, Lambda, Cognito
+   make phase2          # Phase 2: Historical data injection
+   make phase3          # Phase 3: MSK Deployment
+   make phase3b         # Phase 4: MSK Configuration + IoT Integration
+   make phase4          # Phase 5: Flink Stream Processing
+   ```
+
+5. **Seed demo data with one command:**
+   ```bash
+   make bootstrap-demo AWS_PROFILE=default AWS_REGION=us-east-1 DEPLOYMENT_STAGE=prod
+   ```
+   This runs preflight checks, seeds all catalogs, generates 2 years of
+   realistic fleet telemetry, and verifies the result. ETA 60-90 min with
+   real Location Services routes, 5-10 min with synthetic routes
+   (`USE_LOCATION_SERVICES=false`). See
+   [docs/DEMO_DATA_SEEDING.md](./docs/DEMO_DATA_SEEDING.md) for details
+   and tuning options.
+
+6. Capture the CloudFront distribution URL:
+   ```bash
+   aws cloudformation describe-stacks --stack-name cms-dev-ui --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontURL`].OutputValue' --output text
+   ```
+
+### Option 3: Manual CDK Deployment
+
+For more control over individual stack deployments:
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/aws-solutions-library-samples/guidance-for-connected-mobility-on-aws.git
+   cd guidance-for-connected-mobility-on-aws
+   ```
+
+2. Create and activate a Python virtual environment:
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   ```
+
+3. Install Python dependencies:
+   ```bash
+   pip install -r deployment/requirements.txt
+   ```
+
+4. Install Node.js dependencies:
+   ```bash
+   cd modules/cms_ui/source/frontend
+   npm install
+   cd ../../../../
+   ```
+
+5. Configure deployment parameters by editing `deployment/config.json`:
+   ```json
+   {
+     "stackPrefix": "cms-dev",
+     "region": "us-east-1",
+     "enableMSK": true,
+     "enableSimulation": true
+   }
+   ```
+
+6. Deploy stacks in order:
+   ```bash
+   cd deployment
+   cdk deploy cms-dev-infrastructure --require-approval never
+   cdk deploy cms-dev-storage --require-approval never
+   cdk deploy cms-dev-msk --require-approval never
+   cdk deploy cms-dev-iot --require-approval never
+   cdk deploy cms-dev-telemetry-integration --require-approval never
+   cdk deploy cms-dev-flink --require-approval never
+   cdk deploy cms-dev-ui --require-approval never
+   ```
+
+7. Capture the CloudFront distribution URL:
+   ```bash
+   aws cloudformation describe-stacks --stack-name cms-dev-ui --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontURL`].OutputValue' --output text
+   ```
+
+## Deployment Validation
+
+1. **Verify CloudFormation stacks**: Open the AWS CloudFormation console and verify that all stacks with names starting with `cms-{deployment-stage}` show `CREATE_COMPLETE` status.
+
+2. **Check DynamoDB tables**: In the DynamoDB console, verify that the following tables are created:
+   - `cms-{deployment-stage}-storage-vehicles`
+   - `cms-{deployment-stage}-storage-drivers`
+   - `cms-{deployment-stage}-storage-trips`
+   - `cms-{deployment-stage}-storage-safety-events`
+   - `cms-{deployment-stage}-storage-maintenance-alerts`
+
+3. **Validate ElastiCache for Redis**: Verify the Redis cluster is running:
+   ```bash
+   aws elasticache describe-cache-clusters --cache-cluster-id cms-dev-redis --show-cache-node-info
+   ```
+
+4. **Verify Amazon Location Service resources**: Check that map and place index are created:
+   ```bash
+   aws location list-maps
+   aws location list-place-indexes
+   ```
+
+5. **Validate MSK cluster**: Run the following command to check MSK cluster status:
+   ```bash
+   aws kafka describe-cluster --cluster-arn $(aws kafka list-clusters --query 'ClusterInfoList[0].ClusterArn' --output text)
+   ```
+
+6. **Test API Gateway**: Verify the API is accessible:
+   ```bash
+   curl -X GET $(aws cloudformation describe-stacks --stack-name cms-dev-ui --query 'Stacks[0].Outputs[?OutputKey==`ApiEndpoint`].OutputValue' --output text)/api/v1/health
+   ```
+
+## Running the Guidance
+
+### Accessing the Web Application
+
+1. **Get the CloudFront URL** from the deployment output or run:
+   ```bash
+   aws cloudformation describe-stacks --stack-name cms-dev-ui --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontURL`].OutputValue' --output text
+   ```
+
+Or: 
+
+see the outputs: 
+
+![img](/documentation/deployment_outputs1.png)
+
+2. **Open the URL** in your web browser to access the Connected Mobility dashboard.
+
+3. **Default login credentials** (if authentication is enabled):
+   - Username: `FleetManager@example.com`
+   - Password: Configured via `CMS_DEMO_DEFAULT_PASSWORD` env var or `.env.local` (gitignored). See `docs/DEPLOYMENT.md`.
+
+![img](/documentation/login1.png)
+
+### Running the Fleet Simulator
+
+The solution includes two simulator deployment modes:
+
+#### Cloud Simulator (Recommended)
+
+The cloud simulator runs on ECS Fargate/EC2 and is managed entirely through the UI. No local setup required.
+
+1. **Deploy the simulation stack** (included in `make deploy` or manually):
+   ```bash
+   cd deployment
+   DEPLOYMENT_STAGE=prod DEPLOY_SIMULATION=true cdk deploy cms-prod-simulation --require-approval never
+   ```
+
+2. **Start simulations from the UI**:
+   - Navigate to the **Fleet Simulation** panel to start multi-vehicle simulations
+   - Or use the **Trip Simulator** on a vehicle's detail page for single-vehicle trips
+   - In MQTT Direct mode, the simulator runs as a Fargate task publishing JSON telemetry
+   - In FWE mode, two separate ECS tasks are launched per vehicle: an FWE agent (long-lived) and a simulator (per-trip) on isolated virtual CAN buses
+
+3. **Monitor in real-time**: The simulation panel shows merged `[SIM]` and `[FWE]` logs. The vehicle detail page has separate Sim Logs and FWE Logs tabs.
+
+#### Local Simulator
+
+The local simulator runs on your development machine using Docker for the FWE agent and a Python process for telemetry generation. Useful for development and debugging.
+
+1. **Start the simulator service**:
+   ```bash
+   cd services/simulation
+   ./manage_simulation.sh start
+   ```
+
+2. **Access the local API** at `http://localhost:5001` — the UI auto-detects local vs cloud mode.
+
+3. **For FWE mode locally**, Docker is required. The simulator uses the official FWE image (`public.ecr.aws/aws-iot-fleetwise-edge/aws-iot-fleetwise-edge:v1.3.2`) and creates virtual CAN interfaces on the host.
+
+4. **Create a vehicle and run the simulator** from the UI to generate data.
+
+### Expected Output
+
+- **Fleet Dashboard**: Real-time metrics showing active vehicles, total trips, and safety events
+- **Vehicle Management**: List of registered vehicles with status and location information
+- **Driver Management**: Driver profiles with trip history and safety scores
+- **Trip Analytics**: Detailed trip information with routes, duration, and performance metrics
+- **Safety Events**: Real-time safety alerts and incident tracking
+
+## Next Steps
+
+### Customization Options
+
+1. **Add Custom Telemetry Fields**: Modify the Flink processors in `modules/flink/` to process additional vehicle data points.
+
+2. **Integrate External APIs**: Extend the Lambda functions to integrate with third-party fleet management or mapping services.
+
+3. **Custom Safety Rules**: Implement custom safety event detection logic in the Flink applications.
+
+4. **Multi-Region Deployment**: Deploy the solution across multiple AWS regions for global fleet management.
+
+5. **Advanced Analytics**: Integrate with Amazon SageMaker for predictive maintenance and driver behavior analysis.
+
+### Production Considerations
+
+- **Security**: Implement proper IAM roles and policies for production use
+- **Monitoring**: Set up CloudWatch alarms and dashboards for operational monitoring
+- **Backup**: Configure automated backups for DynamoDB tables
+- **Scaling**: Adjust MSK cluster size and Flink parallelism based on fleet size
+
+## Cleanup
+
+**Warning**: This will permanently delete all resources and data created by this Guidance.
+
+1. **Delete CDK stacks** in reverse order:
+   ```bash
+   cd deployment
+   cdk destroy cms-dev-ui --force
+   cdk destroy cms-dev-flink --force
+   cdk destroy cms-dev-telemetry-integration --force
+   cdk destroy cms-dev-iot --force
+   cdk destroy cms-dev-msk --force
+   cdk destroy cms-dev-storage --force
+   cdk destroy cms-dev-infrastructure --force
+   ```
+
+2. **Empty S3 buckets** (if any were created with content):
+   ```bash
+   aws s3 rm s3://cms-dev-ui-bucket --recursive
+   ```
+
+3. **Delete CloudWatch log groups**:
+   ```bash
+   aws logs describe-log-groups --log-group-name-prefix "/aws/lambda/cms-dev" --query 'logGroups[].logGroupName' --output text | xargs -I {} aws logs delete-log-group --log-group-name {}
+   ```
+
+## FAQ, known issues, additional considerations, and limitations
+
+### Known Issues
+
+1. **MSK Cluster Creation Time**: MSK cluster creation can take 15-20 minutes. This is normal AWS behavior.
+
+2. **Flink Application Startup**: Flink applications may take 5-10 minutes to start processing data after deployment.
+
+3. **Certificate Provisioning**: IoT device certificates are created automatically but may take a few minutes to become active.
+
+### Additional Considerations
+
+- **Data Retention**: DynamoDB tables use on-demand billing. Consider implementing TTL for cost optimization in production.
+- **Security**: This Guidance creates public API endpoints for demonstration purposes. Implement proper authentication for production use.
+- **Scaling**: The default configuration supports up to 1,000 vehicles. For larger fleets, adjust MSK cluster size and Flink parallelism.
+
+### Limitations
+
+- **Real-time Processing**: Current implementation processes data with 1-2 second latency. Sub-second processing requires additional optimization.
+- **Geographic Scope**: Map services are optimized for North American and European regions.
+- **Device Types**: Currently optimized for passenger vehicles. Commercial vehicle support requires additional configuration.
+
+For any feedback, questions, or suggestions, please use the [issues tab](https://github.com/aws-solutions-library-samples/guidance-for-connected-mobility-on-aws/issues) under this repository.
+
+## Deployment & Operations
+
+CMS deploys to a single AWS account with two-region environment isolation:
+
+| Environment | Region | Default behavior |
+|-------------|--------|------------------|
+| **staging** | us-west-2 | Auto-deployed on every push to `main` (with GitHub environment approval) |
+| **prod** | us-east-1 | Manual `workflow_dispatch` only, with stricter approval gate |
+
+### Quick Start (Laptop)
+
+```bash
+# Pre-flight checks (read-only, ~30s)
+bash deployment/scripts/preflight-staging.sh
+
+# Deploy to staging (~45 min, real AWS resources)
+export CMS_DEMO_DEFAULT_PASSWORD='your-staging-demo-password'
+make -C deployment staging-deploy
+
+# Tear down staging when done
+make -C deployment tear-down-staging
+```
+
+**Note on deploy commands:** `make -C deployment staging-deploy` is the modern wrapper that sources environment-specific config and adds safety checks. The legacy `make deploy-all` path is preserved for direct phased deploys and remains fully functional for advanced use cases.
+
+See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for the complete operations runbook including CI/CD setup, troubleshooting, baseline regeneration, and tear-down procedures.
+
+## Notices
+
+*Customers are responsible for making their own independent assessment of the information in this Guidance. This Guidance: (a) is for informational purposes only, (b) represents AWS current product offerings and practices, which are subject to change without notice, and (c) does not create any commitments or assurances from AWS and its affiliates, suppliers or licensors. AWS products or services are provided "as is" without warranties, representations, or conditions of any kind, whether express or implied. AWS responsibilities and liabilities to its customers are controlled by AWS agreements, and this Guidance is not part of, nor does it modify, any agreement between AWS and its customers.*
+
+## Authors
+
+- AWS Solutions Architecture Team
+- AWS Connected Mobility Specialists

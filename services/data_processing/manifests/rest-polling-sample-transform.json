@@ -1,0 +1,176 @@
+{
+  "manifest_version": "2.0.0",
+  "transform_type": "cloud_to_cloud",
+  "source_name": "rest-polling-sample",
+  "source_format": "json",
+  "description": "Sample manifest for a REST polling OEM that returns vehicle state as a single JSON response per API call. Typical of fleet telematics platforms (Geotab GetFeed, Samsara stats/feed, etc.).",
+
+  "connection": {
+    "type": "rest_polling",
+    "polling_interval_seconds": 30
+  },
+
+  "authentication": {
+    "type": "oauth2",
+    "credentials_secret_arn": "arn:aws:secretsmanager:REGION:ACCOUNT:secret:cms-dev-connector-rest-sample",
+    "token_endpoint": "https://api.example.com/oauth/token"
+  },
+
+  "vehicle_id_extraction": {
+    "strategy": "json_path",
+    "path": "vehicle.id",
+    "transform": null
+  },
+
+  "timestamp_field": "vehicle.lastUpdated",
+  "timestamp_format": "iso8601",
+
+  "signal_mappings": [
+    {
+      "source_signal": "SPEED",
+      "cms_field": "speed",
+      "source_path": "vehicle.telemetry.speed",
+      "data_type": "float",
+      "unit_conversion": "kph_to_mph",
+      "required": true
+    },
+    {
+      "source_signal": "ENGINE_RPM",
+      "cms_field": "engineRPM",
+      "source_path": "vehicle.telemetry.engineRpm",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "ENGINE_COOLANT_TEMP",
+      "cms_field": "engineTemp",
+      "source_path": "vehicle.telemetry.coolantTempCelsius",
+      "data_type": "float",
+      "unit_conversion": "C_to_F"
+    },
+    {
+      "source_signal": "ODOMETER",
+      "cms_field": "odometer",
+      "source_path": "vehicle.telemetry.odometerKm",
+      "data_type": "float",
+      "unit_conversion": "km_to_miles"
+    },
+    {
+      "source_signal": "FUEL_LEVEL",
+      "cms_field": "fuelLevel",
+      "source_path": "vehicle.telemetry.fuelLevelPercent",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "BATTERY_VOLTAGE",
+      "cms_field": "batteryVoltage",
+      "source_path": "vehicle.telemetry.batteryVoltage",
+      "data_type": "float",
+      "default_value": 12.0
+    },
+    {
+      "source_signal": "IGNITION",
+      "cms_field": "ignitionOn",
+      "source_path": "vehicle.telemetry.ignitionStatus",
+      "data_type": "boolean",
+      "value_map": { "On": true, "Off": false, "Accessory": false, "Unknown": false }
+    },
+    {
+      "source_signal": "GEAR",
+      "cms_field": "gearPosition",
+      "source_path": "vehicle.telemetry.gearPosition",
+      "data_type": "integer",
+      "value_map": { "Park": 0, "Reverse": 1, "Neutral": 2, "Drive": 3 }
+    },
+    {
+      "source_signal": "LATITUDE",
+      "cms_field": "lat",
+      "source_path": "vehicle.location.latitude",
+      "data_type": "float",
+      "required": true
+    },
+    {
+      "source_signal": "LONGITUDE",
+      "cms_field": "lng",
+      "source_path": "vehicle.location.longitude",
+      "data_type": "float",
+      "required": true
+    },
+    {
+      "source_signal": "HEADING",
+      "cms_field": "heading",
+      "source_path": "vehicle.location.headingDegrees",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "THROTTLE",
+      "cms_field": "throttle",
+      "source_path": "vehicle.telemetry.acceleratorPedalPercent",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "OIL_LIFE",
+      "cms_field": "oil_life",
+      "source_path": "vehicle.maintenance.oilLifePercent",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "TIRE_FL",
+      "cms_field": "tire_fl",
+      "source_path": "vehicle.tires.frontLeft.pressureKpa",
+      "data_type": "float",
+      "unit_conversion": "kpa_to_psi"
+    },
+    {
+      "source_signal": "TIRE_FR",
+      "cms_field": "tire_fr",
+      "source_path": "vehicle.tires.frontRight.pressureKpa",
+      "data_type": "float",
+      "unit_conversion": "kpa_to_psi"
+    },
+    {
+      "source_signal": "TIRE_RL",
+      "cms_field": "tire_rl",
+      "source_path": "vehicle.tires.rearLeft.pressureKpa",
+      "data_type": "float",
+      "unit_conversion": "kpa_to_psi"
+    },
+    {
+      "source_signal": "TIRE_RR",
+      "cms_field": "tire_rr",
+      "source_path": "vehicle.tires.rearRight.pressureKpa",
+      "data_type": "float",
+      "unit_conversion": "kpa_to_psi"
+    },
+    {
+      "source_signal": "SEATBELT",
+      "cms_field": "seatbeltStatus",
+      "source_path": "vehicle.safety.driverSeatbelt",
+      "data_type": "boolean",
+      "value_map": { "Buckled": true, "Unbuckled": false, "Unknown": false }
+    },
+    {
+      "source_signal": "SOC",
+      "cms_field": "soc",
+      "source_path": "vehicle.ev.stateOfChargePercent",
+      "data_type": "float"
+    }
+  ],
+
+  "validation": {
+    "required_fields": ["speed", "lat", "lng"],
+    "range_checks": [
+      { "field": "speed", "min": 0, "max": 200 },
+      { "field": "lat", "min": -90, "max": 90 },
+      { "field": "lng", "min": -180, "max": 180 },
+      { "field": "engineRPM", "min": 0, "max": 8000 },
+      { "field": "fuelLevel", "min": -6, "max": 106 }
+    ]
+  },
+
+  "metadata": {
+    "created_by": "sample",
+    "created_at": "2026-03-24T00:00:00Z",
+    "version": "1.0.0",
+    "description": "Sample REST polling manifest. Multi-signal response — one API call returns full vehicle state. All cms_field values match json_field in signal catalog."
+  }
+}

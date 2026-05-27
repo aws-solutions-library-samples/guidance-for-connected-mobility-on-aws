@@ -1,0 +1,5 @@
+# Fixture defaults for {placeholder} substitution in case YAML.
+# Override per case if needed.
+fleet_id: demo-fleet-001
+vehicle_id: VEH-0025
+driver_id: drv-samantha-carter

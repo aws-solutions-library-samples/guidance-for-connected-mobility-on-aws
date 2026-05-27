@@ -1,0 +1,18 @@
+id: vehicles-list-unauthenticated-401
+description: >
+  GET /api/v1/vehicles without a JWT must return 401. Validates that the API Gateway
+  Cognito authorizer rejects requests with no Authorization header.
+tier: 3
+persona: anonymous
+input:
+  type: rest
+  method: GET
+  path: /api/v1/vehicles
+  query_params:
+    fleetId: "{fleet_id}"
+    limit: 25
+expected:
+  status_code: 401
+  tool_calls: []
+  response: {}
+latency_budget_ms: 2000

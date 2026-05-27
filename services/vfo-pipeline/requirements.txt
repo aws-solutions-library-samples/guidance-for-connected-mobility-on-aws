@@ -1,0 +1,6 @@
+# Runtime deps for the cms-<stage>-vfo-tools Lambda (vfo_tools.py).
+# pypdf is pure-python and lets search_kb_docs extract text from the
+# 1400+ PDFs (invoices/work-orders/parts-listings/warranty-claims) in
+# the cms-<stage>-vfo-knowledge-base bucket. Without it, the agent
+# tool would crash trying to UTF-8-decode binary PDF bytes.
+pypdf>=4.0.0,<6.0.0

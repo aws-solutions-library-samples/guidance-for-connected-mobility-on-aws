@@ -1,0 +1,485 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { CognitoIdentityProviderClient, InitiateAuthCommand, AuthFlowType } from '@aws-sdk/client-cognito-identity-provider';
+import { Container, Header, SpaceBetween, Form, FormField, Input, Button, Alert, Box } from '@cloudscape-design/components';
+
+export interface SimpleAuthContextProps {
+  token: string | null;
+  idToken: string | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  login: (email: string, password: string, rememberMe?: boolean) => void;
+  logout: () => void;
+  error: string | null;
+}
+
+const SimpleAuthContext = createContext<SimpleAuthContextProps | null>(null);
+
+export const useSimpleAuth = (): SimpleAuthContextProps => {
+  const context = useContext(SimpleAuthContext);
+  if (!context) {
+    throw new Error('useSimpleAuth must be used within a SimpleAuthProvider');
+  }
+  return context;
+};
+
+interface SimpleAuthProviderProps {
+  children: ReactNode;
+  userPoolId: string;
+  clientId: string;
+  region: string;
+  isDemoMode?: boolean;
+}
+
+const LoginForm: React.FC<{
+  onLogin: (email: string, password: string, rememberMe: boolean) => void;
+  onFederateLogin: () => void;
+  isLoading: boolean;
+  error: string | null;
+}> = ({ onLogin, onFederateLogin, isLoading, error }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Pre-fill email if remembered
+  useEffect(() => {
+    const rememberedEmail = localStorage.getItem('userEmail');
+    const wasRemembered = localStorage.getItem('rememberMe') === 'true';
+    if (rememberedEmail && wasRemembered) {
+      setEmail(rememberedEmail);
+      setRememberMe(true);
+    }
+  }, []);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('🔐 Form submitted with:', { email, password: '***', rememberMe });
+    onLogin(email, password, rememberMe);
+  };
+
+  const handleKeyPress = (e: any) => {
+    const key = e.key || e.detail?.key || e.nativeEvent?.key;
+    if (key === 'Enter' && !isLoading && email && password) {
+      e.preventDefault?.();
+      handleSubmit(e);
+    }
+  };
+
+  const handleForgotPassword = () => {
+    setShowForgotPassword(true);
+    // TODO: Implement forgot password functionality
+    alert('Forgot password functionality would be implemented here');
+  };
+
+  return (
+    <div style={{ 
+      display: 'flex', 
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      minHeight: '100vh',
+      backgroundColor: 'var(--color-background-layout-main-5ilwcb, #f2f3f3)'
+    }}>
+      <Container>
+        <div style={{ maxWidth: '400px', margin: '0 auto' }}>
+          <Header variant="h1">Fleet Management System</Header>
+          <SpaceBetween size="l">
+            {error && <Alert type="error">{error}</Alert>}
+            <Form onSubmit={handleSubmit}>
+              <SpaceBetween size="m">
+                <FormField label="Email">
+                  <Input
+                    value={email}
+                    onChange={({ detail }) => setEmail(detail.value)}
+                    onKeyDown={handleKeyPress}
+                    type="email"
+                    placeholder="Enter your email"
+                    disabled={isLoading}
+                    autoComplete="email"
+                    autoFocus
+                  />
+                </FormField>
+                <FormField label="Password">
+                  <div style={{ position: 'relative', width: '100%' }}>
+                    <Input
+                      value={password}
+                      onChange={({ detail }) => setPassword(detail.value)}
+                      onKeyDown={handleKeyPress}
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter your password"
+                      disabled={isLoading}
+                      autoComplete="current-password"
+                    />
+                    <div 
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        cursor: 'pointer',
+                        zIndex: 10,
+                        padding: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '20px',
+                        height: '20px'
+                      }}
+                      title={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? (
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                          <path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7.028 7.028 0 0 0-2.79.588l.77.771A5.944 5.944 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.134 13.134 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755-.165.165-.337.328-.517.486l.708.709z"/>
+                          <path d="M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829l.822.822zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829z"/>
+                          <path d="M3.35 5.47c-.18.16-.353.322-.518.487A13.134 13.134 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7.029 7.029 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.708zm10.296 8.884-12-12 .708-.708 12 12-.708.708z"/>
+                        </svg>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                          <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
+                          <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                </FormField>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      disabled={isLoading}
+                      style={{ marginRight: '8px' }}
+                    />
+                    <span style={{ fontSize: '14px', color: '#5f6b7a' }}>Remember me</span>
+                  </label>
+                  
+                  <Button
+                    variant="link"
+                    onClick={handleForgotPassword}
+                    disabled={isLoading}
+                    ariaLabel="Forgot password"
+                  >
+                    Forgot password?
+                  </Button>
+                </div>
+
+                <Button 
+                  variant="primary" 
+                  loading={isLoading}
+                  onClick={handleSubmit}
+                  disabled={!email || !password}
+                  fullWidth
+                >
+                  Sign In
+                </Button>
+
+                {((typeof window !== 'undefined' && (window as any).runtimeConfig?.cognitoDomain) || import.meta.env.VITE_COGNITO_DOMAIN) && (<>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '4px 0' }}>
+                  <div style={{ flex: 1, height: '1px', background: '#d1d5db' }} />
+                  <span style={{ fontSize: '12px', color: '#6b7280' }}>or</span>
+                  <div style={{ flex: 1, height: '1px', background: '#d1d5db' }} />
+                </div>
+
+                <Button
+                  variant="normal"
+                  onClick={onFederateLogin}
+                  fullWidth
+                >
+                  Sign in with Amazon (Federate)
+                </Button></>)}
+
+                <div style={{ borderTop: '1px solid #e9ebed', paddingTop: '16px', marginTop: '8px' }}>
+                  <Box variant="small" color="text-body-secondary" margin={{ bottom: 's' }}>Quick login:</Box>
+                  <SpaceBetween size="xs">
+                    {/*
+                      Corporate SSO (Federate) button — only renders when
+                      runtimeConfig.json supplies the Cognito hosted-UI domain
+                      AND the user-pool web client ID. No hardcoded fallback
+                      values: foreign-environment Cognito identifiers in this
+                      file would ship in the JS bundle to whatever CloudFront
+                      URL serves the app (including any public mirror). See
+                      Fix Group 1.3 of the
+                      2026-05-26-cms-public-mirror-and-quick-ui spec — Group 2
+                      F1.1f folds the Federate config into runtimeConfig.json
+                      via regenerate-runtime-config so each environment
+                      supplies its own values at runtime.
+                    */}
+                    {((window as any).runtimeConfig?.cognitoDomain
+                      && (window as any).runtimeConfig?.awsCredentials?.userPoolWebClientId) && (
+                    <Button fullWidth variant="primary" onClick={() => {
+                      const domain = (window as any).runtimeConfig?.cognitoDomain;
+                      const cid = (window as any).runtimeConfig?.awsCredentials?.userPoolWebClientId;
+                      // Must match an entry in the Cognito App Client's Allowed callback URLs.
+                      const redirect = `${window.location.origin}/auth/callback`;
+                      window.location.href = `https://${domain}/oauth2/authorize?identity_provider=AmazonFederate&client_id=${cid}&response_type=code&scope=openid+email+profile&redirect_uri=${encodeURIComponent(redirect)}`;
+                    }}>
+                      🔐 Corporate SSO (Admin)
+                    </Button>
+                    )}
+                    {/* Quick-fill buttons: dev only. Passwords sourced from VITE_DEMO_PASSWORD_* env vars.
+                        import.meta.env.DEV is false in production builds — Vite tree-shakes this entire block. */}
+                    {import.meta.env.DEV && (() => {
+                      const demoCredentials = {
+                        fleetManager: import.meta.env.VITE_DEMO_PASSWORD_FLEET_MANAGER ?? '',
+                        fleetAgent: import.meta.env.VITE_DEMO_PASSWORD_FLEET_AGENT ?? '',
+                        engineer: import.meta.env.VITE_DEMO_PASSWORD_ENGINEER ?? '',
+                      };
+                      return (
+                        <>
+                          <Button fullWidth variant="normal" onClick={() => onLogin('FleetManager@example.com', demoCredentials.fleetManager, false)}>
+                            🚛 Fleet Manager
+                          </Button>
+                          <Button fullWidth variant="normal" onClick={() => onLogin('agent1@cms-fleet.io', demoCredentials.fleetAgent, false)}>
+                            🎧 Agent
+                          </Button>
+                          <Button fullWidth variant="normal" onClick={() => onLogin('engineer@example.com', demoCredentials.engineer, false)}>
+                            🔬 Product Engineer
+                          </Button>
+                          <Button fullWidth variant="normal" onClick={() => onLogin('kevin.dispatch@example.com', demoCredentials.fleetManager, false)}>
+                            📋 Dispatcher
+                          </Button>
+                        </>
+                      );
+                    })()}
+                  </SpaceBetween>
+                </div>
+              </SpaceBetween>
+            </Form>
+          </SpaceBetween>
+        </div>
+      </Container>
+    </div>
+  );
+};
+
+export const SimpleAuthProvider: React.FC<SimpleAuthProviderProps> = ({
+  children,
+  userPoolId,
+  clientId,
+  region,
+  isDemoMode = false,
+}) => {
+  const [token, setToken] = useState<string | null>(null);
+  const [idToken, setIdToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Check for existing token in localStorage (remember me) or sessionStorage
+    const savedToken = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+    const savedIdToken = localStorage.getItem('idToken') || sessionStorage.getItem('idToken');
+    if (savedToken) {
+      // Check if token is expired
+      try {
+        if (savedIdToken) {
+          const payload = JSON.parse(atob(savedIdToken.split('.')[1]));
+          const currentTime = Math.floor(Date.now() / 1000);
+          if (payload.exp && payload.exp < currentTime) {
+            console.log('🕐 Token expired, logging out');
+            logout();
+            return;
+          }
+        }
+        setToken(savedToken);
+        setIdToken(savedIdToken);
+      } catch (error) {
+        console.error('Error checking token expiration:', error);
+        logout();
+      }
+    }
+  }, []);
+
+  // Check token expiration periodically
+  useEffect(() => {
+    if (!idToken) return;
+
+    const checkTokenExpiration = () => {
+      try {
+        const payload = JSON.parse(atob(idToken.split('.')[1]));
+        const currentTime = Math.floor(Date.now() / 1000);
+        if (payload.exp && payload.exp < currentTime) {
+          console.log('🕐 Token expired during session, logging out');
+          logout();
+        }
+      } catch (error) {
+        console.error('Error checking token expiration:', error);
+        logout();
+      }
+    };
+
+    // Check every minute
+    const interval = setInterval(checkTokenExpiration, 60000);
+    return () => clearInterval(interval);
+  }, [idToken]);
+
+  const COGNITO_DOMAIN = (typeof window !== 'undefined' && (window as any).runtimeConfig?.cognitoDomain)
+    || import.meta.env.VITE_COGNITO_DOMAIN
+    || '';
+  const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || `${window.location.origin}/auth/callback`;
+
+  // Handle OAuth callback — exchange code with Cognito token endpoint
+  useEffect(() => {
+    if (window.location.pathname !== '/auth/callback') return;
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    if (!code) return;
+
+    setIsLoading(true);
+    fetch(`https://${COGNITO_DOMAIN}/oauth2/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: clientId,
+        code,
+        redirect_uri: REDIRECT_URI,
+      }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.access_token) {
+          setToken(data.access_token);
+          setIdToken(data.id_token || null);
+          sessionStorage.setItem('authToken', data.access_token);
+          if (data.id_token) sessionStorage.setItem('idToken', data.id_token);
+          window.location.replace('/');
+        } else {
+          setError('Federate login failed. Please try again.');
+        }
+      })
+      .catch(() => setError('Federate login failed. Please try again.'))
+      .finally(() => setIsLoading(false));
+  }, [clientId]);
+
+  const loginWithFederate = () => {
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: clientId,
+      redirect_uri: REDIRECT_URI,
+      identity_provider: 'AmazonFederate',
+      scope: 'openid email profile',
+    });
+    window.location.href = `https://${COGNITO_DOMAIN}/oauth2/authorize?${params}`;
+  };
+
+  const login = async (email: string, password: string, rememberMe: boolean = false) => {
+    if (isDemoMode) {
+      const token = 'demo-token';
+      setToken(token);
+      if (rememberMe) {
+        localStorage.setItem('authToken', token);
+        localStorage.setItem('rememberMe', 'true');
+      } else {
+        sessionStorage.setItem('authToken', token);
+        localStorage.removeItem('rememberMe');
+      }
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      console.log('🔐 Attempting login with:', { email, userPoolId, clientId, region, rememberMe });
+      
+      const client = new CognitoIdentityProviderClient({ region });
+      
+      const command = new InitiateAuthCommand({
+        AuthFlow: AuthFlowType.USER_PASSWORD_AUTH,
+        ClientId: clientId,
+        AuthParameters: {
+          USERNAME: email,
+          PASSWORD: password,
+        },
+      });
+
+      console.log('📤 Sending auth command...');
+      const response = await client.send(command);
+      console.log('📥 Auth response:', response);
+      
+      if (response.AuthenticationResult?.AccessToken) {
+        const accessToken = response.AuthenticationResult.AccessToken;
+        const idTokenValue = response.AuthenticationResult.IdToken;
+        console.log('✅ Login successful, setting tokens');
+        setToken(accessToken);
+        setIdToken(idTokenValue || null);
+        
+        // Store tokens based on remember me preference
+        if (rememberMe) {
+          localStorage.setItem('authToken', accessToken);
+          if (idTokenValue) localStorage.setItem('idToken', idTokenValue);
+          localStorage.setItem('rememberMe', 'true');
+          localStorage.setItem('userEmail', email); // Store email for convenience
+        } else {
+          sessionStorage.setItem('authToken', accessToken);
+          if (idTokenValue) sessionStorage.setItem('idToken', idTokenValue);
+          localStorage.removeItem('rememberMe');
+          localStorage.removeItem('userEmail');
+        }
+      } else if (response.ChallengeName) {
+        console.log('🔄 Challenge required:', response.ChallengeName);
+        setError(`Challenge required: ${response.ChallengeName}`);
+      } else {
+        console.error('❌ No access token in response');
+        throw new Error('Authentication failed - no access token received');
+      }
+    } catch (err: any) {
+      console.error('❌ Login error:', err);
+      setError(err.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = () => {
+    console.log('🚪 SimpleAuthProvider logout called');
+    setToken(null);
+    setIdToken(null);
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('idToken');
+    sessionStorage.removeItem('authToken');
+    sessionStorage.removeItem('idToken');
+    // Keep userEmail and rememberMe if user had remember me checked
+    const wasRemembered = localStorage.getItem('rememberMe') === 'true';
+    if (!wasRemembered) {
+      localStorage.removeItem('userEmail');
+      localStorage.removeItem('rememberMe');
+    }
+    console.log('🚪 SimpleAuthProvider logout completed');
+  };
+
+  const contextValue: SimpleAuthContextProps = {
+    token,
+    idToken,
+    isLoading,
+    isAuthenticated: !!token,
+    login,
+    logout,
+    error,
+  };
+
+  if (!token) {
+    return (
+      <SimpleAuthContext.Provider value={contextValue}>
+        <LoginForm 
+          onLogin={login} 
+          onFederateLogin={loginWithFederate}
+          isLoading={isLoading} 
+          error={error} 
+        />
+      </SimpleAuthContext.Provider>
+    );
+  }
+
+  return (
+    <SimpleAuthContext.Provider value={contextValue}>
+      {children}
+    </SimpleAuthContext.Provider>
+  );
+};

@@ -1,0 +1,129 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ServiceRecord",
+  "description": "Vehicle service history record",
+  "type": "object",
+  "required": ["vehicleId", "serviceDate", "serviceType", "dealerId"],
+  "properties": {
+    "vehicleId": {
+      "type": "string",
+      "description": "Vehicle VIN",
+      "pattern": "^[A-HJ-NPR-Z0-9]{17}$"
+    },
+    "serviceDate": {
+      "type": "string",
+      "description": "Service date in ISO 8601 format",
+      "format": "date-time"
+    },
+    "serviceType": {
+      "type": "string",
+      "enum": [
+        "TIRE_ROTATION",
+        "TIRE_REPLACEMENT",
+        "WHEEL_ALIGNMENT",
+        "TIRE_BALANCE",
+        "OIL_CHANGE",
+        "BRAKE_SERVICE",
+        "INSPECTION",
+        "RECALL",
+        "OTHER"
+      ]
+    },
+    "dealerId": {
+      "type": "string",
+      "description": "Service dealer/shop identifier"
+    },
+    "mileage": {
+      "type": "integer",
+      "description": "Vehicle mileage at service",
+      "minimum": 0
+    },
+    "serviceDetails": {
+      "type": "object",
+      "properties": {
+        "tireServices": {
+          "type": "object",
+          "properties": {
+            "tiresRotated": {
+              "type": "boolean"
+            },
+            "tiresReplaced": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["FRONT_LEFT", "FRONT_RIGHT", "REAR_LEFT", "REAR_RIGHT"]
+              }
+            },
+            "tireBrand": {
+              "type": "string"
+            },
+            "tireModel": {
+              "type": "string"
+            },
+            "pressureAdjusted": {
+              "type": "boolean"
+            },
+            "alignmentPerformed": {
+              "type": "boolean"
+            },
+            "balancePerformed": {
+              "type": "boolean"
+            }
+          }
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 1000
+        }
+      }
+    },
+    "cost": {
+      "type": "object",
+      "properties": {
+        "laborCost": {
+          "type": "number",
+          "minimum": 0
+        },
+        "partsCost": {
+          "type": "number",
+          "minimum": 0
+        },
+        "totalCost": {
+          "type": "number",
+          "minimum": 0
+        },
+        "currency": {
+          "type": "string",
+          "default": "USD"
+        }
+      }
+    },
+    "invoiceUrl": {
+      "type": "string",
+      "description": "S3 URL to invoice PDF",
+      "pattern": "^s3://.*\\.pdf$"
+    },
+    "technician": {
+      "type": "string"
+    },
+    "warranty": {
+      "type": "object",
+      "properties": {
+        "covered": {
+          "type": "boolean"
+        },
+        "warrantyId": {
+          "type": "string"
+        }
+      }
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
