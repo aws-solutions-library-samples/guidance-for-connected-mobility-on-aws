@@ -1,0 +1,14 @@
+{
+  "typedData": {
+    "@type": "type.googleapis.com/oem1.ext.telemetry.Metric",
+    "value": {
+      "signal": {"wksSignal": "SPEED"},
+      "speedValue": {"speed": 26.82},
+      "tags": [{"name": {"wktName": "UNIT"}, "value": {"stringTagValue": "mps"}}]
+    }
+  },
+  "shard_key": "aui:asset:vehicle/abc-123-def-456",
+  "timestamp": "2026-06-04T20:37:04.611Z",
+  "oem_source": "oem1",
+  "reference_hex": "0801108bc9a7a006"
+}

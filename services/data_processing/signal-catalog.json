@@ -1,0 +1,583 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CMS Signal Catalog",
+  "version": "1.0.0",
+  "description": "Standard signal definitions for Connected Mobility Solution. All data sources must transform to this format.",
+  
+  "signal_groups": {
+    "vehicle_identity": {
+      "description": "Vehicle identification and fleet assignment",
+      "required": true,
+      "signals": {
+        "vin": {
+          "type": "string",
+          "description": "Vehicle Identification Number",
+          "required": true,
+          "example": "1HGBH41JXMN109186"
+        },
+        "fid": {
+          "type": "string",
+          "description": "Fleet ID",
+          "required": false,
+          "example": "FLEET-001"
+        },
+        "vt": {
+          "type": "string",
+          "description": "Vehicle Type: I=In-transit, P=Parked, D=Delivery",
+          "enum": ["I", "P", "D"],
+          "required": false
+        }
+      }
+    },
+    
+    "location": {
+      "description": "GPS location and movement",
+      "required": true,
+      "signals": {
+        "ts": {
+          "type": "integer",
+          "description": "Unix timestamp (seconds)",
+          "required": true,
+          "example": 1729526400
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp",
+          "required": true,
+          "example": "2025-10-21T15:30:00Z"
+        },
+        "lat": {
+          "type": "number",
+          "description": "Latitude in decimal degrees",
+          "required": true,
+          "min": -90,
+          "max": 90,
+          "example": 40.7128
+        },
+        "lon": {
+          "type": "number",
+          "description": "Longitude in decimal degrees",
+          "required": true,
+          "min": -180,
+          "max": 180,
+          "example": -74.0060
+        },
+        "alt": {
+          "type": "number",
+          "description": "Altitude in feet",
+          "required": false,
+          "unit": "feet",
+          "example": 250.5
+        },
+        "spd": {
+          "type": "number",
+          "description": "Speed in miles per hour",
+          "required": true,
+          "unit": "mph",
+          "min": 0,
+          "example": 55.3
+        },
+        "hdg": {
+          "type": "number",
+          "description": "Heading in degrees (0-360)",
+          "required": false,
+          "unit": "degrees",
+          "min": 0,
+          "max": 360,
+          "example": 180.5
+        },
+        "gps_qual": {
+          "type": "integer",
+          "description": "GPS quality: 1=Poor, 2=Good, 3=Excellent",
+          "enum": [1, 2, 3],
+          "required": false
+        }
+      }
+    },
+    
+    "vehicle_state": {
+      "description": "Current vehicle operational state",
+      "required": true,
+      "signals": {
+        "odo": {
+          "type": "number",
+          "description": "Odometer reading in miles",
+          "required": true,
+          "unit": "miles",
+          "example": 45678.9
+        },
+        "eng": {
+          "type": "number",
+          "description": "Engine hours",
+          "required": false,
+          "unit": "hours",
+          "example": 1234.5
+        },
+        "gear": {
+          "type": "integer",
+          "description": "Current gear (0=neutral/park, 1-6=drive gears)",
+          "required": false,
+          "min": 0,
+          "max": 6,
+          "example": 4
+        },
+        "brk": {
+          "type": "number",
+          "description": "Brake pedal position (0-100%)",
+          "required": false,
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "example": 25.5
+        },
+        "acc": {
+          "type": "number",
+          "description": "Accelerator pedal position (0-100%)",
+          "required": false,
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "example": 45.2
+        }
+      }
+    },
+    
+    "driver_behavior": {
+      "description": "Driver behavior and safety metrics",
+      "required": false,
+      "signals": {
+        "harsh_brk": {
+          "type": "integer",
+          "description": "Harsh braking event count",
+          "min": 0,
+          "example": 0
+        },
+        "harsh_acc": {
+          "type": "integer",
+          "description": "Harsh acceleration event count",
+          "min": 0,
+          "example": 0
+        },
+        "harsh_turn": {
+          "type": "integer",
+          "description": "Harsh turning event count",
+          "min": 0,
+          "example": 0
+        },
+        "speed_viol": {
+          "type": "integer",
+          "description": "Speed violation flag (0=no, 1=yes)",
+          "enum": [0, 1],
+          "example": 0
+        },
+        "idle_time": {
+          "type": "integer",
+          "description": "Idle time in seconds",
+          "unit": "seconds",
+          "min": 0,
+          "example": 120
+        },
+        "drv_score": {
+          "type": "integer",
+          "description": "Driver safety score (0-100)",
+          "min": 0,
+          "max": 100,
+          "example": 85
+        },
+        "phone_use": {
+          "type": "integer",
+          "description": "Phone usage detected (0=no, 1=yes)",
+          "enum": [0, 1],
+          "example": 0
+        },
+        "seatbelt": {
+          "type": "integer",
+          "description": "Seatbelt fastened (0=no, 1=yes)",
+          "enum": [0, 1],
+          "example": 1
+        }
+      }
+    },
+    
+    "fuel_energy": {
+      "description": "Fuel and energy metrics (ICE and EV)",
+      "required": false,
+      "signals": {
+        "fuel_rate": {
+          "type": "number",
+          "description": "Fuel consumption rate (MPG for ICE)",
+          "unit": "mpg",
+          "min": 0,
+          "example": 12.5
+        },
+        "fuel_lvl": {
+          "type": "integer",
+          "description": "Fuel level percentage (ICE vehicles)",
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "example": 75
+        },
+        "soc": {
+          "type": "number",
+          "description": "State of charge percentage (EV vehicles)",
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "example": 85.5
+        },
+        "volt": {
+          "type": "number",
+          "description": "High voltage battery voltage (EV vehicles)",
+          "unit": "volts",
+          "min": 0,
+          "example": 380.5
+        },
+        "regen_pwr": {
+          "type": "number",
+          "description": "Regenerative braking power (EV vehicles)",
+          "unit": "kW",
+          "example": 15.3
+        }
+      }
+    },
+    
+    "diagnostics": {
+      "description": "Engine and system diagnostics",
+      "required": false,
+      "signals": {
+        "eng_temp": {
+          "type": "integer",
+          "description": "Engine temperature in Fahrenheit",
+          "unit": "fahrenheit",
+          "min": 0,
+          "example": 195
+        },
+        "oil_press": {
+          "type": "integer",
+          "description": "Oil pressure in PSI",
+          "unit": "psi",
+          "min": 0,
+          "example": 45
+        },
+        "oil_temp": {
+          "type": "integer",
+          "description": "Oil temperature in Fahrenheit",
+          "unit": "fahrenheit",
+          "min": 0,
+          "example": 210
+        },
+        "coolant_temp": {
+          "type": "integer",
+          "description": "Coolant temperature in Fahrenheit",
+          "unit": "fahrenheit",
+          "min": 0,
+          "example": 195
+        },
+        "trans_temp": {
+          "type": "integer",
+          "description": "Transmission temperature in Fahrenheit",
+          "unit": "fahrenheit",
+          "min": 0,
+          "example": 160
+        },
+        "oil_life": {
+          "type": "integer",
+          "description": "Oil life remaining percentage",
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "example": 65
+        },
+        "brake_wear": {
+          "type": "integer",
+          "description": "Brake pad life remaining percentage",
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "example": 75
+        },
+        "filter_life": {
+          "type": "integer",
+          "description": "Air filter life remaining percentage",
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "example": 80
+        }
+      }
+    },
+    
+    "tires": {
+      "description": "Tire pressure and condition monitoring",
+      "required": false,
+      "signals": {
+        "tire_fl": {
+          "type": "number",
+          "description": "Front left tire pressure in PSI",
+          "unit": "psi",
+          "min": 0,
+          "example": 32.5
+        },
+        "tire_fr": {
+          "type": "number",
+          "description": "Front right tire pressure in PSI",
+          "unit": "psi",
+          "min": 0,
+          "example": 32.0
+        },
+        "tire_rl": {
+          "type": "number",
+          "description": "Rear left tire pressure in PSI",
+          "unit": "psi",
+          "min": 0,
+          "example": 32.5
+        },
+        "tire_rr": {
+          "type": "number",
+          "description": "Rear right tire pressure in PSI",
+          "unit": "psi",
+          "min": 0,
+          "example": 32.0
+        },
+        "tire_temp_max": {
+          "type": "integer",
+          "description": "Maximum tire temperature in Fahrenheit",
+          "unit": "fahrenheit",
+          "min": 0,
+          "example": 110
+        },
+        "tire_tread_fl": {
+          "type": "number",
+          "description": "Front left tire tread depth in mm",
+          "unit": "mm",
+          "min": 0,
+          "example": 6.5
+        },
+        "tire_tread_fr": {
+          "type": "number",
+          "description": "Front right tire tread depth in mm",
+          "unit": "mm",
+          "min": 0,
+          "example": 6.5
+        },
+        "tire_tread_rl": {
+          "type": "number",
+          "description": "Rear left tire tread depth in mm",
+          "unit": "mm",
+          "min": 0,
+          "example": 7.0
+        },
+        "tire_tread_rr": {
+          "type": "number",
+          "description": "Rear right tire tread depth in mm",
+          "unit": "mm",
+          "min": 0,
+          "example": 7.0
+        }
+      }
+    },
+    
+    "safety_systems": {
+      "description": "Active safety system status",
+      "required": false,
+      "signals": {
+        "aeb_en": {
+          "type": "integer",
+          "description": "Automatic Emergency Braking enabled (0=no, 1=yes)",
+          "enum": [0, 1],
+          "example": 1
+        },
+        "aeb_sens": {
+          "type": "integer",
+          "description": "AEB sensitivity level (1=low, 2=medium, 3=high)",
+          "enum": [1, 2, 3],
+          "example": 2
+        },
+        "aeb_act": {
+          "type": "integer",
+          "description": "AEB activated (0=no, 1=yes)",
+          "enum": [0, 1],
+          "example": 0
+        },
+        "abs_act": {
+          "type": "integer",
+          "description": "ABS activated (0=no, 1=yes)",
+          "enum": [0, 1],
+          "example": 0
+        },
+        "esc_act": {
+          "type": "integer",
+          "description": "Electronic Stability Control activated (0=no, 1=yes)",
+          "enum": [0, 1],
+          "example": 0
+        },
+        "airbag_warn": {
+          "type": "integer",
+          "description": "Airbag warning light (0=no, 1=yes)",
+          "enum": [0, 1],
+          "example": 0
+        }
+      }
+    },
+    
+    "electrical": {
+      "description": "Electrical system status",
+      "required": false,
+      "signals": {
+        "battery_voltage": {
+          "type": "number",
+          "description": "12V battery voltage",
+          "unit": "volts",
+          "min": 0,
+          "example": 13.8
+        },
+        "alternator_output": {
+          "type": "number",
+          "description": "Alternator output voltage",
+          "unit": "volts",
+          "min": 0,
+          "example": 14.2
+        }
+      }
+    },
+    
+    "metadata": {
+      "description": "Data source and quality metadata",
+      "required": true,
+      "signals": {
+        "data_source": {
+          "type": "string",
+          "description": "Origin of telemetry data",
+          "enum": ["iot_core", "fleetwise", "oem"],
+          "required": true,
+          "example": "iot_core"
+        },
+        "auto_registered": {
+          "type": "boolean",
+          "description": "Vehicle was auto-registered",
+          "required": false,
+          "example": true
+        }
+      }
+    },
+
+    "core_telemetry": {
+      "description": "Core telemetry signals promoted from OEM1 catalog gap analysis (A2.2)",
+      "required": false,
+      "signals": {
+        "EngineOilTemp": {
+          "type": "number",
+          "description": "Engine oil temperature in Fahrenheit",
+          "unit": "fahrenheit",
+          "min": 0,
+          "example": 215
+        },
+        "TotalEngineTimeIdle": {
+          "type": "number",
+          "description": "Total engine idle time in seconds",
+          "unit": "seconds",
+          "min": 0,
+          "example": 3600
+        },
+        "YawRate": {
+          "type": "number",
+          "description": "Vehicle yaw rate in degrees per second",
+          "unit": "deg/s",
+          "example": 0.5
+        }
+      }
+    },
+
+    "safety": {
+      "description": "Safety system signals promoted from OEM1 catalog gap analysis (A2.2)",
+      "required": false,
+      "signals": {
+        "TractionControlActive": {
+          "type": "integer",
+          "description": "Traction control system active (0=inactive, 1=active)",
+          "enum": [0, 1],
+          "example": 0
+        },
+        "ImpactStatus": {
+          "type": "integer",
+          "description": "Impact/collision detection status (0=none, 1=detected)",
+          "enum": [0, 1],
+          "example": 0
+        }
+      }
+    },
+
+    "powertrain": {
+      "description": "Powertrain signals promoted from OEM1 catalog gap analysis (A2.2)",
+      "required": false,
+      "signals": {
+        "PowerTakeOffStatus": {
+          "type": "integer",
+          "description": "Power take-off (PTO) engagement status (0=disengaged, 1=engaged)",
+          "enum": [0, 1],
+          "example": 0
+        }
+      }
+    },
+
+    "maintenance": {
+      "description": "Maintenance signals promoted from OEM1 catalog gap analysis (A2.2)",
+      "required": false,
+      "signals": {
+        "WaterInFuelStatus": {
+          "type": "integer",
+          "description": "Water-in-fuel sensor status (0=clear, 1=water detected)",
+          "enum": [0, 1],
+          "example": 0
+        }
+      }
+    },
+
+    "driving": {
+      "description": "Driving dynamics signals promoted from OEM1 catalog gap analysis (A2.2)",
+      "required": false,
+      "signals": {
+        "HarshCorneringMaxLateralAccel": {
+          "type": "number",
+          "description": "Maximum lateral acceleration recorded during harsh cornering event in g",
+          "unit": "g",
+          "example": 0.65
+        },
+        "HarshMaxLongitudinalAccel": {
+          "type": "number",
+          "description": "Maximum longitudinal acceleration recorded during harsh acceleration/braking event in g",
+          "unit": "g",
+          "example": 0.55
+        }
+      }
+    },
+
+    "commercial": {
+      "description": "Commercial vehicle signals promoted from OEM1 catalog gap analysis (A2.2)",
+      "required": false,
+      "signals": {
+        "power_take_off_engaged": {
+          "type": "integer",
+          "description": "Power take-off actively engaged and transmitting power (0=no, 1=yes)",
+          "enum": [0, 1],
+          "example": 0
+        },
+        "excessive_idle": {
+          "type": "integer",
+          "description": "Excessive idle condition detected per fleet policy threshold (0=no, 1=yes)",
+          "enum": [0, 1],
+          "example": 0
+        }
+      }
+    }
+  },
+  
+  "notes": {
+    "units": "All measurements use imperial units (mph, Fahrenheit, PSI, miles) unless otherwise specified",
+    "timestamps": "Both Unix timestamp (ts) and ISO 8601 (timestamp) are provided for compatibility",
+    "null_values": "EV-specific fields (soc, volt, regen_pwr) should be null for ICE vehicles and vice versa",
+    "extensibility": "Additional signals can be added without breaking existing consumers"
+  }
+}
