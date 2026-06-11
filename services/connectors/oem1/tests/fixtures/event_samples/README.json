@@ -1,0 +1,59 @@
+{
+  "motion_event.bin": {
+    "description": "MOTION_EVENT with VEHICLE_MOVEMENT_STARTED condition. vehicleId redacted.",
+    "source": "decisions.md Phase A.3 Type 1",
+    "type_url": "type.googleapis.com/autonomic.ext.event.Event",
+    "inner_type": "TriggeredEvent",
+    "wellKnownLabel": "MOTION_EVENT",
+    "condition": "VEHICLE_MOVEMENT_STARTED"
+  },
+  "harsh_acceleration_event.bin": {
+    "description": "HARSH_ACCELERATION_EVENT with HARSH_ACCELERATION_STARTED. vehicleId redacted.",
+    "source": "decisions.md Phase A.3 Type 2",
+    "type_url": "type.googleapis.com/autonomic.ext.event.Event",
+    "inner_type": "TriggeredEvent",
+    "wellKnownLabel": "HARSH_ACCELERATION_EVENT",
+    "condition": "HARSH_ACCELERATION_STARTED"
+  },
+  "harsh_braking_event.bin": {
+    "description": "HARSH_BRAKING_EVENT with HARSH_BRAKING_STARTED. vehicleId redacted.",
+    "source": "decisions.md Phase A.3 Type 3",
+    "type_url": "type.googleapis.com/autonomic.ext.event.Event",
+    "inner_type": "TriggeredEvent",
+    "wellKnownLabel": "HARSH_BRAKING_EVENT",
+    "condition": "HARSH_BRAKING_STARTED"
+  },
+  "string_label_custom_event.bin": {
+    "description": "Custom string_label event \u2014 falls back to _raw_hex (no wellKnownLabel).",
+    "source": "decisions.md Phase A.3 string_label caveat",
+    "type_url": "type.googleapis.com/autonomic.ext.event.Event",
+    "inner_type": "TriggeredEvent (string_label oneof)",
+    "expected": "_raw_hex fallback"
+  },
+  "state_transition_event.bin": {
+    "description": "Synthetic COMMAND_PRECLUSION_STATE StateTransition. Placeholder UUID 00000000-0000-0000-0000-000000000000. No real-vehicle data.",
+    "source": "spec 2026-06-09-oem1-event-coverage-extension task 1.1",
+    "type_url": "type.googleapis.com/autonomic.ext.event.Event",
+    "inner_type": "StateTransition",
+    "wkFsmName": "COMMAND_PRECLUSION_STATE",
+    "commandPreclusionFromState": "COMMANDS_PERMITTED",
+    "commandPreclusionToState": "COMMANDS_PRECLUDED",
+    "commandPreclusionTrigger": "NEW_PRECLUSION_INTRODUCED"
+  },
+  "geofence_event.bin": {
+    "description": "Synthetic minimal GeofenceEvent (ENTER). Placeholder UUID 00000000-0000-0000-0000-000000000000. No real-vehicle data.",
+    "source": "spec 2026-06-09-oem1-event-coverage-extension task 1.1",
+    "type_url": "type.googleapis.com/autonomic.ext.event.Event",
+    "inner_type": "GeofenceEvent",
+    "type": "ENTER"
+  },
+  "vha_diagnostics_processed_event.bin": {
+    "description": "Path-\u03b5 VHA Custom Diagnostic Event (string_label TriggeredEvent). Tenant UUID, device UUID, alert trace ID, and verbatim Action/Symptom text redacted; replaced with placeholder UUIDs (00000000-0000-0000-0000-000000000000 / 000...0001) and synthetic text. Protocol-value fields preserved: dtcValue.rawValue=B124D, severity=URGENT, indicator=TIRE_PRESSURE_MONITOR_SYSTEM_WARNING, indicatorState=ON.",
+    "source": "spec 2026-06-09-cms-oem1-dtc-engine-light-pipeline Fix Group 1.1 (F1.1.2); regenerated from redacted vha_diagnostics_processed_event.json via Parse+SerializeToString round-trip",
+    "type_url": "type.googleapis.com/autonomic.ext.event.Event",
+    "inner_type": "TriggeredEvent (string_label oneof)",
+    "stringLabel": "aui:event:00000000-0000-0000-0000-000000000000:custom:vha-diagnostics-processed-event",
+    "redacted": "tenant UUID 745a2a40-..., alert trace ID 331d398d-..., Action text, Symptom text",
+    "regenerate": "python3 -c \"import sys; sys.path.insert(0,'_generated'); from google.protobuf.json_format import Parse,MessageToJson; import google.protobuf.wrappers_pb2; from autonomic.ext.event.event_pb2 import Event; import json; d=json.load(open('../vha_diagnostics_processed_event.json')); ...\" -- see Fix Group 1.1 F1.1.2 for full round-trip script"
+  }
+}

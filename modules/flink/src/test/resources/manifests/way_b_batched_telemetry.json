@@ -1,0 +1,53 @@
+{
+  "typedData": {
+    "@type": "type.googleapis.com/oem1.ext.telemetry.BatchedTelemetry",
+    "value": {
+      "metrics": [
+        {
+          "signal": {"wksSignal": "SPEED"},
+          "speedValue": {"speed": 30.5}
+        },
+        {
+          "signal": {"wksSignal": "ODOMETER"},
+          "doubleValue": 12345.6
+        },
+        {
+          "signal": {"wksSignal": "ENGINE_SPEED"},
+          "int64Value": 1850
+        },
+        {
+          "signal": {"wksSignal": "TIRE_PRESSURE"},
+          "doubleValue": 33.0,
+          "tags": [{"name": {"wktName": "VEHICLE_WHEEL"}, "value": {"wheelTagValue": "FRONT_LEFT"}}]
+        },
+        {
+          "signal": {"wksSignal": "TIRE_PRESSURE"},
+          "doubleValue": 33.5,
+          "tags": [{"name": {"wktName": "VEHICLE_WHEEL"}, "value": {"wheelTagValue": "FRONT_RIGHT"}}]
+        },
+        {
+          "signal": {"wksSignal": "TIRE_PRESSURE"},
+          "doubleValue": 32.0,
+          "tags": [{"name": {"wktName": "VEHICLE_WHEEL"}, "value": {"wheelTagValue": "REAR_LEFT"}}]
+        },
+        {
+          "signal": {"wksSignal": "TIRE_PRESSURE"},
+          "doubleValue": 32.5,
+          "tags": [{"name": {"wktName": "VEHICLE_WHEEL"}, "value": {"wheelTagValue": "REAR_RIGHT"}}]
+        },
+        {
+          "signal": {"wksSignal": "ACCELERATION"},
+          "threeAxisValue": {"x": 1.5, "y": -0.3, "z": 9.81}
+        },
+        {
+          "signal": {"wksSignal": "SEAT_BELT_STATUS"},
+          "enumValue": {"seatbeltStatus": "BUCKLED"}
+        }
+      ]
+    }
+  },
+  "shard_key": "aui:asset:vehicle/abc-123-def-456",
+  "timestamp": "2026-06-04T20:37:04.611Z",
+  "oem_source": "oem1",
+  "reference_hex": "0801108bc9a7a006"
+}

@@ -1,0 +1,89 @@
+version: '3.8'
+
+# CMS Fleet Simulator + FleetWise Edge Agent
+# Works on macOS, Linux, and Windows (Docker Desktop)
+#
+# Usage:
+#   1. Generate config: python3 setup_fwe.py --vehicle-id YOUR_VEHICLE_VIN --profile default
+#   2. Generate persistency: python3 generate_fwe_persistency.py --profile xxx
+#   3. Start: docker compose up
+#   4. Simulator sends CAN frames → FWE reads → publishes to IoT Core
+
+services:
+  # Sidecar that creates vcan0 (needs privileged for modprobe)
+  can-setup:
+    image: public.ecr.aws/ubuntu/ubuntu:22.04
+    privileged: true
+    network_mode: host
+    command: >
+      bash -c "
+        apt-get update -qq && apt-get install -y -qq iproute2 kmod > /dev/null 2>&1;
+        modprobe vcan 2>/dev/null || true;
+        ip link add dev vcan0 type vcan 2>/dev/null || true;
+        ip link set vcan0 up;
+        echo '✅ vcan0 is up';
+        sleep infinity
+      "
+    healthcheck:
+      test: ["CMD", "ip", "link", "show", "vcan0"]
+      interval: 5s
+      retries: 10
+
+  # FleetWise Edge Agent — GPS is now a CAN signal, using official image
+  fwe:
+    image: public.ecr.aws/o0q5e8r2/cms-fwe-edge:v1.3.2-custom
+    network_mode: host
+    privileged: true
+    depends_on:
+      can-setup:
+        condition: service_healthy
+    volumes:
+      - ./fwe_config/certificate.pem:/etc/aws-iot-fleetwise/certificate.pem:ro
+      - ./fwe_config/private-key.key:/etc/aws-iot-fleetwise/private-key.key:ro
+      - ./fwe_config/persistency:/var/aws-iot-fleetwise/
+      - ./fwe_config/static-config.json:/etc/aws-iot-fleetwise/input-config.json:ro
+      - fwe-gps-sock:/tmp/fwe-gps
+    environment:
+      - VEHICLE_NAME=${FWE_VEHICLE_NAME:-2HGMY1W40ME5M4PVK}
+      - ENDPOINT_URL=${FWE_ENDPOINT_URL:-YOUR_IOT_ENDPOINT}
+      - IOT_FLEETWISE_TOPIC_PREFIX=${FWE_TOPIC_PREFIX:-cms/fleetwise/}
+      - COMMANDS_TOPIC_PREFIX=cms/commands/
+      - CAN_BUS0=vcan0
+      - LOG_LEVEL=Info
+    command: >
+      --input-config-file /etc/aws-iot-fleetwise/input-config.json
+      --output-config-file /etc/aws-iot-fleetwise/config.json
+
+  # CAN Simulator - encodes telemetry to CAN frames on vcan0
+  simulator:
+    image: public.ecr.aws/ubuntu/ubuntu:22.04
+    network_mode: host
+    privileged: true
+    depends_on:
+      can-setup:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - ~/.aws:/root/.aws:ro
+      - fwe-gps-sock:/tmp/fwe-gps
+    working_dir: /app
+    environment:
+      - AWS_PROFILE=${AWS_PROFILE:-default}
+      - AWS_DEFAULT_REGION=us-east-1
+    command: >
+      bash -c "
+        apt-get update -qq && apt-get install -y -qq python3 python3-pip iproute2 > /dev/null 2>&1;
+        pip3 install -q python-can cantools msgpack paho-mqtt boto3;
+        echo '🚀 Starting CAN simulator...';
+        python3 realtime_telemetry_simulator.py
+          --profile default
+          --region us-east-1
+          --trips 1
+          --vehicles 1
+          --city seattle
+          --mode can
+          --vehicle-config '[{\"vehicleId\":\"2HGMY1W40ME5M4PVK\",\"vin\":\"2HGMY1W40ME5M4PVK\"}]'
+      "
+
+volumes:
+  fwe-gps-sock:

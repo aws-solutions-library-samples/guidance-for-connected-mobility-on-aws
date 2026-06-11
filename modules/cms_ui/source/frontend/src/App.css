@@ -1,0 +1,370 @@
+/* AIOT-Style Layout - Maximum Specificity Border Fix */
+
+/* Fixed header styling - use consistent dark blue */
+#h {
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  margin: 0;
+  background-color: #161d26 !important;
+  font-family: "Open Sans", "Helvetica Neue", Roboto, Arial, sans-serif;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* MAXIMUM SPECIFICITY TARGET FOR TOP NAVIGATION BORDER */
+/* Target every possible variation with maximum specificity */
+header#h div.awsui_top-navigation_,
+#h div.awsui_top-navigation_,
+div.awsui_top-navigation_,
+.awsui_top-navigation_,
+[class*="awsui_top-navigation_"],
+[class^="awsui_top-navigation_"],
+[class$="awsui_top-navigation_"] {
+  border-block-end: 0px solid transparent !important;
+  border-bottom: 0px solid transparent !important;
+  border-block-end-width: 0 !important;
+  border-bottom-width: 0 !important;
+  border-block-end-style: none !important;
+  border-bottom-style: none !important;
+  border-block-end-color: #161d26 !important;
+  border-bottom-color: #161d26 !important;
+  background-color: #161d26 !important;
+}
+
+/* NUCLEAR OPTION - Override any possible border property */
+header#h * {
+  border-block-end: 0px solid transparent !important;
+  border-bottom: 0px solid transparent !important;
+  border-block-end-width: 0 !important;
+  border-bottom-width: 0 !important;
+  border-block-end-style: none !important;
+  border-bottom-style: none !important;
+  border-block-end-color: #161d26 !important;
+  border-bottom-color: #161d26 !important;
+}
+
+/* Remove borders from TopNavigation and force consistent color */
+#h .awsui-top-navigation,
+#h .awsui-top-navigation *,
+.awsui-top-navigation,
+.awsui-top-navigation * {
+  border: none !important;
+  border-top: none !important;
+  border-bottom: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-block-end: none !important;
+  border-block-end-color: #161d26 !important;
+  box-shadow: none !important;
+  background-color: #161d26 !important;
+}
+
+/* Body - start at top, same background as header for seamless connection */
+#b {
+  padding-top: 0;
+  margin-top: 0;
+  background-color: #161d26 !important;
+}
+
+/* Force breadcrumb area to have consistent background */
+#b .awsui-app-layout-breadcrumbs {
+  padding-top: 68px !important; /* 56px for header + 12px normal padding */
+  padding-bottom: 12px !important;
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+  margin-top: 0 !important;
+  background-color: #161d26 !important;
+  border: none !important;
+  border-color: #161d26 !important;
+  box-shadow: none !important;
+}
+
+/* TARGET SPECIFIC BREADCRUMB GROUP ELEMENT */
+#b .awsui_breadcrumb-group_,
+#b div[class*="breadcrumb-group"],
+#b [class*="awsui_breadcrumb-group"] {
+  background-color: #161d26 !important;
+  border-top: none !important;
+  border-top-color: #161d26 !important;
+  border-color: #161d26 !important;
+}
+
+/* Force page header to use consistent background color */
+#b .awsui-content-layout-header[data-variant="high-contrast"],
+.awsui-content-layout-header[data-variant="high-contrast"],
+div[class*="content-layout-header"][data-variant="high-contrast"] {
+  background-color: #161d26 !important;
+  border: none !important;
+  border-top: none !important;
+  border-top-color: #161d26 !important;
+  border-color: #161d26 !important;
+  box-shadow: none !important;
+}
+
+/* PAGE HEADER BUTTON STYLING - USE #42B4FF COLOR */
+/* Target buttons in page header with multiple selectors - EXCLUDE pagination buttons, custom preferences button, and tabs */
+#b .awsui-content-layout-header[data-variant="high-contrast"] .awsui-button:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+#b .awsui-content-layout-header[data-variant="high-contrast"] button:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+.awsui-content-layout-header[data-variant="high-contrast"] .awsui-button:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+.awsui-content-layout-header[data-variant="high-contrast"] button:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+div[class*="content-layout-header"][data-variant="high-contrast"] .awsui-button:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+div[class*="content-layout-header"][data-variant="high-contrast"] button:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+#b div[class*="header"] .awsui-button:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+#b div[class*="header"] button:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]) {
+  color: #42B4FF !important;
+  border-color: #42B4FF !important;
+  border: 1px solid #42B4FF !important;
+  background-color: transparent !important;
+}
+
+/* Page header button hover state - EXCLUDE pagination buttons, custom preferences button, and tabs */
+#b .awsui-content-layout-header[data-variant="high-contrast"] .awsui-button:hover:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+#b .awsui-content-layout-header[data-variant="high-contrast"] button:hover:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+.awsui-content-layout-header[data-variant="high-contrast"] .awsui-button:hover:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+.awsui-content-layout-header[data-variant="high-contrast"] button:hover:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+div[class*="content-layout-header"][data-variant="high-contrast"] .awsui-button:hover:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+div[class*="content-layout-header"][data-variant="high-contrast"] button:hover:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+#b div[class*="header"] .awsui-button:hover:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+#b div[class*="header"] button:hover:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]) {
+  color: #42B4FF !important;
+  border-color: #42B4FF !important;
+  background-color: rgba(66, 180, 255, 0.1) !important;
+}
+
+/* Page header button focus state - EXCLUDE pagination buttons, custom preferences button, and tabs */
+#b .awsui-content-layout-header[data-variant="high-contrast"] .awsui-button:focus:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+#b .awsui-content-layout-header[data-variant="high-contrast"] button:focus:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+.awsui-content-layout-header[data-variant="high-contrast"] .awsui-button:focus:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+.awsui-content-layout-header[data-variant="high-contrast"] button:focus:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+div[class*="content-layout-header"][data-variant="high-contrast"] .awsui-button:focus:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+div[class*="content-layout-header"][data-variant="high-contrast"] button:focus:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+#b div[class*="header"] .awsui-button:focus:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+#b div[class*="header"] button:focus:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]) {
+  color: #42B4FF !important;
+  border-color: #42B4FF !important;
+  box-shadow: 0 0 0 2px rgba(66, 180, 255, 0.3) !important;
+}
+
+/* NUCLEAR OPTION - Target any button in header area - EXCLUDE pagination buttons, custom preferences button, and tabs */
+#b .awsui_header-controls_ button:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+#b .awsui_header-controls_ .awsui-button:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+#b div[class*="header-controls"] button:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+#b div[class*="header-controls"] .awsui-button:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]) {
+  color: #42B4FF !important;
+  border-color: #42B4FF !important;
+  border: 1px solid #42B4FF !important;
+  background-color: transparent !important;
+}
+
+#b .awsui_header-controls_ button:hover:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+#b .awsui_header-controls_ .awsui-button:hover:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+#b div[class*="header-controls"] button:hover:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]),
+#b div[class*="header-controls"] .awsui-button:hover:not([class*="awsui_page-number"]):not([class*="awsui_arrow"]):not([class*="awsui_trigger-button"]):not(.custom-preferences-button):not([class*="awsui_tabs-tab-link"]) {
+  color: #42B4FF !important;
+  border-color: #42B4FF !important;
+  background-color: rgba(66, 180, 255, 0.1) !important;
+}
+
+/* TARGET SPECIFIC HEADER WRAPPER ELEMENT */
+#b .awsui_header-wrapper_,
+#b div[class*="header-wrapper"],
+#b [class*="awsui_header-wrapper"] {
+  background-color: #161d26 !important;
+  border-top: none !important;
+  border-top-color: #161d26 !important;
+  border-color: #161d26 !important;
+}
+
+/* TARGET ONLY THE SCROLLING BACKGROUND ELEMENT IN HEADER AREA */
+#b .awsui_scrolling-background_,
+#b div[class*="scrolling-background"],
+#b [class*="awsui_scrolling-background"] {
+  background-color: #161d26 !important;
+  border-top: none !important;
+  border-top-color: #161d26 !important;
+  border-color: #161d26 !important;
+}
+
+/* Remove any borders from AppLayout that might create visual separation */
+#b .awsui-app-layout {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  border: none !important;
+  border-top: none !important;
+  border-color: #161d26 !important;
+  box-shadow: none !important;
+}
+
+/* Force AppLayout main and content to have no top spacing or borders */
+#b .awsui-app-layout-main,
+#b .awsui-app-layout-content {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  border-top: none !important;
+  border-top-color: #161d26 !important;
+  border-color: #161d26 !important;
+}
+
+/* If there's no breadcrumb, make sure content starts with proper offset */
+#b .awsui-app-layout-content:first-child {
+  padding-top: 56px !important;
+  background-color: #161d26 !important;
+  border-top: none !important;
+  border-color: #161d26 !important;
+}
+
+/* Ensure breadcrumb text is white on dark background */
+#b .awsui-breadcrumb-group .awsui-breadcrumb-group-item,
+#b .awsui-breadcrumb-group .awsui-breadcrumb-group-item a {
+  color: #ffffff !important;
+}
+
+#b .awsui-breadcrumb-group .awsui-breadcrumb-group-item a:hover {
+  color: #d5dbdb !important;
+}
+
+#b .awsui-breadcrumb-group .awsui-breadcrumb-group-separator {
+  color: #d5dbdb !important;
+}
+
+/* Ensure main content areas follow theme */
+#b .awsui-app-layout-content {
+  background-color: var(--color-background-layout-main-5ilwcb, #ffffff);
+}
+
+/* Add rounded corners to content sections for consistent styling like iot-client-list */
+#b .awsui-content-layout,
+#b .awsui-app-layout-content .awsui-content-layout {
+  border-radius: 8px !important;
+}
+
+/* Target correct CloudScape class names for rounded corners */
+#b .awsui_header-controls,
+#b .awsui_variant-container {
+  border-radius: 8px !important;
+}
+
+#b .awsui_content {
+  border-radius: 8px !important;
+}
+
+/* Ensure awsui_root has proper CSS variables and rounded corners */
+#b .awsui_root {
+  --border-radius-container-nsfwmm: 16px;
+  border-start-start-radius: var(--border-radius-container-nsfwmm, 16px) !important;
+  border-start-end-radius: var(--border-radius-container-nsfwmm, 16px) !important;
+  border-end-start-radius: var(--border-radius-container-nsfwmm, 16px) !important;
+  border-end-end-radius: var(--border-radius-container-nsfwmm, 16px) !important;
+  border-radius: 16px !important;
+}
+
+/* Apply CSS variables globally within #b for CloudScape components */
+#b {
+  --border-radius-container-nsfwmm: 16px;
+  --border-radius-container: 16px;
+  --border-radius-item: 16px;
+}
+
+/* Ensure awsui_root and related classes have proper rounded corners */
+#b .awsui_root,
+#b .awsui_content,
+#b .awsui_content-wrapper,
+#b .awsui_header,
+#b .awsui_container,
+#b .awsui_layout {
+  border-radius: 16px !important;
+  border-start-start-radius: 16px !important;
+  border-start-end-radius: 16px !important;
+  border-end-start-radius: 16px !important;
+  border-end-end-radius: 16px !important;
+}
+
+/* But keep the header area dark for seamless integration */
+#b .awsui-app-layout-content:first-child {
+  background-color: var(--color-background-container-content-6u8rvp, #161d26);
+}
+
+/* Remove Amplify tabs */
+.amplify-tabs {
+  display: none;
+}
+
+/* Utility classes from AIOT */
+.pr {
+  position: relative;
+}
+
+.flex {
+  display: flex;
+}
+
+.no-shrink {
+  flex-shrink: 0;
+}
+
+.flex-v {
+  display: flex;
+  flex-direction: column;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+.align-end {
+  align-items: flex-end;
+  align-content: flex-end;
+}
+
+.gap-5 {
+  gap: 5px;
+}
+
+.gap-10 {
+  gap: 10px;
+}
+
+.mt-10 {
+  margin-top: 10px;
+}
+
+.align-center {
+  align-items: center;
+}
+
+/* Color utilities from AIOT */
+.color-red {
+  color: #cb0000;
+}
+
+.color-green {
+  color: #006600;
+}
+
+/* Responsive design from AIOT */
+@media only screen and (max-width: 493px) {
+  .responsive-padding {
+    padding: 10px 20px;
+  }
+}
+
+@media only screen and (max-width: 688px) {
+  .responsive-flex {
+    flex-wrap: wrap;
+  }
+}
+
+@media only screen and (min-width: 1182px) {
+  .responsive-padding-large {
+    padding: 2px 40px;
+  }
+}
+}
+
+.top-navbar .awsui-top-navigation-utility {
+  color: #ffffff !important;
+}

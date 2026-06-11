@@ -1,0 +1,5 @@
+{
+  "suppress_signal_derived_trips_for_oems": ["oem1"],
+  "canonical_trip_event_types": ["cms.trip_report", "cms.ignition_state_change"],
+  "trip_dedup_window_ms": 30000
+}
