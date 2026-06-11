@@ -1,0 +1,148 @@
+/* Fleet Vehicle Map View Styles */
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.5);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+}
+
+.vehicle-marker {
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.vehicle-marker:hover {
+  transform: scale(1.1);
+  z-index: 1000;
+}
+
+.auto-registered-marker {
+  animation: pulse 2s infinite;
+}
+
+.fleet-boundary-circle {
+  pointer-events: none;
+}
+
+.map-container {
+  position: relative;
+  width: 100%;
+  height: 600px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.map-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 600px;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+}
+
+.vehicle-popup {
+  font-family: 'Amazon Ember', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+.vehicle-popup .popup-header {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #232f3e;
+}
+
+.vehicle-popup .popup-detail {
+  font-size: 12px;
+  color: #5f6b7a;
+  margin-bottom: 4px;
+}
+
+.vehicle-popup .auto-registered-badge {
+  margin-top: 8px;
+  padding: 4px 8px;
+  background-color: #e3f2fd;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #1976d2;
+  display: inline-block;
+}
+
+.fleet-summary-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.fleet-summary-card .summary-number {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.fleet-summary-card .summary-label {
+  font-size: 0.875rem;
+  opacity: 0.9;
+}
+
+/* Status indicators */
+.status-connected {
+  color: #10b981;
+}
+
+.status-offline {
+  color: #6b7280;
+}
+
+.status-maintenance {
+  color: #f59e0b;
+}
+
+/* Map controls */
+.map-controls {
+  background: var(--color-background-container-content-6u8rvp, white);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 16px;
+  font-size: 14px;
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .map-container {
+    height: 400px;
+  }
+  
+  .map-controls {
+    padding: 12px;
+  }
+  
+  .legend-item {
+    margin-right: 12px;
+    margin-bottom: 8px;
+  }
+}

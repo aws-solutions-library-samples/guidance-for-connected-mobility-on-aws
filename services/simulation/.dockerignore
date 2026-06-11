@@ -1,0 +1,17 @@
+__pycache__
+*.pyc
+*.log
+*.pid
+sim_env/
+can_env/
+fwe_config/
+fwe-custom/
+*.pem
+*.key
+*.crt
+*.json
+!requirements.txt
+route_cache.json
+munich_route_cache.json
+batch_progress.json
+.DS_Store

@@ -1,0 +1,520 @@
+VERSION ""
+
+NS_ :
+
+BS_:
+
+BU_: ECM TCM BCM TPMS ADAS BMS ICM HVAC LIGHT CONN MAINT GPS
+
+VAL_TABLE_ IgnitionState 0 "OFF" 1 "ON" ;
+VAL_TABLE_ SeatbeltState 0 "UNFASTENED" 1 "FASTENED" ;
+VAL_TABLE_ GearPosition 0 "PARK" 1 "REVERSE" 2 "NEUTRAL" 3 "DRIVE" ;
+VAL_TABLE_ HeadlightMode 0 "OFF" 1 "AUTO" 2 "ON" ;
+VAL_TABLE_ SeatHeatLevel 0 "OFF" 1 "LOW" 2 "MEDIUM" 3 "HIGH" ;
+
+BO_ 256 ECM_Engine_1: 8 ECM
+ SG_ VehicleSpeed : 0|16@1+ (0.01,0) [0|655.35] "mph" BCM,ADAS,ICM
+ SG_ EngineRPM : 16|16@1+ (1,0) [0|8000] "rpm" ICM
+ SG_ EngineTemp : 32|12@1+ (0.1,-40) [-40|369.5] "degF" BCM,MAINT
+ SG_ IgnitionOn : 44|1@1+ (1,0) [0|1] "" BCM,ICM
+
+BO_ 257 ECM_Engine_2: 8 ECM
+ SG_ OilPressure : 0|10@1+ (0.1,0) [0|102.3] "PSI" MAINT
+ SG_ EngineLoad : 10|8@1+ (0.5,0) [0|127.5] "%" ICM
+ SG_ ThrottlePosition : 18|10@1+ (0.1,0) [0|102.3] "%" ICM
+ SG_ CoolantTemp : 28|12@1+ (0.1,-40) [-40|369.5] "degF" MAINT
+ SG_ IntakeAirTemp : 40|10@1+ (0.1,-40) [-40|62.3] "degF" ECM
+ SG_ EngineHoursTotal : 50|14@1+ (1,0) [0|16383] "hrs" MAINT
+
+BO_ 258 ECM_Engine_3: 8 ECM
+ SG_ Acceleration : 0|12@1+ (0.01,-20) [-20|20.95] "m/s2" ADAS
+ SG_ Deceleration : 12|12@1+ (0.01,-20) [-20|20.95] "m/s2" ADAS
+ SG_ Odometer : 24|24@1+ (1,0) [0|16777215] "miles" ICM,MAINT
+ SG_ FuelRate : 48|10@1+ (0.05,0) [0|51.15] "L/h" MAINT
+
+BO_ 272 TCM_Transmission: 4 TCM
+ SG_ TransmissionTemp : 0|10@1+ (0.5,-40) [-40|471.5] "degF" MAINT
+ SG_ GearPosition : 10|3@1+ (1,0) [0|7] "" ICM
+ SG_ CruiseControl : 13|1@1+ (1,0) [0|1] "" ICM
+ SG_ ParkingBrake : 14|1@1+ (1,0) [0|1] "" ICM
+
+BO_ 288 BCM_Body_1: 8 BCM
+ SG_ SeatbeltStatus : 0|1@1+ (1,0) [0|1] "" ADAS,ICM
+ SG_ PhoneConnected : 1|1@1+ (1,0) [0|1] "" ICM
+ SG_ WindowsUp : 2|1@1+ (1,0) [0|1] "" ICM
+ SG_ TrunkLocked : 3|1@1+ (1,0) [0|1] "" ICM
+ SG_ AlarmArmed : 4|1@1+ (1,0) [0|1] "" ICM
+ SG_ KeylessEntry : 5|1@1+ (1,0) [0|1] "" ICM
+ SG_ Headlights : 6|2@1+ (1,0) [0|2] "" ICM
+ SG_ HazardLights : 8|1@1+ (1,0) [0|1] "" ICM
+ SG_ TurnSignalActive : 9|1@1+ (1,0) [0|1] "" ICM
+ SG_ WifiConnected : 10|1@1+ (1,0) [0|1] "" CONN
+ SG_ BluetoothDevices : 11|3@1+ (1,0) [0|7] "" CONN
+ SG_ NavigationActive : 14|1@1+ (1,0) [0|1] "" ICM
+
+BO_ 304 TPMS_Pressure: 8 TPMS
+ SG_ TirePressureFL : 0|10@1+ (0.1,0) [0|102.3] "PSI" BCM,MAINT
+ SG_ TirePressureFR : 10|10@1+ (0.1,0) [0|102.3] "PSI" BCM,MAINT
+ SG_ TirePressureRL : 20|10@1+ (0.1,0) [0|102.3] "PSI" BCM,MAINT
+ SG_ TirePressureRR : 30|10@1+ (0.1,0) [0|102.3] "PSI" BCM,MAINT
+ SG_ TireTempMax : 40|8@1+ (1,0) [0|255] "degF" MAINT
+
+BO_ 305 TPMS_Tread: 8 TPMS
+ SG_ TireTreadFL : 0|8@1+ (0.1,0) [0|25.5] "mm" MAINT
+ SG_ TireTreadFR : 8|8@1+ (0.1,0) [0|25.5] "mm" MAINT
+ SG_ TireTreadRL : 16|8@1+ (0.1,0) [0|25.5] "mm" MAINT
+ SG_ TireTreadRR : 24|8@1+ (0.1,0) [0|25.5] "mm" MAINT
+
+BO_ 320 ADAS_Safety_1: 8 ADAS
+ SG_ HarshBraking : 0|10@1+ (0.001,0) [0|1.023] "g" BCM
+ SG_ HarshAcceleration : 10|10@1+ (0.001,0) [0|1.023] "g" BCM
+ SG_ HarshTurn : 20|10@1+ (0.1,0) [0|102.3] "deg/s" BCM
+ SG_ SpeedViolation : 30|1@1+ (1,0) [0|1] "" BCM,ICM
+ SG_ AEBActivation : 31|1@1+ (1,0) [0|1] "" BCM,ICM
+ SG_ ABSActivation : 32|1@1+ (1,0) [0|1] "" BCM,ICM
+ SG_ ESCActivation : 33|1@1+ (1,0) [0|1] "" BCM,ICM
+ SG_ AirbagWarning : 34|1@1+ (1,0) [0|1] "" BCM,ICM
+ SG_ TractionControl : 35|1@1+ (1,0) [0|1] "" ICM
+ SG_ StabilityControl : 36|1@1+ (1,0) [0|1] "" ICM
+
+BO_ 321 ADAS_Safety_2: 4 ADAS
+ SG_ PhoneUsage : 0|1@1+ (1,0) [0|1] "" BCM,ICM
+ SG_ SeatbeltViolation : 1|1@1+ (1,0) [0|1] "" BCM,ICM
+ SG_ LateralG : 2|10@1+ (0.01,-5) [-5|5.23] "g" BCM
+ SG_ FollowingDistance : 12|10@1+ (0.1,0) [0|102.3] "m" BCM
+
+BO_ 336 BMS_Battery: 8 BMS
+ SG_ BatteryVoltage : 0|10@1+ (0.02,0) [0|20.46] "V" MAINT,ICM
+ SG_ AlternatorOutput : 10|10@1+ (0.02,0) [0|20.46] "V" MAINT
+ SG_ FuelLevel : 20|8@1+ (0.5,0) [0|127.5] "%" ICM,MAINT
+
+BO_ 337 BMS_EV: 8 BMS
+ SG_ IsEV : 0|1@1+ (1,0) [0|1] "" ICM
+ SG_ StateOfCharge : 1|8@1+ (0.5,0) [0|127.5] "%" ICM,MAINT
+ SG_ HVBatteryVoltage : 9|12@1+ (0.1,0) [0|409.5] "V" MAINT
+ SG_ RegenPower : 21|11@1+ (0.1,-50) [-50|154.7] "kW" ICM
+
+BO_ 352 ICM_Instrument: 4 ICM
+ SG_ Heading : 0|12@1+ (0.1,0) [0|409.5] "deg" GPS
+ SG_ DTCCodesActive : 12|1@1+ (1,0) [0|1] "" MAINT
+
+BO_ 368 HVAC_Climate: 4 HVAC
+ SG_ HVACOn : 0|1@1+ (1,0) [0|1] "" ICM
+ SG_ TargetTemp : 1|8@1+ (0.5,40) [40|167.5] "degF" ICM
+ SG_ CabinTemp : 9|8@1+ (0.5,40) [40|167.5] "degF" ICM
+ SG_ SeatHeatDriver : 17|2@1+ (1,0) [0|3] "" ICM
+
+BO_ 384 MAINT_Indicators: 8 MAINT
+ SG_ OilLife : 0|8@1+ (0.5,0) [0|127.5] "%" ICM
+ SG_ BrakeWear : 8|8@1+ (0.5,0) [0|127.5] "%" ICM
+ SG_ FilterLife : 16|8@1+ (0.5,0) [0|127.5] "%" ICM
+ SG_ IdleHoursTotal : 24|14@1+ (1,0) [0|16383] "hrs" ICM
+ SG_ AirPressure : 38|8@1+ (0.5,0) [0|127.5] "PSI" ICM
+ SG_ HydraulicPressure : 46|12@1+ (1,0) [0|4095] "PSI" ICM
+
+BO_ 400 LIGHT_Systems: 2 LIGHT
+ SG_ HeadlightMode : 0|2@1+ (1,0) [0|2] "" ICM
+ SG_ HazardActive : 2|1@1+ (1,0) [0|1] "" ICM
+ SG_ TurnSignal : 3|1@1+ (1,0) [0|1] "" ICM
+
+BA_DEF_ SG_ "SignalLongName" STRING ;
+BA_DEF_ SG_ "SystemSignalLongSymbol" STRING ;
+BA_DEF_ BO_ "GenMsgCycleTime" INT 0 10000;
+
+BA_DEF_DEF_ "SignalLongName" "";
+BA_DEF_DEF_ "SystemSignalLongSymbol" "";
+BA_DEF_DEF_ "GenMsgCycleTime" 0;
+
+BA_ "GenMsgCycleTime" BO_ 256 100;
+BA_ "GenMsgCycleTime" BO_ 257 500;
+BA_ "GenMsgCycleTime" BO_ 258 100;
+BA_ "GenMsgCycleTime" BO_ 272 200;
+BA_ "GenMsgCycleTime" BO_ 288 500;
+BA_ "GenMsgCycleTime" BO_ 304 1000;
+BA_ "GenMsgCycleTime" BO_ 305 5000;
+BA_ "GenMsgCycleTime" BO_ 320 100;
+BA_ "GenMsgCycleTime" BO_ 321 100;
+BA_ "GenMsgCycleTime" BO_ 336 1000;
+BA_ "GenMsgCycleTime" BO_ 337 1000;
+BA_ "GenMsgCycleTime" BO_ 352 200;
+BA_ "GenMsgCycleTime" BO_ 368 2000;
+BA_ "GenMsgCycleTime" BO_ 384 5000;
+BA_ "GenMsgCycleTime" BO_ 400 500;
+
+BA_ "SignalLongName" SG_ 256 VehicleSpeed "Vehicle.Speed";
+BA_ "SignalLongName" SG_ 256 EngineRPM "Vehicle.Powertrain.Engine.RPM";
+BA_ "SignalLongName" SG_ 256 EngineTemp "Vehicle.Powertrain.Engine.Temperature";
+BA_ "SignalLongName" SG_ 256 IgnitionOn "Vehicle.Powertrain.IgnitionOn";
+BA_ "SignalLongName" SG_ 257 OilPressure "Vehicle.Powertrain.Engine.OilPressure";
+BA_ "SignalLongName" SG_ 257 EngineLoad "Vehicle.Powertrain.Engine.Load";
+BA_ "SignalLongName" SG_ 257 ThrottlePosition "Vehicle.Powertrain.Engine.ThrottlePosition";
+BA_ "SignalLongName" SG_ 257 CoolantTemp "Vehicle.Powertrain.Engine.CoolantTemperature";
+BA_ "SignalLongName" SG_ 257 IntakeAirTemp "Vehicle.Powertrain.Engine.IntakeAirTemperature";
+BA_ "SignalLongName" SG_ 257 EngineHoursTotal "Vehicle.Powertrain.Engine.HoursTotal";
+BA_ "SignalLongName" SG_ 258 Acceleration "Vehicle.Acceleration";
+BA_ "SignalLongName" SG_ 258 Deceleration "Vehicle.Deceleration";
+BA_ "SignalLongName" SG_ 258 Odometer "Vehicle.Odometer";
+BA_ "SignalLongName" SG_ 258 FuelRate "Vehicle.Powertrain.FuelSystem.FuelRate";
+BA_ "SignalLongName" SG_ 272 TransmissionTemp "Vehicle.Powertrain.Transmission.Temperature";
+BA_ "SignalLongName" SG_ 272 GearPosition "Vehicle.Powertrain.Transmission.GearPosition";
+BA_ "SignalLongName" SG_ 272 CruiseControl "Vehicle.ADAS.CruiseControl.Active";
+BA_ "SignalLongName" SG_ 272 ParkingBrake "Vehicle.Chassis.ParkingBrake.Active";
+BA_ "SignalLongName" SG_ 288 SeatbeltStatus "Vehicle.Cabin.Seatbelt.Driver.Fastened";
+BA_ "SignalLongName" SG_ 288 PhoneConnected "Vehicle.Cabin.Infotainment.PhoneConnected";
+BA_ "SignalLongName" SG_ 288 WindowsUp "Vehicle.Cabin.Windows.AllClosed";
+BA_ "SignalLongName" SG_ 288 TrunkLocked "Vehicle.Body.Trunk.Locked";
+BA_ "SignalLongName" SG_ 288 AlarmArmed "Vehicle.Body.Alarm.Armed";
+BA_ "SignalLongName" SG_ 288 KeylessEntry "Vehicle.Body.KeylessEntry.Proximity";
+BA_ "SignalLongName" SG_ 288 Headlights "Vehicle.Body.Lights.Headlights.Mode";
+BA_ "SignalLongName" SG_ 288 HazardLights "Vehicle.Body.Lights.Hazard.Active";
+BA_ "SignalLongName" SG_ 288 TurnSignalActive "Vehicle.Body.Lights.TurnSignal.Active";
+BA_ "SignalLongName" SG_ 288 WifiConnected "Vehicle.Connectivity.WiFi.Connected";
+BA_ "SignalLongName" SG_ 288 BluetoothDevices "Vehicle.Connectivity.Bluetooth.DeviceCount";
+BA_ "SignalLongName" SG_ 288 NavigationActive "Vehicle.Cabin.Infotainment.Navigation.Active";
+BA_ "SignalLongName" SG_ 304 TirePressureFL "Vehicle.Chassis.Axle.Row1.Wheel.Left.Tire.Pressure";
+BA_ "SignalLongName" SG_ 304 TirePressureFR "Vehicle.Chassis.Axle.Row1.Wheel.Right.Tire.Pressure";
+BA_ "SignalLongName" SG_ 304 TirePressureRL "Vehicle.Chassis.Axle.Row2.Wheel.Left.Tire.Pressure";
+BA_ "SignalLongName" SG_ 304 TirePressureRR "Vehicle.Chassis.Axle.Row2.Wheel.Right.Tire.Pressure";
+BA_ "SignalLongName" SG_ 304 TireTempMax "Vehicle.Chassis.Tire.TemperatureMax";
+BA_ "SignalLongName" SG_ 305 TireTreadFL "Vehicle.Chassis.Axle.Row1.Wheel.Left.Tire.TreadDepth";
+BA_ "SignalLongName" SG_ 305 TireTreadFR "Vehicle.Chassis.Axle.Row1.Wheel.Right.Tire.TreadDepth";
+BA_ "SignalLongName" SG_ 305 TireTreadRL "Vehicle.Chassis.Axle.Row2.Wheel.Left.Tire.TreadDepth";
+BA_ "SignalLongName" SG_ 305 TireTreadRR "Vehicle.Chassis.Axle.Row2.Wheel.Right.Tire.TreadDepth";
+BA_ "SignalLongName" SG_ 320 HarshBraking "Vehicle.ADAS.Safety.HarshBraking";
+BA_ "SignalLongName" SG_ 320 HarshAcceleration "Vehicle.ADAS.Safety.HarshAcceleration";
+BA_ "SignalLongName" SG_ 320 HarshTurn "Vehicle.ADAS.Safety.HarshTurn";
+BA_ "SignalLongName" SG_ 320 SpeedViolation "Vehicle.ADAS.Safety.SpeedViolation";
+BA_ "SignalLongName" SG_ 320 AEBActivation "Vehicle.ADAS.AEB.Active";
+BA_ "SignalLongName" SG_ 320 ABSActivation "Vehicle.ADAS.ABS.Active";
+BA_ "SignalLongName" SG_ 320 ESCActivation "Vehicle.ADAS.ESC.Active";
+BA_ "SignalLongName" SG_ 320 AirbagWarning "Vehicle.Safety.Airbag.Warning";
+BA_ "SignalLongName" SG_ 320 TractionControl "Vehicle.ADAS.TractionControl.Active";
+BA_ "SignalLongName" SG_ 320 StabilityControl "Vehicle.ADAS.StabilityControl.Active";
+BA_ "SignalLongName" SG_ 321 PhoneUsage "Vehicle.Safety.Driver.PhoneUsage";
+BA_ "SignalLongName" SG_ 321 SeatbeltViolation "Vehicle.Safety.Driver.SeatbeltViolation";
+BA_ "SignalLongName" SG_ 321 LateralG "Vehicle.Acceleration.Lateral";
+BA_ "SignalLongName" SG_ 321 FollowingDistance "Vehicle.ADAS.FollowingDistance";
+BA_ "SignalLongName" SG_ 336 BatteryVoltage "Vehicle.Powertrain.Battery.Voltage";
+BA_ "SignalLongName" SG_ 336 AlternatorOutput "Vehicle.Powertrain.Alternator.Voltage";
+BA_ "SignalLongName" SG_ 336 FuelLevel "Vehicle.Powertrain.FuelSystem.Level";
+BA_ "SignalLongName" SG_ 337 IsEV "Vehicle.Powertrain.Type.IsEV";
+BA_ "SignalLongName" SG_ 337 StateOfCharge "Vehicle.Powertrain.Battery.StateOfCharge";
+BA_ "SignalLongName" SG_ 337 HVBatteryVoltage "Vehicle.Powertrain.Battery.HVVoltage";
+BA_ "SignalLongName" SG_ 337 RegenPower "Vehicle.Powertrain.Battery.RegenPower";
+BA_ "SignalLongName" SG_ 352 Heading "Vehicle.Navigation.Heading";
+BA_ "SignalLongName" SG_ 352 DTCCodesActive "Vehicle.Diagnostics.DTCActive";
+BA_ "SignalLongName" SG_ 368 HVACOn "Vehicle.Cabin.HVAC.Active";
+BA_ "SignalLongName" SG_ 368 TargetTemp "Vehicle.Cabin.HVAC.TargetTemperature";
+BA_ "SignalLongName" SG_ 368 CabinTemp "Vehicle.Cabin.HVAC.CabinTemperature";
+BA_ "SignalLongName" SG_ 368 SeatHeatDriver "Vehicle.Cabin.Seat.Driver.HeatingLevel";
+BA_ "SignalLongName" SG_ 384 OilLife "Vehicle.Maintenance.OilLife";
+BA_ "SignalLongName" SG_ 384 BrakeWear "Vehicle.Maintenance.BrakeWear";
+BA_ "SignalLongName" SG_ 384 FilterLife "Vehicle.Maintenance.FilterLife";
+BA_ "SignalLongName" SG_ 384 IdleHoursTotal "Vehicle.Powertrain.Engine.IdleHoursTotal";
+BA_ "SignalLongName" SG_ 384 AirPressure "Vehicle.Chassis.Brake.AirPressure";
+BA_ "SignalLongName" SG_ 384 HydraulicPressure "Vehicle.Chassis.Brake.HydraulicPressure";
+
+VAL_ 256 IgnitionOn 0 "OFF" 1 "ON" ;
+VAL_ 288 SeatbeltStatus 0 "UNFASTENED" 1 "FASTENED" ;
+VAL_ 272 GearPosition 0 "PARK" 1 "REVERSE" 2 "NEUTRAL" 3 "DRIVE" ;
+VAL_ 288 Headlights 0 "OFF" 1 "AUTO" 2 "ON" ;
+VAL_ 368 SeatHeatDriver 0 "OFF" 1 "LOW" 2 "MEDIUM" 3 "HIGH" ;
+
+CM_ BU_ ECM "Engine Control Module - powertrain signals";
+CM_ BU_ TCM "Transmission Control Module";
+CM_ BU_ BCM "Body Control Module - body electronics";
+CM_ BU_ TPMS "Tire Pressure Monitoring System";
+CM_ BU_ ADAS "Advanced Driver Assistance Systems";
+CM_ BU_ BMS "Battery Management System";
+CM_ BU_ ICM "Instrument Cluster Module";
+CM_ BU_ HVAC "Climate Control Module";
+CM_ BU_ LIGHT "Lighting Control Module";
+CM_ BU_ CONN "Connectivity Module - WiFi/BT";
+CM_ BU_ MAINT "Maintenance Monitoring Module";
+CM_ BU_ GPS "GPS/Navigation Module";
+
+CM_ BO_ 256 "Primary engine data - speed, RPM, temp, ignition (100ms cycle)";
+CM_ BO_ 257 "Secondary engine data - oil, load, throttle, coolant (500ms cycle)";
+CM_ BO_ 258 "Vehicle dynamics - accel, decel, odometer, fuel rate (100ms cycle)";
+CM_ BO_ 272 "Transmission status and driver controls (200ms cycle)";
+CM_ BO_ 288 "Body electronics - seatbelt, locks, windows, connectivity (500ms cycle)";
+CM_ BO_ 304 "Tire pressure monitoring - all 4 wheels + temp (1000ms cycle)";
+CM_ BO_ 305 "Tire tread depth monitoring - all 4 wheels (5000ms cycle)";
+CM_ BO_ 320 "ADAS safety events - braking, acceleration, stability (100ms cycle)";
+CM_ BO_ 321 "ADAS driver monitoring - phone, seatbelt, following (100ms cycle)";
+CM_ BO_ 336 "12V battery and fuel system (1000ms cycle)";
+CM_ BO_ 337 "EV/HV battery system - SOC, voltage, regen (1000ms cycle)";
+CM_ BO_ 352 "Instrument cluster - heading, diagnostics (200ms cycle)";
+CM_ BO_ 368 "HVAC climate control (2000ms cycle)";
+CM_ BO_ 384 "Maintenance indicators - oil, brake, filter life (5000ms cycle)";
+CM_ BO_ 400 "Exterior lighting systems (500ms cycle)";
+
+
+BO_ 416 ADAS: 8 Vector__XXX
+ SG_ ACCIsActive : 0|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ ACCTargetDistance : 1|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ AEBIsActive : 17|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ AEBIsEngaged : 18|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ LeftIsWarning : 19|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ RightIsWarning : 20|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ CruiseControlIsActive : 21|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ CruiseControlSpeedSet : 22|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ DriverMonitoringAttentionLevel : 38|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ DriverMonitoringIsDrowsy : 54|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ FCWIsWarning : 55|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ LaneDepartureDetectionIsActive : 56|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ LaneDepartureDetectionIsWarning : 57|1@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 417 ADAS_1: 7 Vector__XXX
+ SG_ FrontDistance : 0|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ ParkingAssistIsActive : 16|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ RearDistance : 17|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ TSRRecognizedSign : 33|16@1+ (1,0) [0|65535] "" Vector__XXX
+
+BO_ 418 ADAS_2: 2 Vector__XXX
+ SG_ TSRSpeedLimit : 0|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+
+BO_ 419 CABIN_CLIMATE: 7 Vector__XXX
+ SG_ HVACAmbientAirTemperature : 0|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ HVACIsFrontDefrosterActive : 16|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ HVACIsRearDefrosterActive : 17|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ HVACIsRecirculationActive : 18|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ HVACMode : 19|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ HVACRemotePreconditioning : 35|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ LeftFanSpeed : 36|16@1+ (1,0) [0|65535] "" Vector__XXX
+
+BO_ 420 CABIN_CLIMATE_1: 8 Vector__XXX
+ SG_ LeftTemperature : 0|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ RightTemperature : 16|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ LeftHeating : 32|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ LeftVentilation : 48|16@1+ (1,0) [0|65535] "" Vector__XXX
+
+BO_ 421 CABIN_CLIMATE_2: 4 Vector__XXX
+ SG_ RightHeating : 0|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ SteeringWheelHeating : 16|16@1+ (1,0) [0|65535] "" Vector__XXX
+
+BO_ 422 CONNECTIVITY: 7 Vector__XXX
+ SG_ InfotainmentNavigationActive : 0|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ BluetoothPairedDevices : 1|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ CellularNetworkType : 17|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ CellularSignalStrength : 33|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ OTAIsUpdateAvailable : 49|1@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 423 CONNECTIVITY_1: 4 Vector__XXX
+ SG_ OTAUpdateProgress : 0|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ ConnectivitySoftwareVersion : 16|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ WiFiConnected : 24|1@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 424 CORE_TELEMETRY: 7 Vector__XXX
+ SG_ Acceleration2 : 0|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ ParkingBrakeActive : 16|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ Deceleration2 : 17|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ DiagnosticsDTCActive : 33|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ Odometer2 : 34|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+
+BO_ 425 CORE_TELEMETRY_1: 8 Vector__XXX
+ SG_ EngineCoolantTemperature : 0|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ PowertrainEngineHoursTotal : 16|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ EngineIntakeAirTemperature : 32|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ FuelSystemFuelRate : 48|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+
+BO_ 426 CORE_TELEMETRY_2: 2 Vector__XXX
+ SG_ TransmissionGearPosition : 0|16@1+ (1,0) [0|65535] "" Vector__XXX
+
+BO_ 427 DOORS: 3 Vector__XXX
+ SG_ ChargeDoorIsOpen : 0|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ FuelDoorIsOpen : 1|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ HoodIsOpen : 2|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ RearIsLocked : 3|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ RearIsOpen : 4|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ DoorAllLocked : 5|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ LeftIsChildLockActive : 6|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ LeftIsLocked : 7|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ LeftIsOpen : 8|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ RightIsChildLockActive : 9|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ RightIsLocked : 10|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ RightIsOpen : 11|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ Row2LeftIsChildLockActive : 12|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ Row2LeftIsLocked : 13|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ Row2LeftIsOpen : 14|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ Row2RightIsChildLockActive : 15|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ Row2RightIsLocked : 16|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ Row2RightIsOpen : 17|1@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 428 ENVIRONMENT: 8 Vector__XXX
+ SG_ ExteriorAirTemperature : 0|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ ExteriorBarometricPressure : 16|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ ExteriorHumidity : 32|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ ExteriorLightIntensity : 48|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+
+BO_ 429 ENVIRONMENT_1: 2 Vector__XXX
+ SG_ ExteriorRainIntensity : 0|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+
+BO_ 430 EV_CHARGING: 8 Vector__XXX
+ SG_ RegenerativeBrakingLevel : 0|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ ElectricMotorSpeed : 16|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ ElectricMotorTemperature : 32|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ ElectricMotorTorque : 48|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+
+BO_ 431 EV_CHARGING_1: 8 Vector__XXX
+ SG_ ChargingChargeLimit : 0|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ ChargingChargeRate : 16|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ ChargingChargeType : 32|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ ChargingIsCharging : 48|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ ChargingScheduledTime : 49|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ ChargingStartStop : 57|1@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 432 EV_CHARGING_2: 8 Vector__XXX
+ SG_ ChargingTimeToComplete : 0|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ TractionBatteryCurrent : 16|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ TractionBatteryEnergyConsumed : 32|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ TractionBatteryRange : 48|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+
+BO_ 433 EV_CHARGING_3: 8 Vector__XXX
+ SG_ StateOfChargeCurrent : 0|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ TractionBatteryStateOfHealth : 16|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ TemperatureAverage : 32|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ TemperatureMax : 48|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+
+BO_ 434 EV_CHARGING_4: 2 Vector__XXX
+ SG_ TractionBatteryVoltage : 0|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+
+BO_ 435 EV_SPECIFIC: 8 Vector__XXX
+ SG_ AlternatorVoltage : 0|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ BatteryHVVoltage : 16|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ BatteryRegenPower : 32|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ BatteryStateOfCharge : 48|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+
+BO_ 436 EV_SPECIFIC_1: 1 Vector__XXX
+ SG_ TypeIsEV : 0|1@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 437 GEOFENCE: 7 Vector__XXX
+ SG_ CurfewEndTime : 0|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ CurfewIsActive : 8|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ CurfewIsViolated : 9|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ CurfewStartTime : 10|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ CenterLatitude : 18|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ CenterLongitude : 34|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ GeofenceIsActive : 50|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ GeofenceIsViolated : 51|1@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 438 GEOFENCE_1: 7 Vector__XXX
+ SG_ GeofenceRadius : 0|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ ImmobilizerIsActive : 16|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ FleetSpeedLimit : 17|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ SpeedLimitIsViolated : 33|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ ValetModeIsActive : 34|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ ValetModeSpeedLimit : 35|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+
+BO_ 439 LIGHTING: 5 Vector__XXX
+ SG_ HighIsOn : 0|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ FrontIsOn : 1|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ RearIsOn : 2|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ HazardIsSignaling : 3|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ AmbientLightColor : 4|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ LightsIsGloveBoxOn : 20|16@1+ (1,0) [0|65535] "" Vector__XXX
+
+BO_ 440 MAINTENANCE: 8 Vector__XXX
+ SG_ TireTreadDepth : 0|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ RightTireTreadDepth : 16|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ LeftTireTreadDepth : 32|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ RightTireTreadDepth2 : 48|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+
+BO_ 441 MAINTENANCE_1: 8 Vector__XXX
+ SG_ BrakeAirPressure : 0|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ BrakeHydraulicPressure : 16|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ TireTemperatureMax : 32|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ EngineIdleHoursTotal : 48|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+
+BO_ 442 MIRRORS: 1 Vector__XXX
+ SG_ MirrorsAllFolded : 0|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ LeftIsFolded : 1|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ LeftIsHeatingOn : 2|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ RightIsFolded : 3|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ RightIsHeatingOn : 4|1@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 443 POWERTRAIN: 8 Vector__XXX
+ SG_ CombustionEngineCatalystTemperature : 0|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ CombustionEngineExhaustGasTemperature : 16|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ CombustionEngineIntakeAirTemperature : 32|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ CombustionEngineThrottlePosition : 48|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+
+BO_ 444 POWERTRAIN_1: 7 Vector__XXX
+ SG_ CombustionEngineTurboBoostPressure : 0|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ FuelSystemFuelType : 16|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ FuelSystemPressure : 32|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ RemoteStartIsActive : 48|1@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 445 POWERTRAIN_2: 4 Vector__XXX
+ SG_ TransmissionCurrentGear : 0|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ TransmissionDriveMode : 16|16@1+ (1,0) [0|65535] "" Vector__XXX
+
+BO_ 446 SAFETY: 8 Vector__XXX
+ SG_ ADASFollowingDistance : 0|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ SafetyHarshAcceleration : 16|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ SafetyHarshBraking : 32|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ SafetyHarshTurn : 48|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+
+BO_ 447 SAFETY_1: 3 Vector__XXX
+ SG_ SafetySpeedViolation : 0|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ StabilityControlActive : 1|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ AccelerationLateral : 2|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ SafetyAirbagWarning : 18|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ DriverPhoneUsage : 19|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ DriverSeatbeltViolation : 20|1@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 448 SECURITY: 1 Vector__XXX
+ SG_ AlarmIsTriggered : 0|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ AlarmPanicMode : 1|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ FleetFindMyVehicle : 2|1@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 449 TPMS: 8 Vector__XXX
+ SG_ TirePressure : 0|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ TireTemperature : 16|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ RightTirePressure : 32|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ RightTireTemperature : 48|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+
+BO_ 450 TPMS_1: 8 Vector__XXX
+ SG_ LeftTirePressure : 0|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ LeftTireTemperature : 16|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ RightTirePressure2 : 32|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ RightTireTemperature2 : 48|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+
+BO_ 451 VEHICLE_CONTROL: 7 Vector__XXX
+ SG_ ADASSpeedLimit : 0|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ HornActive : 16|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ KeylessEntryProximity : 17|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ LightsHazardActive : 18|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ HeadlightsMode : 19|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ LightsTurnSignalActive : 35|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ BodyTrunkLocked : 36|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ HVACActive : 37|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ HVACCabinTemperature : 38|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+
+BO_ 452 VEHICLE_CONTROL_1: 5 Vector__XXX
+ SG_ HVACTargetTemperature : 0|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ InfotainmentPhoneConnected : 16|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ DriverHeatingLevel : 17|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ DriverFastened : 33|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ WindowsAllClosed : 34|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ PowertrainRemoteStart : 35|1@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 453 WINDOWS: 8 Vector__XXX
+ SG_ SunroofPosition : 0|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ ShadePosition : 16|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ WindowPosition : 32|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ RightWindowPosition : 48|16@1+ (1,0) [0|65535] "" Vector__XXX
+
+BO_ 454 WINDOWS_1: 4 Vector__XXX
+ SG_ LeftWindowPosition : 0|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ RightWindowPosition2 : 16|16@1+ (1,0) [0|65535] "" Vector__XXX
+
+BO_ 455 WIPERS: 5 Vector__XXX
+ SG_ WasherFluidLevel : 0|16@1- (0.1,0) [0|6553.5] "" Vector__XXX
+ SG_ WipingIsWiping : 16|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ WipingMode : 17|16@1+ (1,0) [0|65535] "" Vector__XXX
+ SG_ RearWipingIsWiping : 33|1@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 456 GPS_Position: 8 Vector__XXX
+ SG_ Latitude : 0|32@1- (0.000001,0) [-90|90] "deg" Vector__XXX
+ SG_ Longitude : 32|32@1- (0.000001,0) [-180|180] "deg" Vector__XXX

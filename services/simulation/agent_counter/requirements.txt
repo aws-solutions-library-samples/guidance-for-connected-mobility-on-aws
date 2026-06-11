@@ -1,0 +1,16 @@
+# Pinned 2026-05-31 to match `services/simulation/requirements.txt`
+# (the simulation Lambda runtime). Per
+# ~/.kiro/steering/dependency-versions.md: exact-version pins, no
+# ranges. Per spec
+# `.kiro/specs/2026-05-30-cms-sim-lifecycle-hardening/spec.md`
+# Constraints: same pin as simulation Lambda; no bump as part of this
+# spec.
+#
+# Verified against PyPI 2026-05-31:
+#   boto3 1.43.2     — released 2026-05-22 (9 days, exceeds 7-day quarantine)
+#   botocore 1.43.2  — released 2026-05-22 (9 days, exceeds 7-day quarantine)
+#
+# Source citation: docs/tech.md § "FWE Cluster Agent-Counter Lambda"
+# (Group 1 Task 1.1 research).
+boto3==1.43.2
+botocore==1.43.2
