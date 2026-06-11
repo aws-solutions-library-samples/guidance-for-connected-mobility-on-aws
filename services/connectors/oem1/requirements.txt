@@ -3,6 +3,6 @@ boto3==1.34.144
 certifi==2026.5.20
 grpcio==1.66.2
 kafka-python-ng==2.2.3
-protobuf==5.28.3
+protobuf==5.29.6
 requests==2.34.2
 tenacity==8.2.3
