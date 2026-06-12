@@ -1,0 +1,9 @@
+build
+public/runtimeConfig.json
+
+# Prevent old API config files
+public/api-config.js
+test-api-config.js
+
+# Local dev env vars (passwords, secrets) — never commit
+.env.local

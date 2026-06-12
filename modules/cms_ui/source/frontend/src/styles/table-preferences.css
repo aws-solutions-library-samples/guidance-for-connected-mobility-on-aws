@@ -1,0 +1,77 @@
+/* Clean table preferences styling */
+.awsui-table-pagination {
+  border: none !important;
+}
+
+.awsui-table-preferences {
+  border: none !important;
+}
+
+/* Remove borders from pagination buttons */
+.awsui-pagination-button {
+  border: none !important;
+  background: transparent !important;
+}
+
+.awsui-pagination-button:hover {
+  background: var(--color-background-button-normal-hover) !important;
+}
+
+.awsui-pagination-button:active {
+  background: var(--color-background-button-normal-active) !important;
+}
+
+/* Remove border from preferences gear icon */
+.awsui-collection-preferences-trigger {
+  border: none !important;
+  background: transparent !important;
+}
+
+.awsui-collection-preferences-trigger:hover {
+  background: var(--color-background-button-normal-hover) !important;
+}
+
+.awsui-collection-preferences-trigger:active {
+  background: var(--color-background-button-normal-active) !important;
+}
+
+/* Ensure page numbers don't have borders */
+.awsui-pagination-page-number {
+  border: none !important;
+  background: transparent !important;
+}
+
+.awsui-pagination-page-number:hover {
+  background: var(--color-background-button-normal-hover) !important;
+}
+
+.awsui-pagination-page-number.awsui-pagination-page-number-current {
+  background: var(--color-background-button-primary-default) !important;
+  color: var(--color-text-button-primary-default) !important;
+}
+
+/* Fix custom preferences button styling */
+.custom-preferences-button {
+  border: none !important;
+  background: transparent !important;
+  color: var(--color-text-body-default) !important;
+}
+
+.custom-preferences-button:hover {
+  background: var(--color-background-button-normal-hover) !important;
+  border: none !important;
+}
+
+.custom-preferences-button:active {
+  background: var(--color-background-button-normal-active) !important;
+  border: none !important;
+}
+
+/* Fix the icon color inside the custom preferences button */
+.custom-preferences-button .awsui-icon {
+  color: var(--color-text-body-default) !important;
+}
+
+.custom-preferences-button:hover .awsui-icon {
+  color: var(--color-text-body-default) !important;
+}

@@ -1,0 +1,623 @@
+# ===================================
+# Connected Mobility Workspace
+# ===================================
+
+# ===================================
+# System Files
+# ===================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# ===================================
+# Python
+# ===================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# pdm
+.pdm.toml
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# ===================================
+# Node.js / JavaScript / TypeScript
+# ===================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Grunt intermediate storage
+.grunt
+
+# Bower dependency directory
+bower_components
+
+# node-waf configuration
+.lock-wscript
+
+# Compiled binary addons
+build/Release
+
+# Dependency directories
+jspm_packages/
+
+# Snowpack dependency directory
+web_modules/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variable files
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# parcel-bundler cache
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+out
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+public
+
+# CMS staging Midway gate (CFS) — the two CFS-template files MUST ship in
+# the public mirror as generic placeholders (the operator substitutes the
+# CFS-portal-issued versions at runbook time per docs/MIDWAY-GATE.md).
+# Pattern below: re-include the directory traversal, RE-EXCLUDE everything
+# inside (so per-developer files like runtimeConfig.<user>.json stay
+# excluded), then re-include only the two specific Midway-gate files.
+# Order matters: parent directories must be re-included before child
+# files. See spec .kiro/specs/2026-06-01-cms-staging-midway-gate/spec.md.
+!modules/cms_ui/source/frontend/public/
+modules/cms_ui/source/frontend/public/*
+!modules/cms_ui/source/frontend/public/error/
+!modules/cms_ui/source/frontend/public/error/403.html
+!modules/cms_ui/source/frontend/public/js/
+!modules/cms_ui/source/frontend/public/js/cfs-handler.js
+
+# Vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless/
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# yarn v2
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# ===================================
+# Java / Maven
+# ===================================
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# virtual machine crash logs
+hs_err_pid*
+replay_pid*
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Gradle
+.gradle
+**/build/
+!src/**/build/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+.gradletasknamecache
+
+# ===================================
+# AWS CDK
+# ===================================
+cdk.out/
+cdk.context.json
+*.assets.json
+*.template.json
+*.template.yaml
+
+# CDK deployment outputs
+cdk-deploy-out/
+.cdk.staging/
+
+# ===================================
+# AWS Specific
+# ===================================
+.aws-sam/
+samconfig.toml
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+*.tfvars
+*.tfvars.json
+
+# ===================================
+# IDE / Editor Files
+# ===================================
+# Amazon Q / Kiro
+# Track institutional memory (specs, steering, hooks, settings) but ignore caches/scratch.
+.kiro/cache/
+.kiro/sessions/
+.kiro/**/__pycache__/
+.kiro/**/*.tmp
+.kiro/.scratch/
+
+# Local configuration
+.config/
+
+# Workspace files
+workspace.json
+
+# VSCode
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# Eclipse
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# ===================================
+# Logs and Runtime Files
+# ===================================
+*.log
+*.out
+*.pid
+*.lock
+*.tmp
+
+# Application specific logs
+simulation_*.log
+simulation_service.log
+
+# ===================================
+# Build Artifacts
+# ===================================
+build/
+dist/
+out/
+target/
+
+# ===================================
+# Cache Directories
+# ===================================
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+
+# ===================================
+# OS Generated Files
+# ===================================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ===================================
+# Security / Credentials
+# ===================================
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+*.keystore
+*.truststore
+.env
+.env.*
+!.env.example
+credentials
+/config
+aws-exports.js
+
+# ===================================
+# iOS / Xcode
+# ===================================
+*.xcuserstate
+xcuserdata/
+DerivedData/
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+clients/ios/.build/
+clients/ios/Pods/
+
+# ===================================
+# Project Specific
+# ===================================
+# Archived/deprecated files
+.archive/
+# Simulation data and cache files
+route_cache.json
+munich_route_cache.json
+batch_progress.json
+telemetry_table_name.txt
+ssl-certificates.json
+
+# Large data files
+*.csv
+*.json.gz
+*.parquet
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# ===================================
+# Temporary Development Files
+# ===================================
+TODO.md
+NOTES.md
+scratch/
+temp/
+tmp/
+
+# Test output
+test-results/
+test-output/
+cdk-stacks/cdk.out.ui.45104
+deployment/cdk.out.phase4.30917
+# AWS and sensitive files - DO NOT COMMIT
+.aws/
+*.pem
+*.key
+*.p12
+*.pfx
+credentials
+/config
+*credentials*
+*secret*
+*password*
+
+# Account-specific and sensitive content - DO NOT COMMIT
+*195026230833*
+*022035076260*
+*bootstrap*.amazonaws.com*
+*arn:aws:secretsmanager*
+*arn:aws:iam::195026230833*
+*arn:aws:iam::022035076260*
+
+# CDK build outputs - DO NOT COMMIT
+deployment/cdk.out*/
+deployment/.venv/
+deployment/node_modules/
+# Prod-config snapshot files (per spec 2026-06-08-cms-flink-cfn-config-keys-fix runbook)
+# describe-application output contains prod account IDs in ARNs / VPC IDs / SG IDs
+deployment/snapshots/
+modules/cms_ui_backup_20250924_103609
+diagram_env
+scripts
+modules/predictive_agent
+# OEM Proto files (customer-specific, never commit)
+*.proto
+modules/oem_processor/schemas/
+*signal-catalog.json
+modules/oem_ingestion/consumer/logs/*.jsonl
+tests/e2e/.venv/
+
+# Generated docs/diagrams from AI sessions - do not commit
+modules/campaign_manager/
+generated-diagrams/
+DEPLOYMENT_CONTEXT.md
+services/simulation/can_env/
+services/simulation/fwe_config/
+!modules/flink/src/main/proto/*.proto
+!deployment/scripts/
+services/commands/package/
+
+# Local NHTSA poller script outputs (real data is in the embedded copy under modules/cms_ui/source/frontend)
+nhtsaRecallData.ts
+nhtsa_fleet_recalls.json
+
+# Lambda build artifacts (regenerate with services/commands/build.sh)
+services/commands/.build/
+
+# CDK Lambda bundle build artifacts (regenerate via cdk synth; see _bundle_oem1_lambda
+# in deployment/stacks/connector_stack.py — writes per-Lambda subdirs under
+# deployment/stacks/.build/oem1_lambdas/* + the pre-existing requests_layer/ build dir)
+deployment/stacks/.build/
+
+# Yarn machine-specific state (already in frontend .gitignore but belt-and-suspenders)
+modules/cms_ui/source/frontend/package-lock.json
+modules/cms_ui/source/frontend/.yarn/install-state.gz
+
+# Allow .env.local.example placeholder files in version control
+# (the .env* glob above gitignores .env.local; this re-includes the .example template)
+!.env.local.example
+!**/.env.local.example
+
+# ===================================
+# Publish audit history (local only)
+# ===================================
+.publish-history/
+
+# OEM1 A2.3: rename pipeline script (committed; scripts/ dir is otherwise excluded)
+!scripts/rename-oem1-protos.py
+# OEM1 A2.3: cleansed vendor protos (committed under services/connectors/oem1/proto/;
+# *.proto is otherwise excluded)
+!services/connectors/oem1/proto/**/*.proto
+!services/connectors/oem1/proto/**
+DecoderManifest.bin

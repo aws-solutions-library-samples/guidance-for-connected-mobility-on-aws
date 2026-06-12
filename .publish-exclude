@@ -1,0 +1,97 @@
+# Patterns to strip from the staging tree before publishing to the public
+# GitHub mirror at aws-solutions-library-samples/guidance-for-connected-mobility-on-aws.
+#
+# Format: gitignore-syntax. Comments start with `#`. Trailing slash = directory.
+# scripts/publish-to-github.sh applies these via find -path during the
+# `strip` step (see scripts/publish-to-github.sh).
+
+# Internal-only directories
+.kiro/
+issues/
+.publish-history/
+
+# Defense-in-depth: explicit exclusion of OEM1 spec decisions.md (which
+# contains the internal-only OEM1 → vendor mapping). The .kiro/ directory
+# exclusion above already covers this; the explicit entry survives if the
+# directory-level exclusion is ever loosened.
+.kiro/specs/2026-06-01-cms-oem1-transform-manifest-staging-e2e/decisions.md
+
+# Internal CI / build artifacts
+.gitlab-ci.yml
+.gitlab/
+# .github/workflows/ — granular: strip the internal CI workflows but keep
+# the public CodeQL config (which IS meant to ship to public GitHub).
+.github/workflows/deploy.yml
+.github/workflows/evals.yml
+
+# Per-developer state
+.venv/
+node_modules/
+.yarn/
+deployment/cdk.out/
+deployment/cdk.context.json
+.bedrock_agentcore.yaml
+.bedrock_agentcore/
+
+# Eval baselines (contain staging endpoint URLs)
+evals/baselines/
+
+# iOS companion (internal product, not part of the guidance)
+clients/ios/
+
+# Internal docs
+docs/SECURITY-AUDIT-FINDINGS.md
+docs/RUNBOOK_clean_region_deploy.md
+docs/autonomous-session-status.md
+docs/PUBLISHING.md
+docs/MIDWAY-GATE.md
+# Internal SDK / API research notes (consumed by spec authoring; contains
+# account IDs, internal Cognito User Pool IDs, and other internal-flavored
+# research artifacts that are not user-facing for the public mirror).
+docs/tech.md
+docs/staging-parity-audit-2026-05-29.md
+docs/mahindra-*.md
+docs/*-mahindra-*.md
+docs/engineer-persona-data-model.md
+docs/engineer-persona-demo-guide.md
+docs/manual-infra-*.md
+
+# Customer-tenant scripts (rebuild from template per customer)
+deployment/scripts/seed_driver_users.py
+deployment/scripts/seed_engineering_fleets.py
+deployment/scripts/backups
+deployment/scripts/bedrock_agents_snapshot
+
+# OEM ingestion runtime test logs (internal replay/research artifacts;
+# contain OEM brand attributions — not PII but not for public mirror)
+modules/oem_ingestion/consumer/logs/
+
+# Per-developer / per-account config
+deployment/config/staging.env
+deployment/config/prod.env
+modules/cms_ui/.env-setup
+modules/cms_ui/source/.env
+
+# Internal quickstart docs
+modules/campaign_manager/QUICKSTART.md
+
+# Generated/per-developer simulation config (contains dev paths)
+services/simulation/fwe_config/static-config.json
+services/simulation/can_env
+services/simulation/sim_env
+
+# OS / editor cruft
+.DS_Store
+*.swp
+*.bak
+.vscode/
+.idea/
+
+# Vendor-published proto artifacts (Autonomic Feed SDK). Excluded from public mirror
+# because the .proto files include `package autonomic.ext` which is required for
+# gRPC wire-level service-path correctness against the live server, but is also a
+# brand-attribution canary. Public mirror consumers should re-import from the
+# vendor's own Autonomic SDK if they need to consume Feed Service.
+# Added by Fix Group C1.11 (spec 2026-06-01-cms-oem1-transform-manifest-staging-e2e).
+services/connectors/oem1/proto/
+services/connectors/oem1/_generated/
