@@ -1,0 +1,43 @@
+// Release.xcconfig — production endpoints (us-east-1)
+//
+// Used by the Release build configuration. Values mirror what was
+// previously hardcoded into VSAConfig.swift; VSAConfig.swift now
+// reads them via Info.plist with these as fallbacks if unset.
+//
+// Variable convention: every key is prefixed `VSA_` so a single
+// Info.plist `$(VSA_*)` substitution maps cleanly. Server-side
+// secrets (KMS ARNs, IAM role ARNs) MUST NEVER appear here — these
+// values are baked into the iOS app binary.
+//
+// xcconfig syntax gotcha: `//` starts a line comment. URLs that
+// contain `//` (every https/wss URL) MUST escape using `$()`. The
+// substring `$()` evaluates to empty at build time, so
+// `https:/$()/host/path` resolves to `https://host/path`. Without
+// this, Xcode silently truncates the value at the first `//`.
+//
+// Authored by spec 2026-05-28-staging-auto-deploy.
+//
+// DEPLOYER NOTE: Replace every YOUR_* and 000000000000 placeholder
+// below with your actual production deployment values before
+// distributing a Release build. See your deployment runbook for how
+// to obtain each value from CDK stack outputs.
+
+VSA_AWS_REGION = us-east-1
+VSA_REST_API_URL = https:/$()/YOUR_REST_API_ID.execute-api.us-east-1.amazonaws.com/prod
+// CMS UI main API for the driver self-vehicle-claim flow. Empty in prod until
+// the VSA pool is added to the prod CMS authorizer (CMS_EXTRA_USER_POOL_IDS) and
+// the prod CMS UI API URL is filled in. When empty, VSAConfig.cmsRestApiUrl is
+// nil and the iOS claim affordance is hidden (the no-vehicle message still shows).
+VSA_CMS_REST_API_URL =
+VSA_WS_API_URL = wss:/$()/YOUR_WS_API_ID.execute-api.us-east-1.amazonaws.com/prod
+VSA_TELEMETRY_WS_URL = wss:/$()/YOUR_TELEMETRY_WS_ID.execute-api.us-east-1.amazonaws.com/live
+VSA_AGENTCORE_RUNTIME_ARN = arn:aws:bedrock-agentcore:us-east-1:000000000000:runtime/YOUR_AGENTCORE_RUNTIME_ID
+// Cognito: iOS authenticates against the CONSOLIDATED CMS UI pool
+// (cms-prod-ui, us-east-1) — one pool per deployment serves both Fleet UI
+// and iOS users. Client auth flows match (USER_PASSWORD_AUTH +
+// USER_SRP_AUTH, no secret).
+// NOTE: VSA_IDENTITY_POOL_ID below is unchanged — AgentCore/voice SigV4
+// re-federation with the CMS pool is deferred to the CVX consolidation.
+VSA_USER_POOL_ID = <REPLACE_WITH_USER_POOL_ID>
+VSA_USER_POOL_CLIENT_ID = YOUR_COGNITO_APP_CLIENT_ID
+VSA_IDENTITY_POOL_ID = us-east-1:00000000-0000-0000-0000-000000000000

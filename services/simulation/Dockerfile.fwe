@@ -1,0 +1,79 @@
+FROM ubuntu:22.04 AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y git sudo
+
+ARG FWE_VERSION=v1.3.2
+WORKDIR /build
+RUN git clone --depth 1 --branch ${FWE_VERSION} https://github.com/aws/aws-iot-fleetwise-edge.git
+WORKDIR /build/aws-iot-fleetwise-edge
+
+# Patch 1: remove command response accepted/rejected subscriptions (cause 143 errors with custom prefix)
+# These are multi-line assignments so we delete the assignment line and the following createReceiver line
+RUN sed -i '/receiverAcceptedCommandResponse =$/{N;d;}' src/IoTFleetWiseEngine.cpp \
+    && sed -i '/receiverRejectedCommandResponse =$/{N;d;}' src/IoTFleetWiseEngine.cpp
+
+# Patch 2: extend RemoteDiagnosticDataSource::mSignalNames from 3 hardcoded entries
+# (ECU1/ECU2/ECU3) to 9, matching our 9-ECU decoder manifest (CP3) + static config
+# (CP6). FWE v1.3.2 hardcodes this list in the header — there's no runtime
+# configuration for it. Without this patch, DTC_QUERY on signals ECU4_DTC_INFO
+# through ECU9_DTC_INFO silently returns FetchErrorCode::SIGNAL_NOT_FOUND.
+#
+# See RemoteDiagnosticDataSource.cpp::DTC_QUERY: it iterates `mSignalNames`
+# calling NamedSignalDataSource::getNamedSignalID on each, matching the first
+# entry whose resolved ID equals the received signal ID. So if signal 904
+# (Vehicle.ECU4.DTC_INFO) gets fetched but "Vehicle.ECU4.DTC_INFO" isn't in
+# mSignalNames, the loop exits with found=false and logs "No decoding rules set".
+#
+# Upstream issue tracking: none filed yet — this is a demo-specific limitation
+# of the v1.3.2 release. If we move to a newer FWE version with a configurable
+# signal list, this patch becomes a no-op (sed won't match) and can be removed.
+RUN sed -i 's#std::vector<std::string> mSignalNames{ "Vehicle.ECU1.DTC_INFO", "Vehicle.ECU2.DTC_INFO", "Vehicle.ECU3.DTC_INFO" };#std::vector<std::string> mSignalNames{ "Vehicle.ECU1.DTC_INFO", "Vehicle.ECU2.DTC_INFO", "Vehicle.ECU3.DTC_INFO", "Vehicle.ECU4.DTC_INFO", "Vehicle.ECU5.DTC_INFO", "Vehicle.ECU6.DTC_INFO", "Vehicle.ECU7.DTC_INFO", "Vehicle.ECU8.DTC_INFO", "Vehicle.ECU9.DTC_INFO" };#' include/aws/iotfleetwise/RemoteDiagnosticDataSource.h
+
+# Patch 3: set mIsExtendedId=true for 29-bit extended CAN IDs (> 0x7FF).
+# openCANChannelPort() builds ISOTPOverCANSenderReceiverOptions but never
+# sets mIsExtendedId, so the linux can-isotp bind() call uses standard-ID
+# format for all ECUs. ECU9 uses 29-bit IDs (0x18DA09F1 / 0x18DAF109),
+# which are silently rejected by the kernel without CAN_ISOTP_EXTENDED_FORMAT.
+# Fix: after setting mSourceCANId, also set mIsExtendedId based on whether
+# the source ID exceeds the 11-bit standard-ID range (0x7FF).
+# See: ISOTPOverCANOptions.h — mIsExtendedId is already wired into the
+# setsockopt call, so this is the only line needed.
+RUN sed -i 's/optionsECU\.mP2TimeoutMs = 10000;/optionsECU.mP2TimeoutMs = 10000;\n    optionsECU.mIsExtendedId = ( optionsECU.mSourceCANId > 0x7FFU );/' \
+    src/ExampleUDSInterface.cpp
+
+# Fail-fast: confirm patch 3 landed
+RUN grep -q 'mIsExtendedId' src/ExampleUDSInterface.cpp \
+    || (echo 'ERROR: mIsExtendedId patch did not apply.' && exit 1)
+
+# Fail-fast sanity check: if either patch didn't land, abort the build.
+# Easier to debug than silently getting a binary with only 3 ECUs supported.
+RUN grep -q 'ECU9.DTC_INFO' include/aws/iotfleetwise/RemoteDiagnosticDataSource.h \
+    || (echo 'ERROR: mSignalNames patch did not apply; FWE source may have changed.' && exit 1)
+
+# Install build dependencies
+RUN ./tools/install-deps-native.sh
+
+# Build without Store-and-Forward, with remote commands + LKS + UDS-DTC example interface.
+# --with-uds-dtc-example compiles in the ExampleUDSInterface + DTC_QUERY custom function
+# which the CampaignSyncProcessor emits as signalsToFetch actions. Without it, FWE will
+# silently ignore DTC_QUERY campaign actions even though the decoder manifest has the
+# CUSTOM_DECODING_SIGNAL entries pointing at the UDS_DTC interface.
+RUN ./tools/build-fwe-native.sh --with-remote-commands-support --with-lks-support --with-uds-dtc-example
+
+# --- Final image (same structure as official) ---
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y ca-certificates iproute2 jq \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /build/aws-iot-fleetwise-edge/build/aws-iot-fleetwise-edge /usr/bin/
+COPY --from=builder /build/aws-iot-fleetwise-edge/tools/configure-fwe.sh /usr/bin/
+COPY --from=builder /build/aws-iot-fleetwise-edge/tools/container/start-fwe.sh /usr/bin/
+COPY --from=builder /build/aws-iot-fleetwise-edge/configuration/static-config.json /usr/share/aws-iot-fleetwise/
+COPY --from=builder /build/aws-iot-fleetwise-edge/LICENSE /usr/share/doc/aws-iot-fleetwise-edge/
+COPY --from=builder /build/aws-iot-fleetwise-edge/THIRD-PARTY-LICENSES /usr/share/doc/aws-iot-fleetwise-edge/
+
+ENTRYPOINT ["/usr/bin/start-fwe.sh"]

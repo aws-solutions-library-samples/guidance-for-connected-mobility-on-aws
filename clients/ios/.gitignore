@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+
+# Xcode build artifacts
+build/
+DerivedData/
+*.xcuserdata/
+xcuserdata/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# CocoaPods / Carthage (not used but future-proofing)
+Pods/
+Carthage/Build/
+
+# IDE
+.vscode/
+.idea/
+
+# Secrets / local overrides
+*.env
+Config.local.xcconfig

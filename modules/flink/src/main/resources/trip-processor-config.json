@@ -1,0 +1,9 @@
+{
+  "suppress_signal_derived_trips_for_oems": ["oem1"],
+  "canonical_trip_event_types": ["cms.trip_report", "cms.ignition_state_change"],
+  "trip_dedup_window_ms": 30000,
+  "route_min_distance_meters": 10.0,
+  "trip_gap_close_ms": 600000,
+  "position_sentinel": -999.0,
+  "safety_location_fallback_enabled": true
+}

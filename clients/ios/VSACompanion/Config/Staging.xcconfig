@@ -1,0 +1,48 @@
+// Staging.xcconfig — staging endpoints (us-west-2)
+//
+// Used by the Debug build configuration so devs working on the
+// simulator hit staging by default. Backed by `vsa-staging-*` CDK
+// stacks in the staging account, region us-west-2.
+//
+// xcconfig syntax gotcha: `//` starts a line comment. URLs that
+// contain `//` (every https/wss URL) MUST escape using `$()`. The
+// substring `$()` evaluates to empty at build time, so
+// `https:/$()/host/path` resolves to `https://host/path`.
+//
+// Authored by spec 2026-05-28-staging-auto-deploy.
+// Back-filled 2026-05-28 after first staging deploy.
+//
+// DEPLOYER NOTE: Replace every YOUR_* and 000000000000 placeholder
+// below with your actual staging deployment values before building.
+// See Config/README.md (or your team's deployment runbook) for
+// how to obtain each value from your CDK stack outputs.
+
+VSA_AWS_REGION = us-west-2
+VSA_REST_API_URL = https:/$()/YOUR_REST_API_ID.execute-api.us-west-2.amazonaws.com/staging
+// CMS UI main API (cms-staging-ui-api). The iOS app calls this for the
+// driver self-vehicle-claim flow (GET /api/v1/vehicles, PUT /api/v1/drivers/{id})
+// using its VSA-pool id-token — the CMS authorizer trusts the VSA pool via
+// CMS_EXTRA_USER_POOL_IDS, and main_api constrains driver tokens to a
+// self-service allowlist. Stage name is "prod" even in the staging account
+// (RestApi default stage). See spec 2026-06-19-cms-ios-driver-self-vehicle-claim.
+VSA_CMS_REST_API_URL = https:/$()/YOUR_CMS_API_ID.execute-api.us-west-2.amazonaws.com/prod
+VSA_WS_API_URL = wss:/$()/YOUR_WS_API_ID.execute-api.us-west-2.amazonaws.com/staging
+VSA_TELEMETRY_WS_URL = wss:/$()/YOUR_TELEMETRY_WS_ID.execute-api.us-west-2.amazonaws.com/live
+VSA_AGENTCORE_RUNTIME_ARN = arn:aws:bedrock-agentcore:us-west-2:000000000000:runtime/YOUR_AGENTCORE_RUNTIME_ID
+// Cognito: iOS authenticates against the CONSOLIDATED CMS UI pool
+// (cms-staging-ui, us-west-2) — one pool per deployment serves both Fleet
+// UI and iOS users. Client auth flows match (USER_PASSWORD_AUTH +
+// USER_SRP_AUTH, no secret), so no Swift change needed.
+//
+// VOICE SigV4 PATH — VERIFIED WORKING 2026-06-22 (issue
+// 2026-06-22-ios-staging-voice-connectivity-verification):
+// VSA_IDENTITY_POOL_ID below is federated with BOTH user pools —
+// the current CMS UI pool and the previous CVX pool. So
+// GetCredentialsForIdentity accepts the CMS-pool id-token this app
+// signs in with, and AwsCredentialProvider can SigV4-sign the
+// AgentCore voice WS. Re-federation is DONE, not parked. Do NOT
+// "fix" this by repointing the identity pool; the split
+// (login=CMS pool, identity pool trusts both) is intentional.
+VSA_USER_POOL_ID = <REPLACE_WITH_USER_POOL_ID>
+VSA_USER_POOL_CLIENT_ID = YOUR_COGNITO_APP_CLIENT_ID
+VSA_IDENTITY_POOL_ID = us-west-2:00000000-0000-0000-0000-000000000000

@@ -1,0 +1,200 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CMS Event Catalog — OEM1 additions",
+  "version": "1.0.0",
+  "description": "Event definitions promoted to the CMS BASE catalog from OEM1 catalog gap analysis. Added A2.2 of spec 2026-06-01-cms-oem1-transform-manifest-staging-e2e. Inherited by all future OEMs.",
+
+  "event_groups": {
+    "maintenance": {
+      "description": "Maintenance and diagnostic events",
+      "events": {
+        "maintenance.washer_fluid_low": {
+          "category": "maintenance",
+          "description": "Windshield washer fluid level critically low",
+          "severity": 1,
+          "severity_hint": "P3",
+          "trigger_signal": "WasherFluidLevel",
+          "condition_type": "simple",
+          "threshold_operator": "<",
+          "threshold_value": 10,
+          "detection": "cloud",
+          "edge_candidate": false
+        },
+        "maintenance.trailer_brake_disconnected": {
+          "category": "maintenance",
+          "description": "Trailer brake connection lost or disconnected",
+          "severity": 3,
+          "severity_hint": "P1",
+          "trigger_signal": "TrailerBrakeStatus",
+          "condition_type": "simple",
+          "threshold_operator": "=",
+          "threshold_value": 0,
+          "detection": "cloud",
+          "edge_candidate": false,
+          "dtc_code": "C0091"
+        },
+        "maintenance.check_engine_light": {
+          "category": "maintenance",
+          "description": "Check engine / malfunction indicator lamp illuminated",
+          "severity": 2,
+          "severity_hint": "P2",
+          "trigger_signal": "MILStatus",
+          "condition_type": "simple",
+          "threshold_operator": "=",
+          "threshold_value": 1,
+          "detection": "cloud",
+          "edge_candidate": false,
+          "dtc_code": "P0001"
+        },
+        "maintenance.def_level_low": {
+          "category": "maintenance",
+          "description": "Diesel exhaust fluid (DEF/AdBlue) level critically low",
+          "severity": 2,
+          "severity_hint": "P2",
+          "trigger_signal": "DEFLevel",
+          "condition_type": "simple",
+          "threshold_operator": "<",
+          "threshold_value": 10,
+          "detection": "cloud",
+          "edge_candidate": false,
+          "dtc_code": "P205B"
+        },
+        "maintenance.powertrain_malfunction": {
+          "category": "maintenance",
+          "description": "Powertrain malfunction indicator — reduced performance mode active",
+          "severity": 3,
+          "severity_hint": "P1",
+          "trigger_signal": "PowertrainMalfunctionStatus",
+          "condition_type": "simple",
+          "threshold_operator": "=",
+          "threshold_value": 1,
+          "detection": "cloud",
+          "edge_candidate": false,
+          "dtc_code": "P0607"
+        },
+        "maintenance.charge_system_fault": {
+          "category": "maintenance",
+          "description": "Charging system fault — alternator or belt issue detected",
+          "severity": 2,
+          "severity_hint": "P2",
+          "trigger_signal": "ChargeSystemStatus",
+          "condition_type": "simple",
+          "threshold_operator": "=",
+          "threshold_value": 1,
+          "detection": "cloud",
+          "edge_candidate": false,
+          "dtc_code": "P0620"
+        },
+        "maintenance.water_in_fuel": {
+          "category": "maintenance",
+          "description": "Water detected in fuel system — drain before operation",
+          "severity": 3,
+          "severity_hint": "P1",
+          "trigger_signal": "WaterInFuelStatus",
+          "condition_type": "simple",
+          "threshold_operator": "=",
+          "threshold_value": 1,
+          "detection": "cloud",
+          "edge_candidate": false,
+          "dtc_code": "P0093"
+        }
+      }
+    },
+
+    "safety": {
+      "description": "Safety system events",
+      "events": {
+        "safety.airbag_warning": {
+          "category": "safety",
+          "description": "Airbag / supplemental restraint system fault — do not disable airbags",
+          "severity": 3,
+          "severity_hint": "P1",
+          "trigger_signal": "AirbagSystemStatus",
+          "condition_type": "simple",
+          "threshold_operator": "=",
+          "threshold_value": 1,
+          "detection": "cloud",
+          "edge_candidate": false,
+          "dtc_code": "B0001"
+        },
+        "safety.antilock_brake_fault": {
+          "category": "safety",
+          "description": "Anti-lock braking system fault — braking distances may increase",
+          "severity": 3,
+          "severity_hint": "P1",
+          "trigger_signal": "ABSFaultStatus",
+          "condition_type": "simple",
+          "threshold_operator": "=",
+          "threshold_value": 1,
+          "detection": "cloud",
+          "edge_candidate": false,
+          "dtc_code": "C0035"
+        },
+        "safety.service_steering": {
+          "category": "safety",
+          "description": "Electric power steering fault — increased steering effort required",
+          "severity": 3,
+          "severity_hint": "P1",
+          "trigger_signal": "SteeringSystemStatus",
+          "condition_type": "simple",
+          "threshold_operator": "=",
+          "threshold_value": 1,
+          "detection": "cloud",
+          "edge_candidate": false,
+          "dtc_code": "C0460"
+        },
+        "safety.lighting_system_failure": {
+          "category": "safety",
+          "description": "Exterior lighting system failure — headlight, brake light, or turn signal out",
+          "severity": 2,
+          "severity_hint": "P2",
+          "trigger_signal": "LightingSystemStatus",
+          "condition_type": "simple",
+          "threshold_operator": "=",
+          "threshold_value": 1,
+          "detection": "cloud",
+          "edge_candidate": false,
+          "dtc_code": "B1004"
+        }
+      }
+    },
+
+    "commercial": {
+      "description": "Commercial vehicle operational events (NEW CATEGORY — added A2.2)",
+      "events": {
+        "commercial.power_take_off_engaged": {
+          "category": "commercial",
+          "description": "Power take-off (PTO) engaged — equipment operating from vehicle drive system",
+          "severity": 1,
+          "severity_hint": "P3",
+          "trigger_signal": "PowerTakeOffStatus",
+          "condition_type": "simple",
+          "threshold_operator": "=",
+          "threshold_value": 1,
+          "detection": "cloud",
+          "edge_candidate": true
+        },
+        "commercial.excessive_idle": {
+          "category": "commercial",
+          "description": "Excessive engine idle detected — exceeds fleet policy idle threshold",
+          "severity": 1,
+          "severity_hint": "P3",
+          "trigger_signal": "TotalEngineTimeIdle",
+          "condition_type": "threshold",
+          "threshold_operator": ">",
+          "threshold_value": 1800,
+          "detection": "cloud",
+          "edge_candidate": true
+        }
+      }
+    }
+  },
+
+  "notes": {
+    "catalog_version": "1.0.0",
+    "added_at": "2026-06-02",
+    "spec": "2026-06-01-cms-oem1-transform-manifest-staging-e2e A2.2",
+    "source": "OEM1 catalog gap analysis — promoted to CMS BASE catalog (not OEM1-only)",
+    "forward_compatibility": "All future OEMs inherit these event definitions. Existing rows tolerate NULL/0 in new columns."
+  }
+}

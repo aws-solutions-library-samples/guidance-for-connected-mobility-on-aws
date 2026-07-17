@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Your voice is streamed to the Virtual Service Agent so it can understand your request and respond out loud.</string>
+    <key>NSFaceIDUsageDescription</key>
+    <string>Use Face ID to sign in to your Virtual Service Agent account.</string>
+    <key>UILaunchScreen</key>
+    <dict/>
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <string>armv7</string>
+    </array>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    <key>UISupportedInterfaceOrientations~ipad</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    <!-- Environment-specific endpoints. Values are populated from
+         build-setting variables defined in Staging.xcconfig (Debug
+         build) or Release.xcconfig (Release build). VSAConfig.swift
+         reads these at runtime, falling back to hardcoded prod
+         values if a placeholder substitution didn't run (e.g. when
+         building from a stripped Xcode project without xcconfig
+         wiring). -->
+    <key>VSAAgentCoreRuntimeArn</key>
+    <string>$(VSA_AGENTCORE_RUNTIME_ARN)</string>
+    <key>VSAAwsRegion</key>
+    <string>$(VSA_AWS_REGION)</string>
+    <key>VSAIdentityPoolId</key>
+    <string>$(VSA_IDENTITY_POOL_ID)</string>
+    <key>VSARestApiUrl</key>
+    <string>$(VSA_REST_API_URL)</string>
+    <key>VSACmsRestApiUrl</key>
+    <string>$(VSA_CMS_REST_API_URL)</string>
+    <key>VSATelemetryWsUrl</key>
+    <string>$(VSA_TELEMETRY_WS_URL)</string>
+    <key>VSAUserPoolClientId</key>
+    <string>$(VSA_USER_POOL_CLIENT_ID)</string>
+    <key>VSAUserPoolId</key>
+    <string>$(VSA_USER_POOL_ID)</string>
+    <key>VSAWsApiUrl</key>
+    <string>$(VSA_WS_API_URL)</string>
+</dict>
+</plist>

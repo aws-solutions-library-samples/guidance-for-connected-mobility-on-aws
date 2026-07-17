@@ -1,0 +1,715 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 60;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000000000000000000001 /* VSACompanionApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000001 /* VSACompanionApp.swift */; };
+		A10000000000000000000002 /* VSAConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000002 /* VSAConfig.swift */; };
+		A10000000000000000000003 /* VSAClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000003 /* VSAClient.swift */; };
+		A10000000000000000000004 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000004 /* Models.swift */; };
+		A10000000000000000000005 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000005 /* AuthService.swift */; };
+		A10000000000000000000008 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000008 /* KeychainStore.swift */; };
+		A10000000000000000000009 /* TelemetryClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000009 /* TelemetryClient.swift */; };
+		A10000000000000000000010 /* MockTelemetryClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000010 /* MockTelemetryClient.swift */; };
+		A10000000000000000000011 /* TenantTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000011 /* TenantTheme.swift */; };
+		A10000000000000000000012 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000012 /* RootView.swift */; };
+		A10000000000000000000013 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000013 /* SignInView.swift */; };
+		A10000000000000000000015 /* Header.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000015 /* Header.swift */; };
+		A10000000000000000000016 /* VehicleStatePane.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000016 /* VehicleStatePane.swift */; };
+		A10000000000000000000017 /* ConversationPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000017 /* ConversationPane.swift */; };
+		A10000000000000000000018 /* ReasoningDrawer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000018 /* ReasoningDrawer.swift */; };
+		A10000000000000000000019 /* PresenterControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000019 /* PresenterControls.swift */; };
+		A10000000000000000000020 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000020 /* Assets.xcassets */; };
+		A10000000000000000000030 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000030 /* MainTabView.swift */; };
+		A10000000000000000000031 /* HomeTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000031 /* HomeTabView.swift */; };
+		A10000000000000000000032 /* VehicleTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000032 /* VehicleTabView.swift */; };
+		A10000000000000000000033 /* AlertsTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000033 /* AlertsTabView.swift */; };
+		A10000000000000000000034 /* AssistantTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000034 /* AssistantTabView.swift */; };
+		A10000000000000000000035 /* AccountTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000035 /* AccountTabView.swift */; };
+		A10000000000000000000036 /* UIComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000036 /* UIComponents.swift */; };
+		A10000000000000000000037 /* TriageCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000037 /* TriageCoordinator.swift */; };
+		A10000000000000000000040 /* AudioCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000040 /* AudioCapture.swift */; };
+		A10000000000000000000041 /* AudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000041 /* AudioPlayer.swift */; };
+		A10000000000000000000042 /* VSABidiClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000042 /* VSABidiClient.swift */; };
+		A10000000000000000000043 /* VoiceSessionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000043 /* VoiceSessionViewModel.swift */; };
+		A10000000000000000000044 /* AwsCredentialProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000044 /* AwsCredentialProvider.swift */; };
+		A10000000000000000000045 /* AgentCoreSigner.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000045 /* AgentCoreSigner.swift */; };
+		A10000000000000000000046 /* VoiceIntegrationTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000046 /* VoiceIntegrationTest.swift */; };
+		A10000000000000000000047 /* VoiceReasoningDrawer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000047 /* VoiceReasoningDrawer.swift */; };
+		A10000000000000000000050 /* ConnectChatClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000050 /* ConnectChatClient.swift */; };
+		A10000000000000000000051 /* ServiceTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000051 /* ServiceTabView.swift */; };
+		A10000000000000000000052 /* BiometricAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000052 /* BiometricAuth.swift */; };
+		A10000000000000000000053 /* TabLoadingSkeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000053 /* TabLoadingSkeleton.swift */; };
+		A10000000000000000000054 /* AppearancePreference.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000054 /* AppearancePreference.swift */; };
+		A10000000000000000000055 /* LayoutSegment.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000055 /* LayoutSegment.swift */; };
+		A10000000000000000000056 /* BookingFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000056 /* BookingFlow.swift */; };
+		A10000000000000000000057 /* DemoAudioInjector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000057 /* DemoAudioInjector.swift */; };
+		A10000000000000000000058 /* DemoClip.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000058 /* DemoClip.swift */; };
+		A10000000000000000000060 /* tire-pressure-low-fleet.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000060 /* tire-pressure-low-fleet.wav */; };
+		A10000000000000000000061 /* yes-fleet.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000061 /* yes-fleet.wav */; };
+		A10000000000000000000062 /* yes-tuesday-fleet.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000062 /* yes-tuesday-fleet.wav */; };
+		A10000000000000000000063 /* check-engine-fleet.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000063 /* check-engine-fleet.wav */; };
+		A10000000000000000000064 /* speak-with-agent-fleet.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000064 /* speak-with-agent-fleet.wav */; };
+		A10000000000000000000065 /* find-service-center-fleet.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000065 /* find-service-center-fleet.wav */; };
+		A10000000000000000000066 /* tire-pressure-low-oem.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000066 /* tire-pressure-low-oem.wav */; };
+		A10000000000000000000067 /* yes-oem.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000067 /* yes-oem.wav */; };
+		A10000000000000000000068 /* yes-tuesday-oem.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000068 /* yes-tuesday-oem.wav */; };
+		A10000000000000000000069 /* check-engine-oem.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000069 /* check-engine-oem.wav */; };
+		A10000000000000000000070 /* speak-with-agent-oem.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000070 /* speak-with-agent-oem.wav */; };
+		A10000000000000000000071 /* find-service-center-oem.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000071 /* find-service-center-oem.wav */; };
+		A10000000000000000000072 /* tire-pressure-low-rental.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000072 /* tire-pressure-low-rental.wav */; };
+		A10000000000000000000073 /* yes-rental.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000073 /* yes-rental.wav */; };
+		A10000000000000000000074 /* yes-tuesday-rental.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000074 /* yes-tuesday-rental.wav */; };
+		A10000000000000000000075 /* check-engine-rental.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000075 /* check-engine-rental.wav */; };
+		A10000000000000000000076 /* speak-with-agent-rental.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000076 /* speak-with-agent-rental.wav */; };
+		A10000000000000000000077 /* find-service-center-rental.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000077 /* find-service-center-rental.wav */; };
+		A10000000000000000000078 /* inflate-tire-myself-fleet.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000078 /* inflate-tire-myself-fleet.wav */; };
+		A10000000000000000000079 /* inflate-tire-myself-oem.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000079 /* inflate-tire-myself-oem.wav */; };
+		A1000000000000000000007A /* inflate-tire-myself-rental.wav in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000007A /* inflate-tire-myself-rental.wav */; };
+		A10000000000000000000090 /* brake-soft-pedal-fleet.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000090 /* brake-soft-pedal-fleet.wav */; };
+		A10000000000000000000091 /* brake-soft-pedal-oem.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000091 /* brake-soft-pedal-oem.wav */; };
+		A10000000000000000000092 /* brake-soft-pedal-rental.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000092 /* brake-soft-pedal-rental.wav */; };
+		A10000000000000000000093 /* recall-check-fleet.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000093 /* recall-check-fleet.wav */; };
+		A10000000000000000000094 /* recall-check-oem.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000094 /* recall-check-oem.wav */; };
+		A10000000000000000000095 /* recall-check-rental.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000095 /* recall-check-rental.wav */; };
+		A10000000000000000000100 /* where-nearby-fleet.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000100 /* where-nearby-fleet.wav */; };
+		A10000000000000000000101 /* where-nearby-oem.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000101 /* where-nearby-oem.wav */; };
+		A10000000000000000000102 /* where-nearby-rental.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000102 /* where-nearby-rental.wav */; };
+		A10000000000000000000103 /* temp-gauge-red-fleet.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000103 /* temp-gauge-red-fleet.wav */; };
+		A10000000000000000000104 /* temp-gauge-red-oem.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000104 /* temp-gauge-red-oem.wav */; };
+		A10000000000000000000105 /* temp-gauge-red-rental.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000105 /* temp-gauge-red-rental.wav */; };
+		A10000000000000000000106 /* last-serviced-fleet.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000106 /* last-serviced-fleet.wav */; };
+		A10000000000000000000107 /* last-serviced-oem.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000107 /* last-serviced-oem.wav */; };
+		A10000000000000000000108 /* last-serviced-rental.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000108 /* last-serviced-rental.wav */; };
+		A10000000000000000000109 /* dtc-explain-p0420-fleet.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000109 /* dtc-explain-p0420-fleet.wav */; };
+		A10000000000000000000110 /* dtc-explain-p0420-oem.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000110 /* dtc-explain-p0420-oem.wav */; };
+		A10000000000000000000111 /* dtc-explain-p0420-rental.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000111 /* dtc-explain-p0420-rental.wav */; };
+		A10000000000000000000112 /* engine-rough-fleet.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000112 /* engine-rough-fleet.wav */; };
+		A10000000000000000000113 /* engine-rough-oem.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000113 /* engine-rough-oem.wav */; };
+		A10000000000000000000114 /* engine-rough-rental.wav in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000114 /* engine-rough-rental.wav */; };
+		D2D8D9A6F8994BE7931AAC44 /* VehicleWebSocketClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA511D207B464D8A800442E9 /* VehicleWebSocketClient.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		B10000000000000000000000 /* VSACompanion.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VSACompanion.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B10000000000000000000001 /* VSACompanionApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VSACompanionApp.swift; sourceTree = "<group>"; };
+		B10000000000000000000002 /* VSAConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VSAConfig.swift; sourceTree = "<group>"; };
+		B10000000000000000000003 /* VSAClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VSAClient.swift; sourceTree = "<group>"; };
+		B10000000000000000000004 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		B10000000000000000000005 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
+		B10000000000000000000008 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		B10000000000000000000009 /* TelemetryClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryClient.swift; sourceTree = "<group>"; };
+		B10000000000000000000010 /* MockTelemetryClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockTelemetryClient.swift; sourceTree = "<group>"; };
+		B10000000000000000000011 /* TenantTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TenantTheme.swift; sourceTree = "<group>"; };
+		B10000000000000000000012 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		B10000000000000000000013 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
+		B10000000000000000000015 /* Header.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Header.swift; sourceTree = "<group>"; };
+		B10000000000000000000016 /* VehicleStatePane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleStatePane.swift; sourceTree = "<group>"; };
+		B10000000000000000000017 /* ConversationPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationPane.swift; sourceTree = "<group>"; };
+		B10000000000000000000018 /* ReasoningDrawer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReasoningDrawer.swift; sourceTree = "<group>"; };
+		B10000000000000000000019 /* PresenterControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresenterControls.swift; sourceTree = "<group>"; };
+		B10000000000000000000020 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B10000000000000000000021 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B10000000000000000000030 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		B10000000000000000000031 /* HomeTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeTabView.swift; sourceTree = "<group>"; };
+		B10000000000000000000032 /* VehicleTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleTabView.swift; sourceTree = "<group>"; };
+		B10000000000000000000033 /* AlertsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsTabView.swift; sourceTree = "<group>"; };
+		B10000000000000000000034 /* AssistantTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantTabView.swift; sourceTree = "<group>"; };
+		B10000000000000000000035 /* AccountTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountTabView.swift; sourceTree = "<group>"; };
+		B10000000000000000000036 /* UIComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIComponents.swift; sourceTree = "<group>"; };
+		B10000000000000000000037 /* TriageCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TriageCoordinator.swift; sourceTree = "<group>"; };
+		B10000000000000000000040 /* AudioCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioCapture.swift; sourceTree = "<group>"; };
+		B10000000000000000000041 /* AudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayer.swift; sourceTree = "<group>"; };
+		B10000000000000000000042 /* VSABidiClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VSABidiClient.swift; sourceTree = "<group>"; };
+		B10000000000000000000043 /* VoiceSessionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSessionViewModel.swift; sourceTree = "<group>"; };
+		B10000000000000000000044 /* AwsCredentialProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AwsCredentialProvider.swift; sourceTree = "<group>"; };
+		B10000000000000000000045 /* AgentCoreSigner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentCoreSigner.swift; sourceTree = "<group>"; };
+		B10000000000000000000046 /* VoiceIntegrationTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceIntegrationTest.swift; sourceTree = "<group>"; };
+		B10000000000000000000047 /* VoiceReasoningDrawer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceReasoningDrawer.swift; sourceTree = "<group>"; };
+		B10000000000000000000050 /* ConnectChatClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectChatClient.swift; sourceTree = "<group>"; };
+		B10000000000000000000051 /* ServiceTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceTabView.swift; sourceTree = "<group>"; };
+		B10000000000000000000052 /* BiometricAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricAuth.swift; sourceTree = "<group>"; };
+		B10000000000000000000053 /* TabLoadingSkeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabLoadingSkeleton.swift; sourceTree = "<group>"; };
+		B10000000000000000000054 /* AppearancePreference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearancePreference.swift; sourceTree = "<group>"; };
+		B10000000000000000000055 /* LayoutSegment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayoutSegment.swift; sourceTree = "<group>"; };
+		B10000000000000000000056 /* BookingFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingFlow.swift; sourceTree = "<group>"; };
+		B10000000000000000000057 /* DemoAudioInjector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoAudioInjector.swift; sourceTree = "<group>"; };
+		B10000000000000000000058 /* DemoClip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoClip.swift; sourceTree = "<group>"; };
+		B10000000000000000000060 /* tire-pressure-low-fleet.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "tire-pressure-low-fleet.wav"; sourceTree = "<group>"; };
+		B10000000000000000000061 /* yes-fleet.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "yes-fleet.wav"; sourceTree = "<group>"; };
+		B10000000000000000000062 /* yes-tuesday-fleet.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "yes-tuesday-fleet.wav"; sourceTree = "<group>"; };
+		B10000000000000000000063 /* check-engine-fleet.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "check-engine-fleet.wav"; sourceTree = "<group>"; };
+		B10000000000000000000064 /* speak-with-agent-fleet.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "speak-with-agent-fleet.wav"; sourceTree = "<group>"; };
+		B10000000000000000000065 /* find-service-center-fleet.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "find-service-center-fleet.wav"; sourceTree = "<group>"; };
+		B10000000000000000000066 /* tire-pressure-low-oem.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "tire-pressure-low-oem.wav"; sourceTree = "<group>"; };
+		B10000000000000000000067 /* yes-oem.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "yes-oem.wav"; sourceTree = "<group>"; };
+		B10000000000000000000068 /* yes-tuesday-oem.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "yes-tuesday-oem.wav"; sourceTree = "<group>"; };
+		B10000000000000000000069 /* check-engine-oem.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "check-engine-oem.wav"; sourceTree = "<group>"; };
+		B10000000000000000000070 /* speak-with-agent-oem.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "speak-with-agent-oem.wav"; sourceTree = "<group>"; };
+		B10000000000000000000071 /* find-service-center-oem.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "find-service-center-oem.wav"; sourceTree = "<group>"; };
+		B10000000000000000000072 /* tire-pressure-low-rental.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "tire-pressure-low-rental.wav"; sourceTree = "<group>"; };
+		B10000000000000000000073 /* yes-rental.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "yes-rental.wav"; sourceTree = "<group>"; };
+		B10000000000000000000074 /* yes-tuesday-rental.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "yes-tuesday-rental.wav"; sourceTree = "<group>"; };
+		B10000000000000000000075 /* check-engine-rental.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "check-engine-rental.wav"; sourceTree = "<group>"; };
+		B10000000000000000000076 /* speak-with-agent-rental.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "speak-with-agent-rental.wav"; sourceTree = "<group>"; };
+		B10000000000000000000077 /* find-service-center-rental.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "find-service-center-rental.wav"; sourceTree = "<group>"; };
+		B10000000000000000000078 /* inflate-tire-myself-fleet.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "inflate-tire-myself-fleet.wav"; sourceTree = "<group>"; };
+		B10000000000000000000079 /* inflate-tire-myself-oem.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "inflate-tire-myself-oem.wav"; sourceTree = "<group>"; };
+		B1000000000000000000007A /* inflate-tire-myself-rental.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "inflate-tire-myself-rental.wav"; sourceTree = "<group>"; };
+		B10000000000000000000090 /* brake-soft-pedal-fleet.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "brake-soft-pedal-fleet.wav"; sourceTree = "<group>"; };
+		B10000000000000000000091 /* brake-soft-pedal-oem.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "brake-soft-pedal-oem.wav"; sourceTree = "<group>"; };
+		B10000000000000000000092 /* brake-soft-pedal-rental.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "brake-soft-pedal-rental.wav"; sourceTree = "<group>"; };
+		B10000000000000000000093 /* recall-check-fleet.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "recall-check-fleet.wav"; sourceTree = "<group>"; };
+		B10000000000000000000094 /* recall-check-oem.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "recall-check-oem.wav"; sourceTree = "<group>"; };
+		B10000000000000000000095 /* recall-check-rental.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "recall-check-rental.wav"; sourceTree = "<group>"; };
+		B10000000000000000000100 /* where-nearby-fleet.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "where-nearby-fleet.wav"; sourceTree = "<group>"; };
+		B10000000000000000000101 /* where-nearby-oem.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "where-nearby-oem.wav"; sourceTree = "<group>"; };
+		B10000000000000000000102 /* where-nearby-rental.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "where-nearby-rental.wav"; sourceTree = "<group>"; };
+		B10000000000000000000103 /* temp-gauge-red-fleet.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "temp-gauge-red-fleet.wav"; sourceTree = "<group>"; };
+		B10000000000000000000104 /* temp-gauge-red-oem.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "temp-gauge-red-oem.wav"; sourceTree = "<group>"; };
+		B10000000000000000000105 /* temp-gauge-red-rental.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "temp-gauge-red-rental.wav"; sourceTree = "<group>"; };
+		B10000000000000000000106 /* last-serviced-fleet.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "last-serviced-fleet.wav"; sourceTree = "<group>"; };
+		B10000000000000000000107 /* last-serviced-oem.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "last-serviced-oem.wav"; sourceTree = "<group>"; };
+		B10000000000000000000108 /* last-serviced-rental.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "last-serviced-rental.wav"; sourceTree = "<group>"; };
+		B10000000000000000000109 /* dtc-explain-p0420-fleet.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "dtc-explain-p0420-fleet.wav"; sourceTree = "<group>"; };
+		B10000000000000000000110 /* dtc-explain-p0420-oem.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "dtc-explain-p0420-oem.wav"; sourceTree = "<group>"; };
+		B10000000000000000000111 /* dtc-explain-p0420-rental.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "dtc-explain-p0420-rental.wav"; sourceTree = "<group>"; };
+		B10000000000000000000112 /* engine-rough-fleet.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "engine-rough-fleet.wav"; sourceTree = "<group>"; };
+		B10000000000000000000113 /* engine-rough-oem.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "engine-rough-oem.wav"; sourceTree = "<group>"; };
+		B10000000000000000000114 /* engine-rough-rental.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "engine-rough-rental.wav"; sourceTree = "<group>"; };
+		FA511D207B464D8A800442E9 /* VehicleWebSocketClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleWebSocketClient.swift; sourceTree = "<group>"; };
+		B10000000000000000000080 /* Staging.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Staging.xcconfig; sourceTree = "<group>"; };
+		B10000000000000000000081 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		C10000000000000000000000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		D10000000000000000000000 = {
+			isa = PBXGroup;
+			children = (
+				D10000000000000000000001 /* VSACompanion */,
+				D10000000000000000000002 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		D10000000000000000000001 /* VSACompanion */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000001 /* VSACompanionApp.swift */,
+				B10000000000000000000021 /* Info.plist */,
+				D10000000000000000000003 /* Config */,
+				D10000000000000000000004 /* Api */,
+				D10000000000000000000005 /* Auth */,
+				D10000000000000000000006 /* Telemetry */,
+				D10000000000000000000007 /* Theming */,
+				D10000000000000000000008 /* Views */,
+				D10000000000000000000009 /* Presenter */,
+				D10000000000000000000010 /* Voice */,
+				D10000000000000000000011 /* DemoClips */,
+				B10000000000000000000020 /* Assets.xcassets */,
+			);
+			path = VSACompanion;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000002 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000000 /* VSACompanion.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000003 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000002 /* VSAConfig.swift */,
+				B10000000000000000000080 /* Staging.xcconfig */,
+				B10000000000000000000081 /* Release.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000004 /* Api */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000003 /* VSAClient.swift */,
+				B10000000000000000000004 /* Models.swift */,
+				B10000000000000000000037 /* TriageCoordinator.swift */,
+			);
+			path = Api;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000005 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000005 /* AuthService.swift */,
+				B10000000000000000000008 /* KeychainStore.swift */,
+				B10000000000000000000052 /* BiometricAuth.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000006 /* Telemetry */ = {
+			isa = PBXGroup;
+			children = (
+				FA511D207B464D8A800442E9 /* VehicleWebSocketClient.swift */,
+				B10000000000000000000009 /* TelemetryClient.swift */,
+				B10000000000000000000010 /* MockTelemetryClient.swift */,
+			);
+			path = Telemetry;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000007 /* Theming */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000011 /* TenantTheme.swift */,
+				B10000000000000000000054 /* AppearancePreference.swift */,
+				B10000000000000000000055 /* LayoutSegment.swift */,
+			);
+			path = Theming;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000008 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000012 /* RootView.swift */,
+				B10000000000000000000013 /* SignInView.swift */,
+				B10000000000000000000015 /* Header.swift */,
+				B10000000000000000000016 /* VehicleStatePane.swift */,
+				B10000000000000000000017 /* ConversationPane.swift */,
+				B10000000000000000000018 /* ReasoningDrawer.swift */,
+				B10000000000000000000030 /* MainTabView.swift */,
+				B10000000000000000000031 /* HomeTabView.swift */,
+				B10000000000000000000032 /* VehicleTabView.swift */,
+				B10000000000000000000033 /* AlertsTabView.swift */,
+				B10000000000000000000051 /* ServiceTabView.swift */,
+				B10000000000000000000034 /* AssistantTabView.swift */,
+				B10000000000000000000035 /* AccountTabView.swift */,
+				B10000000000000000000036 /* UIComponents.swift */,
+				B10000000000000000000047 /* VoiceReasoningDrawer.swift */,
+				B10000000000000000000053 /* TabLoadingSkeleton.swift */,
+				B10000000000000000000056 /* BookingFlow.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000009 /* Presenter */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000019 /* PresenterControls.swift */,
+			);
+			path = Presenter;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000010 /* Voice */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000042 /* VSABidiClient.swift */,
+				B10000000000000000000050 /* ConnectChatClient.swift */,
+				B10000000000000000000040 /* AudioCapture.swift */,
+				B10000000000000000000041 /* AudioPlayer.swift */,
+				B10000000000000000000043 /* VoiceSessionViewModel.swift */,
+				B10000000000000000000057 /* DemoAudioInjector.swift */,
+				B10000000000000000000058 /* DemoClip.swift */,
+				B10000000000000000000044 /* AwsCredentialProvider.swift */,
+				B10000000000000000000045 /* AgentCoreSigner.swift */,
+				B10000000000000000000046 /* VoiceIntegrationTest.swift */,
+			);
+			path = Voice;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000011 /* DemoClips */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000060 /* tire-pressure-low-fleet.wav */,
+				B10000000000000000000061 /* yes-fleet.wav */,
+				B10000000000000000000062 /* yes-tuesday-fleet.wav */,
+				B10000000000000000000063 /* check-engine-fleet.wav */,
+				B10000000000000000000064 /* speak-with-agent-fleet.wav */,
+				B10000000000000000000065 /* find-service-center-fleet.wav */,
+				B10000000000000000000066 /* tire-pressure-low-oem.wav */,
+				B10000000000000000000067 /* yes-oem.wav */,
+				B10000000000000000000068 /* yes-tuesday-oem.wav */,
+				B10000000000000000000069 /* check-engine-oem.wav */,
+				B10000000000000000000070 /* speak-with-agent-oem.wav */,
+				B10000000000000000000071 /* find-service-center-oem.wav */,
+				B10000000000000000000072 /* tire-pressure-low-rental.wav */,
+				B10000000000000000000073 /* yes-rental.wav */,
+				B10000000000000000000074 /* yes-tuesday-rental.wav */,
+				B10000000000000000000075 /* check-engine-rental.wav */,
+				B10000000000000000000076 /* speak-with-agent-rental.wav */,
+				B10000000000000000000077 /* find-service-center-rental.wav */,
+				B10000000000000000000078 /* inflate-tire-myself-fleet.wav */,
+				B10000000000000000000079 /* inflate-tire-myself-oem.wav */,
+				B1000000000000000000007A /* inflate-tire-myself-rental.wav */,
+				B10000000000000000000090 /* brake-soft-pedal-fleet.wav */,
+				B10000000000000000000091 /* brake-soft-pedal-oem.wav */,
+				B10000000000000000000092 /* brake-soft-pedal-rental.wav */,
+				B10000000000000000000093 /* recall-check-fleet.wav */,
+				B10000000000000000000094 /* recall-check-oem.wav */,
+				B10000000000000000000095 /* recall-check-rental.wav */,
+				B10000000000000000000100 /* where-nearby-fleet.wav */,
+				B10000000000000000000101 /* where-nearby-oem.wav */,
+				B10000000000000000000102 /* where-nearby-rental.wav */,
+				B10000000000000000000103 /* temp-gauge-red-fleet.wav */,
+				B10000000000000000000104 /* temp-gauge-red-oem.wav */,
+				B10000000000000000000105 /* temp-gauge-red-rental.wav */,
+				B10000000000000000000106 /* last-serviced-fleet.wav */,
+				B10000000000000000000107 /* last-serviced-oem.wav */,
+				B10000000000000000000108 /* last-serviced-rental.wav */,
+				B10000000000000000000109 /* dtc-explain-p0420-fleet.wav */,
+				B10000000000000000000110 /* dtc-explain-p0420-oem.wav */,
+				B10000000000000000000111 /* dtc-explain-p0420-rental.wav */,
+				B10000000000000000000112 /* engine-rough-fleet.wav */,
+				B10000000000000000000113 /* engine-rough-oem.wav */,
+				B10000000000000000000114 /* engine-rough-rental.wav */,
+			);
+			path = DemoClips;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E10000000000000000000000 /* VSACompanion */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F10000000000000000000001 /* Build configuration list for PBXNativeTarget "VSACompanion" */;
+			buildPhases = (
+				G10000000000000000000000 /* Sources */,
+				C10000000000000000000000 /* Frameworks */,
+				H10000000000000000000000 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = VSACompanion;
+			productName = VSACompanion;
+			productReference = B10000000000000000000000 /* VSACompanion.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		I10000000000000000000000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 2640;
+				TargetAttributes = {
+					E10000000000000000000000 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = F10000000000000000000000 /* Build configuration list for PBXProject "VSACompanion" */;
+			compatibilityVersion = "Xcode 15.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = D10000000000000000000000;
+			productRefGroup = D10000000000000000000002 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E10000000000000000000000 /* VSACompanion */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		H10000000000000000000000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000020 /* Assets.xcassets in Resources */,
+				A10000000000000000000060 /* tire-pressure-low-fleet.wav in Resources */,
+				A10000000000000000000061 /* yes-fleet.wav in Resources */,
+				A10000000000000000000062 /* yes-tuesday-fleet.wav in Resources */,
+				A10000000000000000000063 /* check-engine-fleet.wav in Resources */,
+				A10000000000000000000064 /* speak-with-agent-fleet.wav in Resources */,
+				A10000000000000000000065 /* find-service-center-fleet.wav in Resources */,
+				A10000000000000000000066 /* tire-pressure-low-oem.wav in Resources */,
+				A10000000000000000000067 /* yes-oem.wav in Resources */,
+				A10000000000000000000068 /* yes-tuesday-oem.wav in Resources */,
+				A10000000000000000000069 /* check-engine-oem.wav in Resources */,
+				A10000000000000000000070 /* speak-with-agent-oem.wav in Resources */,
+				A10000000000000000000071 /* find-service-center-oem.wav in Resources */,
+				A10000000000000000000072 /* tire-pressure-low-rental.wav in Resources */,
+				A10000000000000000000073 /* yes-rental.wav in Resources */,
+				A10000000000000000000074 /* yes-tuesday-rental.wav in Resources */,
+				A10000000000000000000075 /* check-engine-rental.wav in Resources */,
+				A10000000000000000000076 /* speak-with-agent-rental.wav in Resources */,
+				A10000000000000000000077 /* find-service-center-rental.wav in Resources */,
+				A10000000000000000000078 /* inflate-tire-myself-fleet.wav in Resources */,
+				A10000000000000000000079 /* inflate-tire-myself-oem.wav in Resources */,
+				A1000000000000000000007A /* inflate-tire-myself-rental.wav in Resources */,
+				A10000000000000000000090 /* brake-soft-pedal-fleet.wav in Resources */,
+				A10000000000000000000091 /* brake-soft-pedal-oem.wav in Resources */,
+				A10000000000000000000092 /* brake-soft-pedal-rental.wav in Resources */,
+				A10000000000000000000093 /* recall-check-fleet.wav in Resources */,
+				A10000000000000000000094 /* recall-check-oem.wav in Resources */,
+				A10000000000000000000095 /* recall-check-rental.wav in Resources */,
+				A10000000000000000000100 /* where-nearby-fleet.wav in Resources */,
+				A10000000000000000000101 /* where-nearby-oem.wav in Resources */,
+				A10000000000000000000102 /* where-nearby-rental.wav in Resources */,
+				A10000000000000000000103 /* temp-gauge-red-fleet.wav in Resources */,
+				A10000000000000000000104 /* temp-gauge-red-oem.wav in Resources */,
+				A10000000000000000000105 /* temp-gauge-red-rental.wav in Resources */,
+				A10000000000000000000106 /* last-serviced-fleet.wav in Resources */,
+				A10000000000000000000107 /* last-serviced-oem.wav in Resources */,
+				A10000000000000000000108 /* last-serviced-rental.wav in Resources */,
+				A10000000000000000000109 /* dtc-explain-p0420-fleet.wav in Resources */,
+				A10000000000000000000110 /* dtc-explain-p0420-oem.wav in Resources */,
+				A10000000000000000000111 /* dtc-explain-p0420-rental.wav in Resources */,
+				A10000000000000000000112 /* engine-rough-fleet.wav in Resources */,
+				A10000000000000000000113 /* engine-rough-oem.wav in Resources */,
+				A10000000000000000000114 /* engine-rough-rental.wav in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		G10000000000000000000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000001 /* VSACompanionApp.swift in Sources */,
+				A10000000000000000000002 /* VSAConfig.swift in Sources */,
+				A10000000000000000000003 /* VSAClient.swift in Sources */,
+				A10000000000000000000004 /* Models.swift in Sources */,
+				A10000000000000000000005 /* AuthService.swift in Sources */,
+				A10000000000000000000008 /* KeychainStore.swift in Sources */,
+				A10000000000000000000052 /* BiometricAuth.swift in Sources */,
+				A10000000000000000000053 /* TabLoadingSkeleton.swift in Sources */,
+				A10000000000000000000054 /* AppearancePreference.swift in Sources */,
+				A10000000000000000000055 /* LayoutSegment.swift in Sources */,
+				A10000000000000000000056 /* BookingFlow.swift in Sources */,
+				A10000000000000000000057 /* DemoAudioInjector.swift in Sources */,
+				A10000000000000000000058 /* DemoClip.swift in Sources */,
+				A10000000000000000000009 /* TelemetryClient.swift in Sources */,
+				A10000000000000000000010 /* MockTelemetryClient.swift in Sources */,
+				D2D8D9A6F8994BE7931AAC44 /* VehicleWebSocketClient.swift in Sources */,
+				A10000000000000000000011 /* TenantTheme.swift in Sources */,
+				A10000000000000000000012 /* RootView.swift in Sources */,
+				A10000000000000000000013 /* SignInView.swift in Sources */,
+				A10000000000000000000015 /* Header.swift in Sources */,
+				A10000000000000000000016 /* VehicleStatePane.swift in Sources */,
+				A10000000000000000000017 /* ConversationPane.swift in Sources */,
+				A10000000000000000000018 /* ReasoningDrawer.swift in Sources */,
+				A10000000000000000000030 /* MainTabView.swift in Sources */,
+				A10000000000000000000031 /* HomeTabView.swift in Sources */,
+				A10000000000000000000032 /* VehicleTabView.swift in Sources */,
+				A10000000000000000000033 /* AlertsTabView.swift in Sources */,
+				A10000000000000000000051 /* ServiceTabView.swift in Sources */,
+				A10000000000000000000034 /* AssistantTabView.swift in Sources */,
+				A10000000000000000000035 /* AccountTabView.swift in Sources */,
+				A10000000000000000000036 /* UIComponents.swift in Sources */,
+				A10000000000000000000037 /* TriageCoordinator.swift in Sources */,
+				A10000000000000000000019 /* PresenterControls.swift in Sources */,
+				A10000000000000000000042 /* VSABidiClient.swift in Sources */,
+				A10000000000000000000050 /* ConnectChatClient.swift in Sources */,
+				A10000000000000000000040 /* AudioCapture.swift in Sources */,
+				A10000000000000000000041 /* AudioPlayer.swift in Sources */,
+				A10000000000000000000043 /* VoiceSessionViewModel.swift in Sources */,
+				A10000000000000000000044 /* AwsCredentialProvider.swift in Sources */,
+				A10000000000000000000045 /* AgentCoreSigner.swift in Sources */,
+				A10000000000000000000046 /* VoiceIntegrationTest.swift in Sources */,
+				A10000000000000000000047 /* VoiceReasoningDrawer.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		K10000000000000000000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = B10000000000000000000080 /* Staging.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		K10000000000000000000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = B10000000000000000000081 /* Release.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		K10000000000000000000002 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = B10000000000000000000080 /* Staging.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = VSACompanion/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aws.vsa.companion;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		K10000000000000000000003 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = B10000000000000000000081 /* Release.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = VSACompanion/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aws.vsa.companion;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		F10000000000000000000000 /* Build configuration list for PBXProject "VSACompanion" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				K10000000000000000000000 /* Debug */,
+				K10000000000000000000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F10000000000000000000001 /* Build configuration list for PBXNativeTarget "VSACompanion" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				K10000000000000000000002 /* Debug */,
+				K10000000000000000000003 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = I10000000000000000000000 /* Project object */;
+}
