@@ -1,0 +1,112 @@
+// Staging.xcconfig — staging endpoints (us-west-2)
+//
+// Used by the Debug build configuration so devs working on the
+// simulator hit staging by default. Backed by `vsa-staging-*` CDK
+// stacks in the staging account, region us-west-2.
+//
+// xcconfig syntax gotcha: `//` starts a line comment. URLs that
+// contain `//` (every https/wss URL) MUST escape using `$()`. The
+// substring `$()` evaluates to empty at build time, so
+// `https:/$()/host/path` resolves to `https://host/path`.
+//
+// Authored by spec 2026-05-28-staging-auto-deploy.
+// Back-filled 2026-05-28 after first staging deploy.
+//
+// DEPLOYER NOTE: Replace every YOUR_* and 000000000000 placeholder
+// below with your actual staging deployment values before building.
+// See Config/README.md (or your team's deployment runbook) for
+// how to obtain each value from your CDK stack outputs.
+
+VSA_AWS_REGION = us-west-2
+VSA_REST_API_URL = https:/$()/YOUR_REST_API_ID.execute-api.us-west-2.amazonaws.com/staging
+// CMS UI main API (cms-staging-ui-api). The iOS app calls this for the
+// driver self-vehicle-claim flow (GET /api/v1/vehicles, PUT /api/v1/drivers/{id})
+// using its VSA-pool id-token — the CMS authorizer trusts the VSA pool via
+// CMS_EXTRA_USER_POOL_IDS, and main_api constrains driver tokens to a
+// self-service allowlist. Stage name is "prod" even in the staging account
+// (RestApi default stage). See spec 2026-06-19-cms-ios-driver-self-vehicle-claim.
+VSA_CMS_REST_API_URL = https:/$()/YOUR_CMS_API_ID.execute-api.us-west-2.amazonaws.com/prod
+// Remote-commands API (cms-<stage>-commands-api) — a SEPARATE gateway from the
+// UI API above, sharing the same Cognito pool.
+VSA_COMMANDS_API_URL = https:/$()/YOUR_COMMANDS_API_ID.execute-api.us-west-2.amazonaws.com/prod
+// ⚠️ NOT us-west-2 — do NOT "fix" this to match the block around it.
+// Every other endpoint on this page is us-west-2 because the staging API
+// Gateway, WebSocket and telemetry stacks are. Amazon Connect is the one
+// exception: the instance serving escalation (alias cms-vsa-demo-use1, with the
+// meridian-vsa-escalation-flow and meridian-fleet-support queue) lives in
+// us-east-1, and the ParticipantToken minted by StartChatContact is only valid
+// against that region's participant.connect.<region>.amazonaws.com endpoint.
+// Point this at the app's own region and CreateParticipantConnection returns
+// HTTP 403 "explicit deny in an identity-based policy" — which reads like a
+// permissions problem and is not one.
+//
+// This has now happened twice: issues/2026-06-22-ios-chat-connect-region/ and
+// issues/2026-09-22-ios-connect-region-mismatch-403/. Both times the value was
+// set by pattern-matching the surrounding us-west-2 lines.
+// The source of truth is the tenant-config `channels.connect.instanceArn`
+// (CVX /cvx/staging/connect-instance-arn); change this only when that moves.
+VSA_CONNECT_REGION = us-east-1
+VSA_WS_API_URL = wss:/$()/YOUR_WS_API_ID.execute-api.us-west-2.amazonaws.com/staging
+VSA_TELEMETRY_WS_URL = wss:/$()/YOUR_TELEMETRY_WS_ID.execute-api.us-west-2.amazonaws.com/live
+VSA_AGENTCORE_RUNTIME_ARN = arn:aws:bedrock-agentcore:us-west-2:000000000000:runtime/YOUR_AGENTCORE_RUNTIME_ID
+// Cognito: iOS authenticates against the CONSOLIDATED CMS UI pool
+// (cms-staging-ui, us-west-2) — one pool per deployment serves both Fleet
+// UI and iOS users. Client auth flows match (USER_PASSWORD_AUTH +
+// USER_SRP_AUTH, no secret), so no Swift change needed.
+//
+// VOICE SigV4 PATH — SCOPE OF THE 2026-06-22 VERIFICATION (issue
+// 2026-06-22-ios-staging-voice-connectivity-verification):
+// What was verified is the CREDENTIAL EXCHANGE only. VSA_IDENTITY_POOL_ID
+// below is federated with BOTH user pools — the current CMS UI pool and
+// the previous CVX pool — so GetCredentialsForIdentity accepts the
+// CMS-pool id-token this app signs in with, and AwsCredentialProvider can
+// SigV4-sign the AgentCore voice WS. Re-federation is DONE, not parked.
+// Do NOT "fix" this by repointing the identity pool; the split
+// (login=CMS pool, identity pool trusts both) is intentional.
+//
+// A COMPLETED WebSocket HANDSHAKE WAS *NOT* VERIFIED IN 2026-06-22, and
+// this comment previously read "VERIFIED WORKING", which overstated it.
+// The bidi handshake was in fact impossible at that date: VSABidiClient
+// signed a 20-char session id against AgentCore's 33-char minimum, so
+// every upgrade was rejected. Fixed 2026-09-21 — see
+// issues/2026-09-21-ios-voice-bidi-session-id-below-agentcore-minimum.
+// Related: the identity pool this file points at is per-deployment and
+// is REPLACED whenever the CVX tenant is renamed (CDK replaces an
+// identity pool when identityPoolName changes), which is a separate
+// failure mode that surfaces as Cognito 400 ResourceNotFoundException.
+VSA_USER_POOL_ID = <REPLACE_WITH_USER_POOL_ID>
+VSA_USER_POOL_CLIENT_ID = YOUR_COGNITO_APP_CLIENT_ID
+VSA_IDENTITY_POOL_ID = us-west-2:00000000-0000-0000-0000-000000000000
+
+// Demo password (DEBUG-only quick-pick prefill). Intentionally empty in the
+// tracked xcconfig — the DEBUG demoPassword accessor returns "" unless the
+// developer sets a real value in the gitignored Staging.local.xcconfig via
+// VSA_DEMO_PASSWORD. Release builds ignore this key entirely.
+VSA_DEMO_PASSWORD =
+
+// ─── Local overrides ─────────────────────────────────────────────────────────
+// Optional include: `Staging.local.xcconfig` (gitignored) holds real staging
+// values that must not ship publicly. If the file is absent, this include is a
+// no-op (`#include?` is the optional variant) — the placeholder values above
+// remain and `VSAConfig.swift`'s `plistString(_:)` guard triggers the Swift
+// fallback + `assertionFailure` in Debug builds. See `Config/README.md` or
+// `Staging.local.xcconfig.example` for the schema.
+//
+// This pattern is intentional and permanent: real Cognito pool IDs, API
+// endpoints, and runtime ARNs are per-deployment and must never be tracked in
+// git. Refer to spec 2026-07-17-ios-tenant-canary-migration for the placeholder
+// scrub, and issue 2026-07-20-ios-xcconfig-placeholders-not-injected for the
+// local-override wire-up.
+// Owned-vehicle 360 spin frames. Base URL of a numbered frame
+// sequence: <base>/1.png ... <base>/<N>.png. Intentionally EMPTY
+// here — a real value is tenant-branded, and tenant brand strings
+// are canary-forbidden in committed source. Set it in the
+// gitignored Staging.local.xcconfig. Empty disables the spin view
+// and falls back to a themed glyph.
+VSA_VEHICLE_360_BASE_URL =
+VSA_VEHICLE_360_FRAMES = 0
+
+// APNs environment — development for Debug/staging builds (Simulator + sandbox APNs)
+APS_ENVIRONMENT = development
+
+#include? "Staging.local.xcconfig"

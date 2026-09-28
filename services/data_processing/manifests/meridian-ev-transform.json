@@ -1,0 +1,341 @@
+{
+  "manifest_version": "2.2.0",
+  "transform_type": "cloud_to_cloud",
+  "source_name": "cs-meridian",
+  "source_format": "json",
+
+  "vehicle_id_extraction": {
+    "strategy": "direct",
+    "path": "vehicleId",
+    "transform": null
+  },
+
+  "timestamp_field": "timestamp",
+  "timestamp_format": "epoch_milliseconds",
+
+  "signal_mappings": [
+    {
+      "source_signal": "speed",
+      "cms_field": "speed",
+      "source_path": "speed",
+      "data_type": "float",
+      "default_value": 0.0
+    },
+    {
+      "source_signal": "acceleration",
+      "cms_field": "acceleration",
+      "source_path": "acceleration",
+      "data_type": "float",
+      "default_value": 0.0
+    },
+    {
+      "source_signal": "deceleration",
+      "cms_field": "deceleration",
+      "source_path": "deceleration",
+      "data_type": "float",
+      "default_value": 0.0
+    },
+    {
+      "source_signal": "engineRPM",
+      "cms_field": "engineRPM",
+      "source_path": "engineRPM",
+      "data_type": "float",
+      "default_value": 0.0
+    },
+    {
+      "source_signal": "engineTemp",
+      "cms_field": "engineTemp",
+      "source_path": "engineTemp",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "oilPressure",
+      "cms_field": "oilPressure",
+      "source_path": "oilPressure",
+      "data_type": "float",
+      "default_value": 0.0
+    },
+    {
+      "source_signal": "batteryVoltage",
+      "cms_field": "batteryVoltage",
+      "source_path": "batteryVoltage",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "fuelLevel",
+      "cms_field": "fuelLevel",
+      "source_path": "fuelLevel",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "lat",
+      "cms_field": "lat",
+      "source_path": "lat",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "lng",
+      "cms_field": "lng",
+      "source_path": "lng",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "heading",
+      "cms_field": "heading",
+      "source_path": "heading",
+      "data_type": "float",
+      "default_value": 0.0
+    },
+    {
+      "source_signal": "seatbeltStatus",
+      "cms_field": "seatbeltStatus",
+      "source_path": "seatbeltStatus",
+      "data_type": "boolean"
+    },
+    {
+      "source_signal": "ignitionOn",
+      "cms_field": "ignitionOn",
+      "source_path": "ignitionOn",
+      "data_type": "boolean"
+    },
+    {
+      "source_signal": "odometer",
+      "cms_field": "odometer",
+      "source_path": "odometer",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "tire_pressure_fl",
+      "cms_field": "tire_pressure_fl",
+      "source_path": "tire_pressure_fl",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "tire_pressure_fr",
+      "cms_field": "tire_pressure_fr",
+      "source_path": "tire_pressure_fr",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "tire_pressure_rl",
+      "cms_field": "tire_pressure_rl",
+      "source_path": "tire_pressure_rl",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "tire_pressure_rr",
+      "cms_field": "tire_pressure_rr",
+      "source_path": "tire_pressure_rr",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "oil_life",
+      "cms_field": "oil_life",
+      "source_path": "oil_life",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "brake_wear",
+      "cms_field": "brake_wear",
+      "source_path": "brake_wear",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "engine_hours_total",
+      "cms_field": "engine_hours_total",
+      "source_path": "engine_hours_total",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "harsh_acc",
+      "cms_field": "harsh_acc",
+      "source_path": "harsh_acc",
+      "data_type": "float",
+      "default_value": 0.0
+    },
+    {
+      "source_signal": "harsh_brk",
+      "cms_field": "harsh_brk",
+      "source_path": "harsh_brk",
+      "data_type": "float",
+      "default_value": 0.0
+    },
+    {
+      "source_signal": "harsh_turn",
+      "cms_field": "harsh_turn",
+      "source_path": "harsh_turn",
+      "data_type": "float",
+      "default_value": 0.0
+    },
+    {
+      "source_signal": "aeb_act",
+      "cms_field": "aeb_act",
+      "source_path": "aeb_act",
+      "data_type": "integer",
+      "default_value": 0
+    },
+    {
+      "source_signal": "seatbelt",
+      "cms_field": "seatbelt",
+      "source_path": "seatbelt",
+      "data_type": "integer"
+    },
+    {
+      "source_signal": "phone_use",
+      "cms_field": "phone_use",
+      "source_path": "phone_use",
+      "data_type": "integer",
+      "default_value": 0
+    },
+    {
+      "source_signal": "soc",
+      "cms_field": "soc",
+      "source_path": "soc",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "volt",
+      "cms_field": "volt",
+      "source_path": "volt",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "coolant_temp",
+      "cms_field": "coolant_temp",
+      "source_path": "coolant_temp",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "filter_life",
+      "cms_field": "filter_life",
+      "source_path": "filter_life",
+      "data_type": "integer"
+    },
+    {
+      "source_signal": "idle_hours_total",
+      "cms_field": "idle_hours_total",
+      "source_path": "idle_hours_total",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "dtc_codes_active",
+      "cms_field": "dtc_codes_active",
+      "source_path": "dtc_codes_active",
+      "data_type": "integer",
+      "default_value": 0
+    },
+    {
+      "source_signal": "tire_tread_fl",
+      "cms_field": "tire_tread_fl",
+      "source_path": "tire_tread_fl",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "tire_tread_fr",
+      "cms_field": "tire_tread_fr",
+      "source_path": "tire_tread_fr",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "tire_tread_rl",
+      "cms_field": "tire_tread_rl",
+      "source_path": "tire_tread_rl",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "tire_tread_rr",
+      "cms_field": "tire_tread_rr",
+      "source_path": "tire_tread_rr",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "phoneConnected",
+      "cms_field": "phoneConnected",
+      "source_path": "phoneConnected",
+      "data_type": "boolean"
+    }
+  ],
+
+  "validation": {
+    "required_fields": [],
+    "range_checks": [
+      {
+        "field": "speed",
+        "min": 0,
+        "max": 200
+      },
+      {
+        "field": "lat",
+        "min": -90,
+        "max": 90
+      },
+      {
+        "field": "lng",
+        "min": -180,
+        "max": 180
+      },
+      {
+        "field": "engineRPM",
+        "min": 0,
+        "max": 8000
+      }
+    ]
+  },
+
+  "metadata": {
+    "description": "CS portal Meridian EV simulator transform manifest. Payload is gzip+base64-compressed JSON published via MQTT basic ingest to $aws/rules/{rule_name}/{vehicle_id}. vehicle_id is the topic suffix; it also appears as vehicleId in the decompressed payload body. timestamp is epoch_milliseconds. All signal_mappings are flat top-level keys — no nested paths.",
+    "created_by": "spec/2026-09-12-cs-simulator-oem2-manifest-path T1.4",
+    "created_at": "2026-09-12T00:00:00Z",
+    "version": "1.0.0",
+    "deferred_signals": [
+      {
+        "source_signal": "driverId",
+        "reason": "no catalog match — payload field present but not in signal_catalog_seed.json"
+      },
+      {
+        "source_signal": "lateralAcceleration",
+        "reason": "no catalog match — use harsh_turn (same value, catalog-matched alias)"
+      },
+      {
+        "source_signal": "eng_temp",
+        "reason": "no catalog match — duplicate of engineTemp with progressive-degradation value; use engineTemp"
+      },
+      {
+        "source_signal": "oil_press",
+        "reason": "no catalog match — duplicate of oilPressure; use oilPressure"
+      },
+      {
+        "source_signal": "tripProgress",
+        "reason": "no catalog match — nested object, internal simulator bookkeeping only"
+      },
+      {
+        "source_signal": "engineEvent",
+        "reason": "no catalog match — lifecycle string (ENGINE_START/ENGINE_STOP), not a telemetry signal"
+      },
+      {
+        "source_signal": "messageType",
+        "reason": "no catalog match — always 'TELEMETRY', routing metadata not a signal"
+      },
+      {
+        "source_signal": "is_ev",
+        "reason": "no catalog match — boolean fleet-classification flag"
+      },
+      {
+        "source_signal": "fuel_rate",
+        "reason": "no catalog match — ICE-only fuel consumption, null for EVs"
+      },
+      {
+        "source_signal": "fuel_lvl",
+        "reason": "no catalog match — duplicate fuel level (ICE-only), null for EVs"
+      },
+      {
+        "source_signal": "regen_pwr",
+        "reason": "no catalog match — EV regenerative power kW"
+      },
+      {
+        "source_signal": "soc (battery_voltage duplicate path)",
+        "reason": "soc mapped above; volt mapped above; hv_voltage_base-derived fields (tractBattVoltage, battHVVoltage) not in catalog"
+      }
+    ]
+  }
+}

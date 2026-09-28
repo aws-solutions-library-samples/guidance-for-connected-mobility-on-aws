@@ -1,0 +1,21 @@
+id: vehicle-service-history-001
+description: >
+  GET /api/v1/service-history?vehicleId={vehicle_id} returns 200 with a structured
+  payload containing serviceRecords. Requires JWT. The CMS API exposes service history
+  via query param rather than a path segment (/api/v1/vehicles/{id}/service-history
+  does not exist; the canonical path is /api/v1/service-history?vehicleId=...).
+tier: 3
+persona: fleet-operator
+input:
+  type: rest
+  method: GET
+  path: /api/v1/service-history
+  query_params:
+    vehicleId: "{vehicle_id}"
+    limit: 25
+expected:
+  status_code: 200
+  tool_calls: []
+  response:
+    must_contain_keys: [serviceRecords, count]
+latency_budget_ms: 3000

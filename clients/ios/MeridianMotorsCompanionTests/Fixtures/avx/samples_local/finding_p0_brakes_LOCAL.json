@@ -1,0 +1,36 @@
+{
+  "finding_id": "FIND-a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "finding_key": "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456",
+  "agent_id": "agent-2-vehicle-health",
+  "agent_version": "1.0.0",
+  "scope": {
+    "vin": "1HGBH41JXMN109186"
+  },
+  "severity": "p0",
+  "computed_at": "2026-09-18T12:00:00Z",
+  "expires_at": "2026-09-19T12:00:00Z",
+  "confidence": "high",
+  "finding_kind": "health.brakes",
+  "headline": "Critical brake pressure loss detected. Pull over immediately.",
+  "detail": "Critical brake pressure loss detected. Pull over immediately. ADP telemetry shows front brake circuit pressure at 12 bar, which is 68 percent below the safe operating threshold of 37 bar. Rear circuit pressure is nominal at 38 bar. Do not attempt highway driving. Turn on hazard lights and bring the vehicle to a safe stop in the nearest parking area or breakdown lane. Contact roadside assistance for a tow to a certified service centre. Driving with compromised brake pressure significantly increases stopping distance and substantially raises the risk of a collision.",
+  "evidence": [
+    {
+      "kind": "adp.brakes.pressure",
+      "source": "adp-staging",
+      "source_ref": "athena-query-P0BRAKE0001",
+      "value": {
+        "vin": "1HGBH41JXMN109186",
+        "circuit": "front",
+        "pressure_bar": 12,
+        "threshold_bar": 37,
+        "deficit_pct": 68
+      },
+      "computed_at": "2026-09-18T12:00:00Z",
+      "provenance": "live"
+    }
+  ],
+  "inputs_hash": "c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4",
+  "tokens_used": 0,
+  "cost_usd": 0.0,
+  "audit_trail": []
+}

@@ -1,0 +1,353 @@
+/*
+ * PageHeader.css — Connected Services portal page banner.
+ *
+ * Spec: .kiro/specs/2026-09-04-cms-connected-services-portal-v2/spec.md D9
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Every selector is scoped to .cs-header* — enforced by cssScoped.test.ts.
+ * Shell-level rules (sticky #h, body overflow) live in src/AppShell.css.
+ *
+ * ## Layout mechanism — matches CMS Header.css (2026-09-14)
+ *
+ * This banner is a full-bleed dark band whose next sibling is pulled up into its bottom
+ * padding, so the page's first content block sits half inside the banner. It is CMS's
+ * `Header.css` mechanism, deliberately shared rather than reinvented.
+ *
+ * Two things had to be true together, and only one of them lives in this file:
+ *
+ *   1. `.cs-header` bleeds past the content column (here — `width: 100vw` + the
+ *      `left: 50%` / `margin-left: -50vw` shift).
+ *   2. The content column does NOT span the full width, so there is space beside it for
+ *      the band to be visible in (AppShell.tsx — `maxContentWidth` left unset).
+ *
+ * Without (2), (1) is invisible: the vertical pull still happens but there is a ~14px
+ * sliver of band either side of the content, which reads as "the banner is slightly
+ * shorter", not as an overlap. Three commits on 2026-09-14 tuned the pull (5px -> 20px)
+ * and cancelled a phantom SpaceBetween margin trying to fix this from inside (1) alone.
+ * See AppShell.tsx's `maxContentWidth` note for the grid arithmetic.
+ *
+ * ## Superseded: per-gap cancellation
+ *
+ * Until 2026-09-14 the horizontal edges were handled by cancelling AppLayout's content
+ * gaps:
+ *
+ *   margin-left:  calc(-1 * var(--awsui-content-gap-left-esndbs, 0px));
+ *   margin-right: calc(-1 * var(--awsui-content-gap-right-esndbs, 0px));
+ *
+ * That was correct while the content column was full-width, and it is worth being clear
+ * about why it is not merely redundant now but wrong: the custom property holds the gap
+ * track's MINIMUM, not its used width. The grid track is
+ * `minmax(var(--awsui-content-gap-left), 1fr)`, so with `maxContentWidth` unset the
+ * track grows to 150-300px while the property stays 24px. Cancelling 24px of a 180px
+ * gap leaves a white strip between the nav and the banner — the same regression
+ * `pageHeaderGaps.test.ts` exists to catch, arrived at from the opposite direction.
+ * No custom property exposes the used track width; hence viewport units.
+ *
+ * The vertical cancellation is KEPT (`margin-top: calc(-1 * var(--awsui-main-gap-…))`)
+ * because that gap is a grid ROW whose height genuinely is the property's value, so
+ * cancelling it is exact. Its `0px` fallback still means "no gap applied -> cancel
+ * nothing", which keeps it correct below the 689px breakpoint and makes a Cloudscape
+ * hash change fail toward a visible white seam rather than a mispositioned banner.
+ *
+ * ## Rules deliberately NOT ported from CMS Header.css
+ *
+ * CMS Header.css:105-117 — the `[class*="awsui_body-cell"]` cascade is not scoped to
+ * .cs-header and would restyle every Cloudscape table cell in the app. Omitted.
+ *
+ * CMS's inner text inset (`margin-left: 140px; width: calc(100% - 320px)` on nested
+ * divs) is NOT ported. Those literals encode one nav-open/viewport arithmetic and
+ * misalign when the nav is collapsed. `padding-inline: max(24px, calc(50vw - 50%))`
+ * derives the same quantity at any viewport — see the rule below.
+ */
+
+/* ── Banner shell ─────────────────────────────────────────────────────────── */
+.cs-header {
+  background-color: #161d26;
+  color: #ffffff;
+  border-bottom: 1px solid #414d5c;
+  box-sizing: border-box;
+
+  /*
+   * Bleed to the gap tracks — NOT to the viewport.
+   *
+   * A previous revision ported CMS's `width: 100vw; left: 50%; margin-left: -50vw`
+   * verbatim. That is wrong here, and the arithmetic says why. The content column is
+   * centred in the space to the RIGHT of the nav, so X = (100vw + nav - W) / 2, and a
+   * 100vw band's left edge lands at X + W/2 - 50vw = nav / 2 — i.e. halfway across the
+   * nav panel. `.awsui_navigation-container` is z-index 830 and this band is 900, so it
+   * painted over the nav. (CMS has the same geometry and lives with it; that is what its
+   * `margin-left: 140px` inner inset is compensating for. 140 = 280 / 2.)
+   *
+   * What the overlap actually needs is for the band to be wider than the content row —
+   * the viewport is irrelevant. So bleed by exactly one gap track on each side, which
+   * puts the left edge on the nav's right edge and the right edge on the scrollbar.
+   *
+   * The gap track's used width is not exposed directly, but it is derivable:
+   * AppLayout sets `--awsui-main-offset-left` on the layout element via inline style,
+   * and custom properties inherit, so `.cs-header` can read it.
+   *
+   * `--awsui-main-offset-left` is the offset of the CONTENT COLUMN — it already includes
+   * the left gap track, not just the nav width. Evidence, from Cloudscape's own
+   * stylesheet: its drawers-container max width is
+   *
+   *   calc(var(--awsui-layout-width) - var(--awsui-main-offset-left)
+   *        - var(--awsui-default-min-content-width) - var(--awsui-content-gap-right))
+   *
+   * which subtracts `content-gap-RIGHT` explicitly but never `content-gap-left`. That
+   * only balances if the left gap is already inside `main-offset-left`. So
+   *
+   *   gap = 100vw - main-offset-left - W        with W = 100%
+   *
+   * NOT `/ 2`. A previous revision divided by two, assuming the offset was the nav width
+   * alone and the expression therefore spanned BOTH gap tracks. That under-reached by
+   * half a track and left a visible strip between the nav and the banner, reported from
+   * the live page. The two readings differ by exactly 2x, so if this ever overshoots
+   * INTO the nav, the divisor was right after all and this is a one-character revert.
+   *
+   * Percentages in margin and padding both resolve against the containing block's
+   * inline size, so `100%` is W in both uses below and the two cancel exactly.
+   *
+   * `max(0px, ...)` on the margins is a floor: if a Cloudscape hash change makes
+   * `--awsui-main-offset-left` fall back to 0px the expression over-estimates the gap,
+   * and a positive margin (band narrower than content) is a benign miss, whereas an
+   * unbounded negative one would bleed across the nav again.
+   */
+  --cs-band-bleed: calc(100vw - var(--awsui-main-offset-left-esndbs, 0px) - 100%);
+  margin-left: calc(-1 * max(0px, var(--cs-band-bleed)));
+  margin-right: calc(-1 * max(0px, var(--cs-band-bleed)));
+
+  /*
+   * Pull the banner's TEXT back to the content column: the bleed distance is exactly the
+   * gap track, so padding it back lands text on the content column's left edge. CMS
+   * hardcodes this as `margin-left: 140px; width: calc(100% - 320px)`, which encodes one
+   * nav-open/viewport arithmetic and misaligns when the nav collapses.
+   *
+   * `max(24px, ...)` floors it so text is never flush to the band edge.
+   */
+  padding-top: 20px;
+  padding-left: max(24px, var(--cs-band-bleed));
+  padding-right: max(24px, var(--cs-band-bleed));
+
+  /*
+   * Cancel the vertical gap AppLayout puts between the top bar and the content, so the
+   * banner sits flush beneath #h. Unlike the horizontal gaps this one is a grid ROW
+   * whose height IS the custom property's value, so cancelling it is exact. `0px`
+   * fallback means "no gap applied -> cancel nothing", which is what keeps this correct
+   * below the 689px breakpoint and makes a Cloudscape hash change fail toward a visible
+   * white seam rather than a banner pulled out of position.
+   */
+  margin-top: calc(-1 * var(--awsui-main-gap-esndbs, 0px));
+
+  /*
+   * The overlap band.
+   *
+   *   padding-bottom: 50px;   internal dark band beneath the title (CMS Header.css:15)
+   *   position: relative;     establishes a stacking context so z-index applies
+   *   z-index: 900;           below the sibling, which paints on top
+   *
+   * NOTE THE ABSENT PROPERTY: there is no `margin-bottom: -25px` here, and its absence
+   * is deliberate. CMS pulls its next sibling up with a negative bottom margin. Ported
+   * here that produced a measured ~2px of overlap instead of 25px — reported from the
+   * live page after deploy — so ~23px is being absorbed somewhere between this margin
+   * and the sibling's box, and I could not identify where from static analysis of the
+   * shipped stylesheet and bundle. Candidates ruled out: SpaceBetween injects no margins
+   * on this version (it is flex + row-gap), the marker span is `display: none` so it is
+   * not a flex item and consumes no gap, `Grid`'s `margin-block: -10px` is cancelled by
+   * its columns' 10px padding, and nothing in this module's two stylesheets touches the
+   * sibling's box.
+   *
+   * So the overlap is applied on the sibling as a relative offset instead — see
+   * `.cs-header + *` below. A relative offset is not part of margin resolution, so
+   * whatever is eating the margin cannot eat it. This is a mechanism swap to something
+   * deterministic, not a diagnosis; the underlying absorption is still unexplained and
+   * worth a browser measurement if it resurfaces elsewhere.
+   *
+   * The band is load-bearing on `maxContentWidth` being unset in AppShell.tsx: with the
+   * content column full-width there is no flank for it to show in, and any overlap
+   * renders as a slightly shorter banner. See that file's note.
+   */
+  padding-bottom: 50px;
+  position: relative;
+  z-index: 900;
+}
+
+/*
+ * The block that tucks into the band.
+ *
+ * `.cs-page-body` is AppShell's wrapper around the routed screen — one element,
+ * always present, always a plain block. Three properties, each load-bearing:
+ *
+ *   position: relative   establishes the stacking context z-index needs
+ *   z-index: 950         paints over the band (which is 900) rather than under it
+ *   top: -46px           pulls the page body up into the band's 50px bottom padding
+ *
+ * ## -46px is CALIBRATED, not derived. Read this before changing it.
+ *
+ * The intended overlap is ~25px, matching CMS. -46px is not 25px because roughly 23px of
+ * unexplained gap sits between the band's bottom border and the first content block's
+ * top edge, so the offset has to spend that before any of it becomes visible overlap:
+ *
+ *   effective overlap = 46 - 23 = ~23-25px
+ *
+ * Measured on the live page, not inferred: with `top: -25px` applied and confirmed in
+ * DevTools, the observed overlap was ~2px. The transfer function is 1:1 — every extra
+ * pixel of offset is a pixel of overlap — so 25 + 21 ≈ 46 lands on the target.
+ *
+ * What the 23px is NOT (each checked against the shipped stylesheet or bundle, not
+ * assumed):
+ *
+ *   - SpaceBetween margin injection. It is flex + `row-gap` on components@3.0.1354;
+ *     there is no `> *:not(:first-child) { margin-block-start }` rule to cancel.
+ *   - `row-gap` pushed by the settle-marker span. Every screen renders that span with
+ *     `display: none`, so it is not a flex item and consumes no gap. Verified across all
+ *     screens; only two test files render it visibly.
+ *   - `Grid`'s `margin-block: calc(20px / -2)`. Its columns' `padding-block: 10px`
+ *     cancels it exactly.
+ *   - anything in this module's stylesheets. There are two, and neither touches the
+ *     wrapper's or the screen root's box.
+ *
+ * The one strong clue, from the user's own DevTools probe: disabling `display: flex` on
+ * the SpaceBetween root makes the content rise and the overlap land correctly. A flex
+ * container is a BFC root, so it stops a descendant's negative margin escaping outward —
+ * which is the most likely home for the 23px. That is a lead, not a conclusion.
+ *
+ * So: if you change the band's `padding-bottom`, do NOT assume this number tracks it.
+ * The relationship is `visible overlap = |top| - 23px` until the 23px is understood, and
+ * a derived fix should replace this constant rather than re-tune it. Tracked in
+ * issues/2026-09-14-cs-banner-overlap-23px-unexplained-gap/.
+ *
+ * Why a named class and not `.cs-header + *`: the universal sibling selector
+ * resolves to whatever element each screen happens to root with — a Cloudscape
+ * SpaceBetween on today's screens. That is a per-screen implementation detail, and
+ * after four rounds of this overlap not landing it was the last unverified
+ * assumption in the chain. A named wrapper makes the target a contract. It also
+ * matches CMS, whose AppLayout `content` is a plain <div> holding the header and
+ * then the routed view.
+ *
+ * Why `top` and not a negative margin on the banner: the margin route measured
+ * ~2px of a 25px pull on the live page, twice, with the missing ~23px unaccounted
+ * for. A relative offset is applied after layout and is not subject to margin
+ * resolution, so it cannot be partially absorbed.
+ *
+ * Two consequences of `top`, both acceptable and worth knowing before changing it:
+ *
+ *   - It shifts this element only, not anything after it. Safe because this
+ *     wrapper is the last child of <main>.
+ *   - The layout box stays put, so the page keeps 25px of trailing space at the
+ *     bottom. Harmless, and the reason not to "fix" it by ALSO adding a negative
+ *     margin — that reintroduces the mechanism whose behaviour is not understood.
+ */
+.cs-header + .cs-page-body {
+  position: relative;
+  z-index: 950;
+  top: -46px;
+}
+
+/*
+ * DELIBERATELY ABSENT: a SpaceBetween gap-neutralisation rule.
+ *
+ * Two commits on 2026-09-14 (`0db551ab`, `cdadc1ac`) added, and this edit removes,
+ * a rule of the form
+ *
+ *   .cs-header + * > [data-settle-marker] + * { margin-block-start: 0 !important; }
+ *
+ * justified by the claim that SpaceBetween injects gaps as
+ * `> *:not(:first-child) { margin-block-start: <size> }`, and that the hidden
+ * `<span data-settle-marker>` every screen renders therefore occupied the
+ * `:first-child` slot and pushed KpiCardGrid down by 24px.
+ *
+ * That is not true on `@cloudscape-design/components@3.0.1354`. SpaceBetween here is
+ * flex-based — verified in the shipped stylesheet:
+ *
+ *   .awsui_root_18582_…{display:flex}
+ *   .awsui_vertical_18582_…{flex-direction:column}
+ *   .awsui_vertical-l_18582_…{row-gap:var(--space-scaled-l-sej05l, 20px)}
+ *
+ * There is no margin-injection rule to cancel, and a `display: none` element is not
+ * a flex item at all, so the settle-marker never consumed a gap either. The rule was
+ * inert; the real cause of the missing overlap was horizontal (no flank — see
+ * AppShell.tsx's note on `maxContentWidth`).
+ *
+ * Recorded rather than silently dropped because the deleted comment asserted a
+ * concrete mechanism, and a wrong mechanism in a stylesheet is what the next person
+ * reasons from.
+ */
+
+/* ── Breadcrumb row ──────────────────────────────────────────────────────────── */
+.cs-header-breadcrumbs {
+  padding: 4px 0 8px;
+  box-sizing: border-box;
+}
+
+/* Breadcrumb link colours on dark background */
+.cs-header-breadcrumbs [class*="awsui_anchor"] {
+  color: #42b4ff !important;
+  text-decoration-color: #42b4ff !important;
+}
+
+.cs-header-breadcrumbs [class*="awsui_anchor"] [class*="awsui_text"] {
+  color: #42b4ff !important;
+}
+
+/* Last breadcrumb item (current page) — muted, not a link colour */
+.cs-header-breadcrumbs [class*="awsui_breadcrumb"][class*="awsui_last"] [class*="awsui_text"] {
+  color: #8c8c94 !important;
+}
+
+/* ── Title + description section ─────────────────────────────────────────────── */
+.cs-header-title-section {
+  padding: 8px 0 0;
+  margin-bottom: 0;
+}
+
+/* Title row: h1 and optional action slot side by side */
+.cs-header-title-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* h1 title */
+.cs-header-title {
+  color: #ebebf0;
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  font-family: "Open Sans", "Helvetica Neue", sans-serif;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Optional description */
+.cs-header-description {
+  color: #a4a4ad;
+  margin: 0;
+  font-size: 14px;
+  font-family: "Open Sans", "Helvetica Neue", sans-serif;
+}
+
+/* Optional actions slot */
+.cs-header-actions {
+  flex-shrink: 0;
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Mobile responsive ────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .cs-header-title-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .cs-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}

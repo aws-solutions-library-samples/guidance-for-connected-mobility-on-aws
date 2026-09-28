@@ -1,0 +1,33 @@
+id: vehicle-live-state-stream-001
+description: >
+  Subscribe to vehicle live state via WebSocket. The CMS WebSocket API accepts
+  connections at wss://<api-id>.execute-api.<region>.amazonaws.com/live with
+  ?fleetId=<id>&token=<jwt> query params. The ws-fanout service pushes telemetry
+  frames to all connections subscribed to the fleet. Expect at least one telemetry
+  or status frame within 10 seconds for VEH-0025.
+
+  KNOWN-FAILING (2026-05-26): The CMS WebSocket $connect route is configured with
+  AuthorizationType=NONE (verified against cms-staging-ui-ws routes) but rejects
+  the handshake with HTTP 400 unless the connection URL carries the ?fleetId=…
+  &token=<jwt> query params expected by the $connect Lambda. The current eval
+  runner does not yet support per-case query-param substitution into the
+  WebSocket URL — it only sends the JWT in the Authorization header (which the
+  WS API ignores). Resolving this requires (a) adding ws_query_params to the
+  EvalCase schema, (b) substituting fleet_id / jwt into them at runtime in
+  _run_websocket, and (c) confirming the $connect Lambda's exact auth contract.
+  Tracked as forward work for Spec 2 — see docs/DEPLOYMENT.md "Forward Work".
+tier: 3
+persona: fleet-operator
+input:
+  type: websocket
+  subscribe:
+    action: subscribe
+    vehicle_id: VEH-0025
+  duration_ms: 10000
+expected:
+  tool_calls: []
+  response: {}
+  events:
+    min_count: 1
+    must_contain_one_of_types: [telemetry, status]
+latency_budget_ms: 12000

@@ -1,0 +1,33 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * .theme-log-viewer — the terminal-style pane SimLogViewer renders its lines into.
+ *
+ * This rule is co-located with the component and imported BY the component, so
+ * it travels with it into every consuming app's bundle.
+ *
+ * It exists for the same reason FWELogViewer.css does, and the precedent is not
+ * hypothetical. `.theme-log-viewer` was originally declared only in the CMS app's
+ * `src/styles/theme.css`. When FWELogViewer.tsx was first mirrored into the
+ * Connected Services portal, the mirror rendered with no styling at all — the
+ * class resolved in CMS and to nothing in CS — and that shipped. Mirroring
+ * SimLogViewer.tsx without this file would reproduce it exactly: CS has NO global
+ * copy of the rule, so the "console" pane would render as plain unstyled text.
+ *
+ * The declarations are byte-identical to FWELogViewer.css and to CMS's
+ * `styles/theme.css`. Duplicate identical CSS rules are harmless, and co-location
+ * is what makes each component self-sufficient. Do not "de-duplicate" these into
+ * an app-global stylesheet — that is the arrangement that broke.
+ */
+.theme-log-viewer {
+  background-color: var(--color-background-code-editor-default, #161d26);
+  color: var(--color-text-code-editor-plain-text, #d1d5db);
+  font-family: monospace;
+  font-size: 11px;
+  padding: 8px;
+  border-radius: 4px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}

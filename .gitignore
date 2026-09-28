@@ -1,0 +1,797 @@
+# ===================================
+# Connected Mobility Workspace
+# ===================================
+
+# ===================================
+# System Files
+# ===================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# ===================================
+# Python
+# ===================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+# Root-anchored deliberately. As a bare `parts/` this setuptools/buildout rule
+# also matched `modules/cms_ui/source/frontend/src/components/dms/parts/`, so the
+# four DMS Parts view sources were silently UNTRACKED — and the publish flow is a
+# clone+checkout, so they would not have shipped at all. Caught by security review
+# cycle 7 of spec 2026-08-07-cms-account-provisioning-model. This is the same shape
+# as the scan_exclude-without-publish-exclude incidents in
+# ~/.kiro/steering/public-mirror-publish.md: a control written for one purpose
+# (Python build artifacts) silently changing what ships.
+/parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# pdm
+.pdm.toml
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# ===================================
+# Node.js / JavaScript / TypeScript
+# ===================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Grunt intermediate storage
+.grunt
+
+# Bower dependency directory
+bower_components
+
+# node-waf configuration
+.lock-wscript
+
+# Compiled binary addons
+build/Release
+
+# Dependency directories
+jspm_packages/
+
+# Snowpack dependency directory
+web_modules/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variable files
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# parcel-bundler cache
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+out
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+public
+
+# CMS staging auth gate (CFS) — the two CFS-template files MUST ship in
+# the public mirror as generic placeholders (the operator substitutes the
+# CFS-portal-issued versions at runbook time per docs/auth-gate.md).
+# Pattern below: re-include the directory traversal, RE-EXCLUDE everything
+# inside (so per-developer files like runtimeConfig.<user>.json stay
+# excluded), then re-include only the two specific auth-gate files.
+# Order matters: parent directories must be re-included before child
+# files. See spec .kiro/specs/2026-06-01-cms-staging-auth-gate/spec.md.
+!modules/cms_ui/source/frontend/public/
+modules/cms_ui/source/frontend/public/*
+!modules/cms_ui/source/frontend/public/error/
+!modules/cms_ui/source/frontend/public/error/403.html
+!modules/cms_ui/source/frontend/public/js/
+!modules/cms_ui/source/frontend/public/js/cfs-handler.js
+
+# Vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless/
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# yarn v2
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# ===================================
+# Java / Maven
+# ===================================
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# virtual machine crash logs
+hs_err_pid*
+replay_pid*
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Gradle
+.gradle
+**/build/
+!src/**/build/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+.gradletasknamecache
+
+# ===================================
+# AWS CDK
+# ===================================
+cdk.out/
+cdk.context.json
+cdk.context.json.*
+*.assets.json
+*.template.json
+*.template.yaml
+
+# CDK deployment outputs
+cdk-deploy-out/
+.cdk.staging/
+
+# ===================================
+# AWS Specific
+# ===================================
+.aws-sam/
+samconfig.toml
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+*.tfvars
+*.tfvars.json
+
+# ===================================
+# IDE / Editor Files
+# ===================================
+# Amazon Q / Kiro
+# Track institutional memory (specs, steering, hooks, settings) but ignore caches/scratch.
+.kiro/cache/
+.kiro/sessions/
+.kiro/**/__pycache__/
+.kiro/**/*.tmp
+.kiro/.scratch/
+
+# Local configuration
+.config/
+
+# Workspace files
+workspace.json
+
+# VSCode
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# Eclipse
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# ===================================
+# Logs and Runtime Files
+# ===================================
+*.log
+*.out
+*.pid
+*.lock
+# yarn.lock is a DEPENDENCY lockfile, not a runtime lock — it must be committed
+# (~/.kiro/steering/virtual-environments.md: "Lock files in version control —
+# always commit lock files"). The `*.lock` rule above lives under "Logs and
+# Runtime Files" and was aimed at things like setuptools' vendor `.lock` and PID
+# locks; it caught yarn.lock as collateral, so no dependency lockfile was tracked
+# at all. CI then failed on `yarn install --immutable` with YN0028 "the lockfile
+# would have been CREATED by this install" — a clean checkout had none.
+# See issues/2026-09-24-frontend-yarn-lock-never-tracked/.
+!modules/cms_ui/source/frontend/yarn.lock
+*.tmp
+
+# Application specific logs
+simulation_*.log
+simulation_service.log
+
+# ===================================
+# Build Artifacts
+# ===================================
+build/
+dist/
+out/
+target/
+
+# ===================================
+# Cache Directories
+# ===================================
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+
+# ===================================
+# OS Generated Files
+# ===================================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ===================================
+# Security / Credentials
+# ===================================
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+*.keystore
+*.truststore
+.env
+.env.*
+!.env.example
+credentials
+/config
+aws-exports.js
+
+# ===================================
+# iOS / Xcode
+# ===================================
+*.xcuserstate
+xcuserdata/
+DerivedData/
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+clients/ios/.build/
+clients/ios/Pods/
+
+# Per-developer local xcconfig overrides for iOS. The tracked
+# Staging.xcconfig / Release.xcconfig ship with fail-loud placeholders per
+# spec 2026-07-17-ios-tenant-canary-migration; real Cognito pool IDs,
+# API endpoints, and runtime ARNs come from a gitignored `*.local.xcconfig`
+# sibling included via `#include?` at the bottom of each tracked xcconfig.
+# The `.example` template is TRACKED and shows teammates the schema.
+clients/ios/MeridianMotorsCompanion/Config/*.local.xcconfig
+!clients/ios/MeridianMotorsCompanion/Config/*.local.xcconfig.example
+
+# ===================================
+# Project Specific
+# ===================================
+# Archived/deprecated files
+.archive/
+# Simulation data and cache files
+route_cache.json
+munich_route_cache.json
+batch_progress.json
+telemetry_table_name.txt
+ssl-certificates.json
+
+# Large data files
+*.csv
+*.json.gz
+*.parquet
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# ===================================
+# Temporary Development Files
+# ===================================
+TODO.md
+NOTES.md
+scratch/
+temp/
+tmp/
+
+# Test output
+test-results/
+test-output/
+cdk-stacks/cdk.out.ui.45104
+deployment/cdk.out.phase4.30917
+# AWS and sensitive files - DO NOT COMMIT
+.aws/
+*.pem
+*.key
+*.p12
+*.pfx
+credentials
+/config
+*credentials*
+*secret*
+*password*
+
+# Whitelist known-safe operator tooling that has "password" in the filename but contains
+# no credential material. These scripts READ credentials at run time from Secrets Manager;
+# they never carry credential values in their source. Added 2026-08-07 after the
+# demo-identity-model spec's security-reviewer Cycle 4 caught that the *password* pattern
+# was silently blocking both files from `git add`.
+!deployment/scripts/write_demo_passwords.py
+!deployment/scripts/test_write_demo_passwords.py
+
+# Same class, found 2026-09-06 while adding username/password sign-in to the Connected
+# Services portal. This is a vitest suite for auth.ts `signInWithPassword()`; every
+# credential in it is a literal test fixture ("pw", "correct-password", "wrong-password")
+# and the Cognito SDK is mocked, so no real credential material is present. Without this
+# line the whole suite is invisible to `git add` and to CI — `git add` on a directory
+# skips ignored files silently, with no error, so the omission is not observable.
+!modules/connected_services_ui/src/__tests__/signInWithPassword.test.ts
+
+# Whitelist an issue directory whose SLUG contains "secret" and is therefore caught by
+# the `*secret*` pattern above. The pattern matches the DIRECTORY name, and git does not
+# descend into an excluded directory, so the directory itself must be negated — negating
+# only the files inside it would not work.
+#
+# Contents verified credential-free before whitelisting (2026-08-10): the archived Lambda
+# log carries only resource names, usernames, request ids, a Secrets Manager *VersionId*
+# (a UUID, not a value) and an S3 host-id. The setter handler redacts its exception
+# detail, which is why the log is safe — and also why root cause had to be established
+# from the synthesised template instead. Same class of false positive as the two scripts
+# above: the word "secret" describes the subject; it is not a secret.
+#
+# Precedent: issues/2026-05-27-federate-oauth-secret-rotation-deferred/ is tracked for
+# the same reason.
+!issues/2026-08-10-cms-persona-secret-arn-suffix-iam-mismatch/
+
+# Account-specific and sensitive content - DO NOT COMMIT
+#
+# NOTE (2026-08-04): filename patterns naming specific AWS account IDs were REMOVED
+# from this file. They ignored files whose *names* contained our account IDs, but
+# `.gitignore` itself ships to the public mirror and is listed in `scan_exclude`, so
+# the patterns published the very identifiers they existed to protect — and the
+# scanner never inspected the file. See
+# `issues/2026-08-04-account-id-published-via-gitignore/`.
+#
+# A denylist written in terms of the secret embeds the secret. Account-specific
+# ignore rules belong in a per-clone location that is never published:
+#
+#     printf '*<your-account-id>*\n*arn:aws:iam::<your-account-id>*\n' >> .git/info/exclude
+#
+# `.git/info/exclude` has identical semantics to `.gitignore` and is not version
+# controlled, so it is per-developer. Content-level protection is unaffected: the
+# pre-publish scanner matches these IDs inside file contents via
+# `.publish-secrets-scan.yml`, which is the defence that actually mattered here.
+*bootstrap*.amazonaws.com*
+*arn:aws:secretsmanager*
+
+# CDK build outputs - DO NOT COMMIT
+deployment/cdk.out*/
+deployment/.venv/
+deployment/node_modules/
+# Prod-config snapshot files (per spec 2026-06-08-cms-flink-cfn-config-keys-fix runbook)
+# describe-application output contains prod account IDs in ARNs / VPC IDs / SG IDs
+deployment/snapshots/
+modules/cms_ui_backup_20250924_103609
+diagram_env
+scripts
+
+# Gate-template substitution tooling. The broad `scripts` pattern (line ~595) would
+# otherwise exclude these, leaving package.json's `postbuild` hook pointing at a file
+# that exists only on the author's machine — the build would hard-fail for every
+# teammate, in CI, and on the public mirror. Added 2026-08-04 with spec
+# the 2026-08-04 gate-template substitution spec (see .kiro/specs/).
+!modules/cms_ui/source/frontend/scripts/
+!modules/cms_ui/source/frontend/scripts/substitute-gate-template.js
+!modules/cms_ui/source/frontend/scripts/tests/
+!modules/cms_ui/source/frontend/scripts/tests/substitute-gate-template.test.js
+
+# iOS XCTest-target generator. Same trap as the gate-template tooling above: the
+# broad `scripts` pattern would exclude it, and this script IS the reproducible
+# form of the project surgery that creates the MeridianMotorsCompanionTests target. Losing it
+# means the next person hand-edits project.pbxproj — which spec
+# 2026-08-04-zone2-ipad-adaptive-kiosk-and-xctest calls "the single most fragile
+# task in the spec" and explicitly wants to avoid.
+#
+# The three lines are load-bearing in order and none is redundant: git will not
+# consider a file inside an excluded directory, so the directory must be
+# re-included first; that alone would expose every sibling, so contents are
+# re-excluded; then the one wanted file is re-included. The siblings
+# (build_ios_simulator_app.sh, generate-demo-clips.py, install_ios_sim_demo_app.sh)
+# stay excluded deliberately — reversing their status is not this spec's call, and
+# this repo is publicly mirrored. Added 2026-08-11.
+!clients/ios/scripts/
+clients/ios/scripts/*
+!clients/ios/scripts/add-xctest-target.rb
+# Launch-splash + brand-asset tooling, same rationale as add-xctest-target.rb above.
+#
+# add-splash-screen.rb registers the splash sources, the .mp4 and the launch
+# storyboard with the project; make-brand-assets.swift derives the cropped
+# wordmark and the app icon from the art-sources master. Both are referenced by
+# name from clients/ios/README.md and art-sources/meridian/README.md, so leaving
+# them excluded would ship instructions pointing at files a fresh clone does not
+# have.
+#
+# make-brand-assets.swift is the only record of three non-obvious decisions that
+# cannot be recovered from the PNGs it emits: the 0.30 luminance floor that
+# excludes the master's corner artifact, the 34px gap rule that splits the
+# wordmark at its pipe, and the single shared scale factor that keeps stroke
+# weight matched across the icon's two lines. Added 2026-08-20.
+!clients/ios/scripts/add-splash-screen.rb
+!clients/ios/scripts/make-brand-assets.swift
+modules/predictive_agent
+# OEM Proto files (customer-specific, never commit)
+*.proto
+modules/oem_processor/schemas/
+*signal-catalog.json
+modules/oem_ingestion/consumer/logs/*.jsonl
+tests/e2e/.venv/
+
+# Generated docs/diagrams from AI sessions - do not commit
+modules/campaign_manager/
+generated-diagrams/
+DEPLOYMENT_CONTEXT.md
+services/simulation/can_env/
+services/simulation/fwe_config/
+!modules/flink/src/main/proto/*.proto
+!deployment/scripts/
+services/commands/package/
+
+# Local NHTSA poller script outputs (real data is in the embedded copy under modules/cms_ui/source/frontend)
+nhtsaRecallData.ts
+nhtsa_fleet_recalls.json
+
+# Lambda build artifacts (regenerate with services/commands/build.sh)
+services/commands/.build/
+
+# CDK Lambda bundle build artifacts (regenerate via cdk synth; see _bundle_oem1_lambda
+# in deployment/stacks/connector_stack.py — writes per-Lambda subdirs under
+# deployment/stacks/.build/oem1_lambdas/* + the pre-existing requests_layer/ build dir)
+deployment/stacks/.build/
+
+# Yarn machine-specific state (already in frontend .gitignore but belt-and-suspenders)
+modules/cms_ui/source/frontend/package-lock.json
+modules/cms_ui/source/frontend/.yarn/install-state.gz
+
+# Allow .env.local.example placeholder files in version control
+# (the .env* glob above gitignores .env.local; this re-includes the .example template)
+!.env.local.example
+!**/.env.local.example
+
+# ===================================
+# Publish audit history (local only)
+# ===================================
+.publish-history/
+
+# OEM1 A2.3: rename pipeline script (committed; scripts/ dir is otherwise excluded)
+!scripts/rename-oem1-protos.py
+# Spec 2026-05-28-cms-staging-502-and-monitor-hardening: hardened ios-monitor.py
+# carries the privacy redaction (_redact), per-session signature dedup
+# (_signature + seen_signatures), and benign-noise suppression (BENIGN_PATTERNS).
+# MUST ship to the team — without git tracking the redaction control exists only
+# on one engineer's local machine. Tracked exception to the scripts/ exclude.
+!scripts/ios-monitor.py
+# Spec 2026-09-15-cms-cs-campaign-ownership Task 7.1: FWELogViewer parity drift-guard.
+# `.github/workflows/lint.yml`'s `renderer-parity` job invokes this file by path, so
+# it MUST be tracked — a guard that is not checked out is not a guard. It asserts the
+# cms_ui and connected_services_ui copies of FWELogViewer.tsx stay byte-identical
+# (bar one allowlisted import line).
+#
+# NOTE the negation below does NOT make `git add` work: line 635's `scripts` excludes
+# the DIRECTORY, and git will not consider a file inside an excluded directory, so a
+# per-file negation cannot re-include it. `git add -f` is required. The negation is
+# retained only to document intent, consistent with `!scripts/rename-oem1-protos.py`
+# and `!scripts/ios-monitor.py` above, which are decorative for the same reason.
+# Re-including properly needs the ordered three-line form used for
+# `clients/ios/scripts/` (re-include dir, re-exclude contents, re-include the file) —
+# not done here because `/scripts/*` would shadow the later `!scripts/lib/*`
+# negations the publish toolkit depends on. Tracked as
+# issues/2026-09-15-scripts-gitignore-negations-are-decorative/.
+!scripts/verify_cs_log_viewer_parity.py
+# OEM1 A2.3: cleansed vendor protos (committed under services/connectors/oem1/proto/;
+# *.proto is otherwise excluded)
+!services/connectors/oem1/proto/**/*.proto
+!services/connectors/oem1/proto/**
+DecoderManifest.bin
+# WS1 (spec 2026-06-18-cms-fwe-decoder-manifest-bucket-resolution): the stack-managed
+# copy under deployment/fwe-config/ IS version-controlled — it is the BucketDeployment
+# source uploaded into the Flink jar bucket the CampaignSyncProcessor reads. Only the
+# generator's transient ./DecoderManifest.bin remains ignored. Without this negation a
+# clean checkout deploys an empty fwe-config/ → empty manifest → FWE telemetry outage.
+!deployment/fwe-config/DecoderManifest.bin
+
+# ===================================
+# Simulation image build staging (spec 2026-06-16-cms-sim-images-codebuild-ecr)
+# deployment/ecr/<name>/ is regenerated by deployment/scripts/stage_ecr_resources.sh
+# at publish time — never committed.
+# ===================================
+deployment/ecr/
+
+# WebSocket authorizer synth-time dependency bundle (spec 2026-06-15-cms-websocket-api-auth-gap)
+# Regenerated by deployment/stacks/_ws_authorizer_bundle.py at synth — never committed.
+deployment/build/
+
+# ===================================
+# 2026-08-07 whitelist overrides — MUST stay at end of file
+# Later gitignore rules override earlier ones for the same path. These re-include specific
+# files that broad earlier patterns silently blocked (`*password*` at line ~563, `scripts` at
+# line ~610). Added after the demo-identity-model spec's security-reviewer Cycle 4 caught the
+# writer script being invisible to `git add`. If a future editor moves them, the underlying
+# broad rules will re-hide these files. Same class as the 2026-05-26 "believed shipped, was
+# not" finding for VITE_DEMO_PASSWORD_*.
+# ===================================
+!deployment/scripts/write_demo_passwords.py
+!deployment/scripts/test_write_demo_passwords.py
+!scripts/lib/test_canary_parity.py
+!scripts/lib/test_scan_runtime_launch_params.py
+
+# Operator report artifacts — generated by backfill/scrub scripts, not source files.
+# Added 2026-08-30 per spec 2026-08-29-cms-vehicle-classification § D5.
+deployment/scripts/reports/

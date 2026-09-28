@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+    <!-- Home screen / Settings / Spotlight label. Without this, springboard
+         falls back to CFBundleName, i.e. "MeridianMotorsCompanion".
+         "Meridian" rather than "Meridian Motors" because the home screen
+         truncates at roughly 12 characters.
+         Note this does NOT rename the built product: the .app filename comes
+         from PRODUCT_NAME, so build_ios_simulator_app.sh and
+         install_ios_sim_demo_app.sh — which glob MeridianMotorsCompanion-ios-sim-*.app.zip
+         — are unaffected. -->
+    <key>CFBundleDisplayName</key>
+    <string>Meridian</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Your voice is streamed to the Virtual Service Agent so it can understand your request and respond out loud.</string>
+    <key>NSFaceIDUsageDescription</key>
+    <string>Use Face ID to sign in to your Virtual Service Agent account.</string>
+    <!-- Static launch screen. UILaunchStoryboardName OVERRIDES UILaunchScreen,
+         so the previous empty <key>UILaunchScreen</key><dict/> was removed
+         rather than kept: leaving both present makes the storyboard win while
+         implying the dict is still doing something. -->
+    <key>UILaunchStoryboardName</key>
+    <string>LaunchScreen</string>
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <string>armv7</string>
+    </array>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    <key>UISupportedInterfaceOrientations~ipad</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    <!-- Environment-specific endpoints. Values are populated from
+         build-setting variables defined in Staging.xcconfig (Debug
+         build) or Release.xcconfig (Release build). VSAConfig.swift
+         reads these at runtime, falling back to hardcoded prod
+         values if a placeholder substitution didn't run (e.g. when
+         building from a stripped Xcode project without xcconfig
+         wiring). -->
+    <key>VSAAgentCoreRuntimeArn</key>
+    <string>$(VSA_AGENTCORE_RUNTIME_ARN)</string>
+    <key>VSAAwsRegion</key>
+    <string>$(VSA_AWS_REGION)</string>
+    <key>VSAIdentityPoolId</key>
+    <string>$(VSA_IDENTITY_POOL_ID)</string>
+    <key>VSAVehicle360BaseUrl</key>
+    <string>$(VSA_VEHICLE_360_BASE_URL)</string>
+    <key>VSAVehicle360Frames</key>
+    <string>$(VSA_VEHICLE_360_FRAMES)</string>
+    <key>VSARestApiUrl</key>
+    <string>$(VSA_REST_API_URL)</string>
+    <key>VSACmsRestApiUrl</key>
+    <string>$(VSA_CMS_REST_API_URL)</string>
+    <key>VSACommandsApiUrl</key>
+    <string>$(VSA_COMMANDS_API_URL)</string>
+    <key>VSATelemetryWsUrl</key>
+    <string>$(VSA_TELEMETRY_WS_URL)</string>
+    <key>VSAUserPoolClientId</key>
+    <string>$(VSA_USER_POOL_CLIENT_ID)</string>
+    <key>VSAUserPoolId</key>
+    <string>$(VSA_USER_POOL_ID)</string>
+    <!-- Demo password used to pre-fill the quick-pick sign-in card in DEBUG
+         builds. Real value lives in the gitignored Staging.local.xcconfig
+         (`VSA_DEMO_PASSWORD`). Tracked xcconfig leaves it empty so a
+         placeholder never ships. Release builds ignore this key. -->
+    <key>VSADemoPassword</key>
+    <string>$(VSA_DEMO_PASSWORD)</string>
+    <key>VSAConnectRegion</key>
+    <string>$(VSA_CONNECT_REGION)</string>
+    <key>VSAWsApiUrl</key>
+    <string>$(VSA_WS_API_URL)</string>
+    <!-- Background execution mode required for silent-push (content-available: 1)
+         to wake the app from suspended state. Without this key, the
+         application(_:didReceiveRemoteNotification:fetchCompletionHandler:)
+         delegate method is only called when the app is in the foreground.
+         See clients/ios/docs/tech.md § (i) for the full rationale. -->
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>remote-notification</string>
+    </array>
+</dict>
+</plist>

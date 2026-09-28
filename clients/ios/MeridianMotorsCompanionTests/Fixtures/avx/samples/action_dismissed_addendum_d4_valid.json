@@ -1,0 +1,37 @@
+{
+  "action_id": "AVX-ACT-f6a7b8c9-d0e1-2345-fabc-45678901234f",
+  "finding_id": "FIND-a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "created_by": "owner-usr-4a5b6c7d",
+  "created_at": "2026-09-18T13:00:00Z",
+  "updated_at": "2026-09-18T13:00:00Z",
+  "target_system": "ios-owner",
+  "status": "dismissed",
+  "action_kind": "acknowledge_only",
+  "parameters": {
+    "dismissal_reason": "not_relevant_right_now"
+  },
+  "evidence": [
+    {
+      "kind": "adp.tires.prediction",
+      "source": "adp-staging",
+      "source_ref": "athena-query-K7QIFGDP27",
+      "value": {
+        "vin": "1HGBH41JXMN109186",
+        "position": "front_left",
+        "current_pressure_psi": 28.1,
+        "threshold_psi": 34.0
+      },
+      "computed_at": "2026-09-18T02:00:00Z",
+      "provenance": "live"
+    }
+  ],
+  "audit_trail": [
+    {
+      "at": "2026-09-18T13:00:00Z",
+      "by": "owner-usr-4a5b6c7d",
+      "from_status": "pending_execution",
+      "to_status": "dismissed",
+      "note": "Owner dismissed via POST /actions/{id}/dismiss. Distinct from 'cancelled' (owner cancels an approved Action) and 'declined' (target refuses). Addendum D4."
+    }
+  ]
+}

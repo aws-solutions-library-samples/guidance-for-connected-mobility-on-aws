@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# cdk-shim: harness-lock-aware wrapper around the real cdk binary.
+#
+# Behavior:
+#   - If no harness lock exists: passthrough (delegates to real cdk).
+#   - If lock exists AND holder PID is dead: stale; warn, remove, passthrough.
+#   - If lock exists AND we ARE in the holder's process tree: passthrough
+#     (the harness's own cdk invocations work normally).
+#   - If lock exists AND we are NOT in the holder's process tree: REFUSE
+#     with a clear error pointing at the lock file. Prevents the
+#     concurrent-cdk-in-same-dir race that killed clean-deploy runs 16
+#     and 19 (cdk.out + bootstrap state corruption between two cdk
+#     processes).
+#
+# Activation: this shim is in deployment/scripts/, which the Makefile
+# prepends to PATH at startup. So ALL `cdk` invocations made via `make`
+# go through here. Raw `cdk` invocations from another shell session
+# bypass this shim unless the user has prepended scripts/ to their
+# shell PATH or set up direnv (out of scope for this fix).
+#
+# Issue: backlog row "cdk-shim wrapper" (post-run-19 follow-up).
+
+set -euo pipefail
+
+# Resolve own location and lock file path. The shim lives at
+# deployment/scripts/cdk; the lock lives at deployment/.cdk-harness-lock.
+SHIM_DIR="$(cd "$(dirname "$0")" && pwd)"
+LOCK_FILE="${SHIM_DIR}/../.cdk-harness-lock"
+
+# Find the real cdk binary by walking PATH and skipping ourselves.
+SHIM_REAL="$(/usr/bin/realpath "$0" 2>/dev/null || readlink -f "$0" 2>/dev/null || echo "$0")"
+REAL_CDK=""
+IFS=':' read -ra PATH_DIRS <<< "$PATH"
+for DIR in "${PATH_DIRS[@]}"; do
+  CANDIDATE="$DIR/cdk"
+  [ -x "$CANDIDATE" ] || continue
+  CANDIDATE_REAL="$(/usr/bin/realpath "$CANDIDATE" 2>/dev/null || readlink -f "$CANDIDATE" 2>/dev/null || echo "$CANDIDATE")"
+  [ "$CANDIDATE_REAL" = "$SHIM_REAL" ] && continue
+  REAL_CDK="$CANDIDATE"
+  break
+done
+
+# Allow override via env var (for testing).
+if [ -n "${CDK_REAL_BIN:-}" ]; then
+  REAL_CDK="$CDK_REAL_BIN"
+fi
+
+if [ -z "$REAL_CDK" ] || [ ! -x "$REAL_CDK" ]; then
+  echo "cdk-shim: ERROR — cannot find real cdk binary (other than self at $SHIM_REAL)" >&2
+  echo "         Set CDK_REAL_BIN=/path/to/real/cdk to override." >&2
+  exit 127
+fi
+
+# Check the harness lock.
+if [ -f "$LOCK_FILE" ]; then
+  HOLDER_PID="$(awk -F= '/^pid=/ {print $2; exit}' "$LOCK_FILE" 2>/dev/null || true)"
+
+  if [ -z "$HOLDER_PID" ] || ! kill -0 "$HOLDER_PID" 2>/dev/null; then
+    # Stale lock — process is gone. Warn and clean.
+    echo "cdk-shim: WARNING — stale harness lock at $LOCK_FILE (PID ${HOLDER_PID:-unknown} not alive); removing" >&2
+    rm -f "$LOCK_FILE" 2>/dev/null || true
+  else
+    # Lock is alive. Walk OUR process tree upward looking for the holder.
+    # If found: we're a descendant (the harness's own cdk call). Allow.
+    # If not found: another cdk invocation racing the harness. Refuse.
+    PID="$$"
+    IS_DESCENDANT="no"
+    # Cap at 50 levels of ancestry to avoid pathological loops.
+    for _ in $(seq 1 50); do
+      if [ "$PID" = "$HOLDER_PID" ]; then
+        IS_DESCENDANT="yes"
+        break
+      fi
+      [ -z "$PID" ] && break
+      [ "$PID" = "1" ] && break
+      PID="$(ps -o ppid= -p "$PID" 2>/dev/null | tr -d ' ' || true)"
+    done
+
+    if [ "$IS_DESCENDANT" = "no" ]; then
+      echo "cdk-shim: BLOCKED — the clean-deploy harness holds an exclusive cdk lock:" >&2
+      echo "      lock: $LOCK_FILE" >&2
+      sed 's/^/      /' "$LOCK_FILE" >&2
+      echo "    Two cdk processes share cdk.out + AWS bootstrap state and corrupt each other." >&2
+      echo "    Wait for the harness to finish, OR (if it's truly stuck) kill PID $HOLDER_PID before re-running cdk." >&2
+      exit 1
+    fi
+  fi
+fi
+
+# Passthrough.
+exec "$REAL_CDK" "$@"

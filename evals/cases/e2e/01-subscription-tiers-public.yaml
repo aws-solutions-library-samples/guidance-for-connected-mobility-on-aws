@@ -1,0 +1,18 @@
+id: subscription-tiers-public-001
+description: >
+  Public health-equivalent endpoint — GET /api/v1/subscription-tiers returns 200 with
+  no auth required. Substituted for /api/v1/health which does not exist in the CMS API;
+  /api/v1/subscription-tiers is the nearest public-readable endpoint that requires no
+  Cognito JWT and returns a structured payload.
+tier: 3
+persona: fleet-operator
+input:
+  type: rest
+  method: GET
+  path: /api/v1/subscription-tiers
+expected:
+  status_code: 200
+  tool_calls: []
+  response:
+    must_contain_keys: [tiers]
+latency_budget_ms: 2000

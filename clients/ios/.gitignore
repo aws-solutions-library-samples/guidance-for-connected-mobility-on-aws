@@ -1,0 +1,45 @@
+# macOS
+.DS_Store
+
+# Xcode build artifacts
+build/
+DerivedData/
+*.xcuserdata/
+xcuserdata/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Package.resolved is deliberately NOT ignored.
+#
+# It is the lock file: `exactVersion` in project.pbxproj pins a *tag name*, and
+# git tags are mutable, so the tag alone does not pin the code. Package.resolved
+# records the resolved commit revision, which is what actually makes a resolve
+# reproducible and detects an upstream tag being rewritten.
+#
+# This matters more than usual here: swift-snapshot-testing is linked to the test
+# target, whose TEST_HOST is MeridianMotorsCompanion.app — substituted code would load inside
+# the app process on developer and CI machines.
+#
+# Per ~/.kiro/steering/virtual-environments.md ("Lock files in version control —
+# always commit lock files") and dependency-versions.md. Added after the Group 1
+# security review, 2026-08-11.
+
+# Xcode project-surgery backups — local rollback points, never committed.
+*.bak.pre-*
+*.pbxproj.bak*
+
+# CocoaPods / Carthage (not used but future-proofing)
+Pods/
+Carthage/Build/
+
+# IDE
+.vscode/
+.idea/
+
+# Secrets / local overrides
+*.env
+Config.local.xcconfig

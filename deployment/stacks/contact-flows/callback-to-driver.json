@@ -1,0 +1,78 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "set-logging",
+  "Actions": [
+    {
+      "Identifier": "set-logging",
+      "Type": "UpdateContactFlowLoggingBehavior",
+      "Parameters": { "LoggingBehavior": "Enable" },
+      "Transitions": { "NextAction": "invoke-context-lambda" }
+    },
+    {
+      "Identifier": "invoke-context-lambda",
+      "Type": "InvokeLambdaFunction",
+      "Parameters": {
+        "LambdaFunctionARN": "${ContextLookupLambdaArn}",
+        "InvocationTimeLimitSeconds": "8",
+        "ResponseValidation": { "ResponseType": "STRING_MAP" }
+      },
+      "Transitions": {
+        "NextAction": "set-attributes",
+        "Errors": [{ "NextAction": "fallback-prompt", "ErrorType": "NoMatchingError" }]
+      }
+    },
+    {
+      "Identifier": "set-attributes",
+      "Type": "UpdateContactAttributes",
+      "Parameters": {
+        "Attributes": {
+          "vehicleId": "$.External.vehicleId",
+          "vin": "$.External.vin",
+          "driverName": "$.External.driverName",
+          "severity": "$.External.severity",
+          "summary": "$.External.summary"
+        }
+      },
+      "Transitions": { "NextAction": "driver-greeting" }
+    },
+    {
+      "Identifier": "driver-greeting",
+      "Type": "MessageParticipant",
+      "Parameters": {
+        "Text": "Hello $.Attributes.driverName, this is your fleet service team calling about your vehicle. Our AI assistant flagged an urgent issue: $.Attributes.summary. I'm connecting you to a specialist now who can help."
+      },
+      "Transitions": { "NextAction": "transfer-to-agent" }
+    },
+    {
+      "Identifier": "transfer-to-agent",
+      "Type": "TransferToQueue",
+      "Parameters": { "QueueId": "${P0QueueArn}" },
+      "Transitions": {
+        "NextAction": "disconnect",
+        "Errors": [{ "NextAction": "no-agent-available", "ErrorType": "NoMatchingError" }]
+      }
+    },
+    {
+      "Identifier": "no-agent-available",
+      "Type": "MessageParticipant",
+      "Parameters": {
+        "Text": "All agents are currently assisting other drivers. Please stay on the line — the next available specialist will be with you shortly. If this is a life-threatening emergency, please hang up and dial 911."
+      },
+      "Transitions": { "NextAction": "transfer-to-agent" }
+    },
+    {
+      "Identifier": "fallback-prompt",
+      "Type": "MessageParticipant",
+      "Parameters": {
+        "Text": "Hello, this is your fleet service team. We detected an issue with your vehicle and are connecting you to a specialist now."
+      },
+      "Transitions": { "NextAction": "transfer-to-agent" }
+    },
+    {
+      "Identifier": "disconnect",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}

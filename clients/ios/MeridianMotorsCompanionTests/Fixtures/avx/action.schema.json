@@ -1,0 +1,234 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:cvx:avx:action:v1",
+  "title": "AVX Action",
+  "description": "A human-initiated action taken in response to a Finding. Dispatched via the executor layer. Spec source: specs/2026-09-18-avx-tier2-ios-cards-and-actions/spec.md § 'Cross-surface Action data model — canonical' including Contract Addenda D4, D5.",
+  "type": "object",
+  "required": [
+    "action_id",
+    "finding_id",
+    "created_by",
+    "created_at",
+    "updated_at",
+    "target_system",
+    "status",
+    "action_kind",
+    "parameters",
+    "evidence",
+    "audit_trail"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "action_id": {
+      "type": "string",
+      "pattern": "^AVX-ACT-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "description": "Unique identifier. Format: AVX-ACT-{uuid}"
+    },
+    "finding_id": {
+      "type": "string",
+      "pattern": "^FIND-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "description": "FK to the originating Finding."
+    },
+    "created_by": {
+      "type": "string",
+      "description": "Identity of the actor who created the action. Format: owner-{id} | dealer-{id} | fleet-manager-{id}"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp of action creation."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp of the most recent state change on this Action (set on create and on every status transition). Callers surface this as staleness context per parent PRD § M5. Contract Addendum C2 (review Cycle 1)."
+    },
+    "target_system": {
+      "type": "string",
+      "enum": ["dms", "vehicle-command", "retail", "none", "chat", "ios-owner"],
+      "description": "Executor target. One executor class per target system."
+    },
+    "target_ref": {
+      "type": "string",
+      "description": "Downstream system reference ID, populated by the executor after successful dispatch (e.g. DMS-RO-9999 for dms, message-id for ios-owner). Optional until executed."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending_execution",
+        "executed",
+        "in_progress",
+        "completed",
+        "cancelled",
+        "declined",
+        "dismissed",
+        "failed"
+      ],
+      "description": "Action lifecycle state. Addenda D4/D5: 'dismissed' — owner tapped Dismiss (terminal, distinct from 'cancelled' and 'declined'); 'failed' — executor exhausted retries on transient downstream failure (terminal, distinct from 'declined' which is a terminal 4xx refusal)."
+    },
+    "action_kind": {
+      "type": "string",
+      "enum": [
+        "book_combined_visit",
+        "schedule_inspection",
+        "update_charging_schedule",
+        "file_warranty_pre",
+        "surface_recall",
+        "acknowledge_only"
+      ],
+      "description": "Action type. Extensible; enum is test-pinned per executor. These are the Spec 1a values."
+    },
+    "parameters": {
+      "type": "object",
+      "description": "Executor-specific parameters. Shape varies per target_system."
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/evidence_entry"
+      },
+      "description": "COPY of the originating Finding's evidence at approval time. Immutable — later Finding re-runs do NOT mutate this copy."
+    },
+    "audit_trail": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/audit_entry"
+      },
+      "description": "Ordered log of state transitions. Addendum D5: transitions to 'declined' or 'failed' must carry failure_kind (and retry_count for 'failed')."
+    }
+  },
+  "$defs": {
+    "evidence_entry": {
+      "type": "object",
+      "required": ["kind", "source", "source_ref", "value", "computed_at", "provenance"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "description": "Category of evidence."
+        },
+        "source": {
+          "type": "string",
+          "description": "System that produced this evidence entry."
+        },
+        "source_ref": {
+          "type": "string",
+          "description": "Opaque reference to the source record."
+        },
+        "value": {
+          "description": "The evidence value. Any JSON-serialisable type."
+        },
+        "computed_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO-8601 UTC timestamp of when this evidence was collected."
+        },
+        "provenance": {
+          "type": "string",
+          "enum": ["live", "mocked", "absent"],
+          "description": "Data provenance. 'mocked' required by Spec 1b Agent 3 mocked partner seams (parent PRD § M14). Must be an accepted enum value even in Spec 1a."
+        },
+        "vin": {
+          "type": "string",
+          "description": "Optional per-VIN attribution, copied from the originating Finding's evidence entries (Addendum D1)."
+        }
+      }
+    },
+    "audit_entry": {
+      "type": "object",
+      "required": ["at", "by", "from_status", "to_status"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "$comment": "Addendum D5: 'declined' means the downstream target REFUSED the work (terminal 4xx). It must carry failure_kind=target_refused and must NOT borrow a transient failure_kind — otherwise 'dealer said no' and 'we could not reach the dealer' become indistinguishable, which is the entire distinction D5 exists to create.",
+          "if": {
+            "properties": {
+              "to_status": { "const": "declined" }
+            },
+            "required": ["to_status"]
+          },
+          "then": {
+            "required": ["failure_kind"],
+            "properties": {
+              "failure_kind": { "const": "target_refused" }
+            }
+          }
+        },
+        {
+          "$comment": "Addendum D5: 'failed' means the executor exhausted its retry budget against a transient failure (5xx / network / timeout). failure_kind is constrained to the transient kinds, and retry_count is required so the audit trail records how many attempts were spent before escalation fired.",
+          "if": {
+            "properties": {
+              "to_status": { "const": "failed" }
+            },
+            "required": ["to_status"]
+          },
+          "then": {
+            "required": ["failure_kind", "retry_count"],
+            "properties": {
+              "failure_kind": {
+                "enum": ["executor_exhausted_retries", "executor_terminal_error"]
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO-8601 UTC timestamp of the transition."
+        },
+        "by": {
+          "type": "string",
+          "description": "Identity of the actor who triggered the transition."
+        },
+        "from_status": {
+          "type": "string",
+          "enum": [
+            "pending_execution",
+            "executed",
+            "in_progress",
+            "completed",
+            "cancelled",
+            "declined",
+            "dismissed",
+            "failed"
+          ],
+          "description": "Status before the transition."
+        },
+        "to_status": {
+          "type": "string",
+          "enum": [
+            "pending_execution",
+            "executed",
+            "in_progress",
+            "completed",
+            "cancelled",
+            "declined",
+            "dismissed",
+            "failed"
+          ],
+          "description": "Status after the transition."
+        },
+        "note": {
+          "type": "string",
+          "description": "Optional free-text note for the transition."
+        },
+        "failure_kind": {
+          "type": "string",
+          "enum": [
+            "target_refused",
+            "executor_exhausted_retries",
+            "executor_terminal_error"
+          ],
+          "description": "Required when to_status is 'declined' (kind=target_refused) or 'failed' (kind=executor_exhausted_retries | executor_terminal_error). Addendum D5."
+        },
+        "retry_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of retry attempts before the terminal 'failed' status. Populated on the transition into 'failed'. Addendum D5."
+        }
+      }
+    }
+  }
+}

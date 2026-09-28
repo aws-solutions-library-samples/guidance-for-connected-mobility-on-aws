@@ -1,0 +1,81 @@
+// Staging.local.xcconfig.example — template for the gitignored real-values file.
+//
+// TO USE (per-developer, per-checkout):
+//   1. Copy this file to `Staging.local.xcconfig` (same directory).
+//      This copy is gitignored — safe to fill with real values.
+//   2. Replace every placeholder value below with your real staging
+//      deployment values. Source of truth:
+//        - REST/WS URLs: `cdk deploy vsa-staging-api` outputs
+//          `RestApiUrl` and `WsApiUrl`
+//        - `VSA_CMS_REST_API_URL`: `cdk deploy cms-staging-ui-api` output
+//          `MainApiUrl`
+//        - `VSA_TELEMETRY_WS_URL`: `cdk deploy cms-staging-ws-fanout`
+//          output `WsFanoutUrl`
+//        - `VSA_AGENTCORE_RUNTIME_ARN`: contents of
+//          `~/guidance-for-connected-vehicle-experience-on-aws/
+//          .bedrock_agentcore.yaml` block
+//          `vsa_supervisor_bidi_staging.bedrock_agentcore.agent_arn`
+//        - `VSA_USER_POOL_ID` + `VSA_USER_POOL_CLIENT_ID`: CMS staging UI
+//          pool (`us-west-2_au...`) and the iOS-facing app client on it
+//        - `VSA_IDENTITY_POOL_ID`: the identity pool federated with the
+//          CMS UI pool (see AwsCredentialProvider.swift for how it's used)
+//   3. Clean Build Folder (⇧⌘K) in Xcode, then rebuild.
+//
+// xcconfig syntax reminder: `//` starts a line comment. URLs that contain
+// `//` MUST escape via `$()`. `$()` evaluates to empty at build time, so
+// `https:/$()/host/path` resolves to `https://host/path`.
+
+VSA_AWS_REGION = us-west-2
+VSA_REST_API_URL = https:/$()/<your-staging-rest-api-id>.execute-api.us-west-2.amazonaws.com/staging
+VSA_CMS_REST_API_URL = https:/$()/<your-cms-staging-api-id>.execute-api.us-west-2.amazonaws.com/prod
+// Remote-commands API (cms-<stage>-commands-api) — a SEPARATE gateway from the
+// UI API above, sharing the same Cognito pool.
+VSA_COMMANDS_API_URL = https:/$()/<your-commands-api-id>.execute-api.us-west-2.amazonaws.com/prod
+VSA_WS_API_URL = wss:/$()/<your-staging-ws-api-id>.execute-api.us-west-2.amazonaws.com/staging
+VSA_TELEMETRY_WS_URL = wss:/$()/<your-telemetry-ws-id>.execute-api.us-west-2.amazonaws.com/live
+VSA_AGENTCORE_RUNTIME_ARN = arn:aws:bedrock-agentcore:us-west-2:<your-account-id>:runtime/<your-staging-bidi-runtime-id>
+VSA_USER_POOL_ID = us-west-2_<your-pool-suffix>
+VSA_USER_POOL_CLIENT_ID = <your-cognito-app-client-id>
+VSA_IDENTITY_POOL_ID = us-west-2:<your-identity-pool-uuid>
+
+// Demo password used by DEBUG builds to pre-fill the quick-pick sign-in
+// card. This value auto-fills the password field for the demo persona
+// (`meridian.driver@example.com`); the developer can edit it before
+// tapping Sign In. Leave empty to leave the password field blank — the
+// tracked xcconfig has no default. Release builds ignore this entirely.
+VSA_DEMO_PASSWORD = <your-demo-persona-password>
+
+// -- Vehicle 360° turntable (optional) --------------------------------
+//
+// Base URL of a numbered PNG frame sequence for the owned vehicle
+// (`<base>/1.png` ... `<base>/<N>.png`) rendered by:
+//   - `HomeTabView.vehicleStillCard` (frame 2 only, as a single hero)
+//   - `VehicleTabView.vehicleHero(_:)` (all N frames as a draggable
+//     turntable via `Vehicle360View`)
+//
+// A real value is tenant-branded (points at a specific OEM's product
+// imagery), and real-OEM brand strings are canary-forbidden in
+// committed source per `.publish-secrets-scan.yml::forbidden_strings`
+// — so the URL lives ONLY here in the gitignored local xcconfig, not
+// in tracked `Staging.xcconfig`.
+//
+// Precedence (2026-08-12, revised after UAT):
+//   1. Bundled per-make asset (e.g. `Meridian` ->
+//      `Assets.xcassets/MeridianCrestwind.imageset`) — always wins.
+//   2. This URL — used only when no bundled asset matches the make.
+//   3. Themed SF Symbol glyph.
+//
+// So this URL is per-tenant, not per-vehicle. If a demo tenant owns
+// a make that has bundled art (currently only `Meridian`), setting
+// this URL does NOTHING for that tenant — the bundled asset wins.
+// A stale URL that used to point at a prior tenant's product (e.g.
+// a 2-wheeler turntable left over from a superseded demo) is safe
+// to leave here for OTHER tenants, but will not affect Meridian.
+//
+// Uncomment and fill in when you have a hosted turntable for a make
+// that does NOT have a bundled asset. `VSA_VEHICLE_360_FRAMES` MUST
+// match the number of PNGs actually hosted at the base URL, or the
+// last frames of the turntable will 404.
+//
+// VSA_VEHICLE_360_BASE_URL = https:/$()/<your-cdn>.example.com/vehicles/<model-slug>
+// VSA_VEHICLE_360_FRAMES = 16

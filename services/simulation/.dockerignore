@@ -1,0 +1,24 @@
+__pycache__
+*.pyc
+*.log
+*.pid
+sim_env/
+can_env/
+fwe_config/
+fwe-custom/
+*.pem
+*.key
+*.crt
+*.json
+!requirements.txt
+route_cache.json
+munich_route_cache.json
+batch_progress.json
+.DS_Store
+
+# Dev/seed tooling, NOT COPYed into any runtime image (the sim-service
+# Dockerfile uses a selective COPY; the fwe-agent image ships only
+# fleetwise-edge artifacts). Excluded from the build context so it is neither
+# shipped nor scanned at publish time. This seed script embeds generic
+# vehicle-make sample data that trips a brand canary in the publish scan.
+enhanced_historical_data_injector.py

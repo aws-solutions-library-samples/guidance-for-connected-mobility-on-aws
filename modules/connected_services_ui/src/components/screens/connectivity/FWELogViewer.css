@@ -1,0 +1,36 @@
+/* Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved. */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/*
+ * .theme-log-viewer — the terminal-style pane FWELogViewer renders its lines into.
+ *
+ * This rule is co-located with the component and imported BY the component, so
+ * it travels with it into every consuming app's bundle.
+ *
+ * It exists because it did not, and that shipped a real defect. The class was
+ * originally declared only in the CMS app's `src/styles/theme.css`. When
+ * FWELogViewer.tsx was mirrored into the Connected Services portal, the mirror
+ * was byte-identical and the parity guard passed — but the CSS did not come with
+ * it, so CS rendered its log lines as unstyled body prose. The guard compared
+ * the two .tsx files and nothing else: it measured the artifact, not the
+ * property the artifact was supposed to deliver.
+ *
+ * Keeping the styling in the component's own import graph is what makes that
+ * class of failure structural rather than a thing to remember. `verify_cs_log_viewer_parity.py`
+ * now diffs this file across both apps and asserts each component imports it.
+ *
+ * CMS's `styles/theme.css` KEEPS its own copy of this rule — `SimLogViewer.tsx`
+ * also uses the class and is not part of this component. The declarations are
+ * identical, and duplicate identical CSS rules are harmless.
+ */
+.theme-log-viewer {
+  background-color: var(--color-background-code-editor-default, #161d26);
+  color: var(--color-text-code-editor-plain-text, #d1d5db);
+  font-family: monospace;
+  font-size: 11px;
+  padding: 8px;
+  border-radius: 4px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}

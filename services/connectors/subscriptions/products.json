@@ -1,0 +1,40 @@
+{
+  "catalog_version": "1.4.0",
+  "description": "Connected Services data-product catalog. Config-seeded and Lambda-bundled rather than a DynamoDB table (spec 2026-09-10-cms-connected-services-subscriptions D3), versioned like services/data_processing/manifests/oem1-transform.json. Group 1 seeds the telemetry product; diagnostics added by T4.1; charging-sessions-v1 fully landed by T4.2d (10 seeded rows in cms-{stage}-storage-charging-sessions).",
+  "products": [
+    {
+      "product_id": "telemetry-hifi-v1",
+      "name": "Vehicle Telemetry (high-fidelity)",
+      "schema_version": "1.0.0",
+      "data_category": "vehicle_telemetry",
+      "delivery_profile": {
+        "frequency": "high",
+        "fidelity": "high"
+      },
+      "source": "telemetry"
+    },
+    {
+      "product_id": "diagnostics-v1",
+      "name": "Vehicle Diagnostics (maintenance alerts)",
+      "schema_version": "1.0.0",
+      "data_category": "vehicle_diagnostics",
+      "delivery_profile": {
+        "frequency": "low",
+        "fidelity": "standard"
+      },
+      "source": "diagnostics"
+    },
+    {
+      "product_id": "charging-sessions-v1",
+      "name": "Charging Sessions",
+      "description": "EV charging session records including session start/end times, energy delivered, and charging station. Backed by cms-{stage}-storage-charging-sessions (10 seeded rows on staging as of T4.2d). Sort key uses ISO-8601 sessionStartTime.",
+      "schema_version": "1.0.0",
+      "data_category": "charging_sessions",
+      "delivery_profile": {
+        "frequency": "medium",
+        "fidelity": "standard"
+      },
+      "source": "charging"
+    }
+  ]
+}

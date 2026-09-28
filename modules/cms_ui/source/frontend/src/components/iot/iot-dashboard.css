@@ -1,0 +1,106 @@
+/* IoT Dashboard Styling - matches AIOT project */
+
+.dashboard-chart-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 600px) {
+  .dashboard-chart-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* High contrast header styling for IoT pages */
+.iot-high-contrast-header {
+  background-color: #232f3e;
+  color: #ffffff;
+}
+
+.iot-high-contrast-header .awsui-header-variant-h1 {
+  color: #ffffff;
+}
+
+.iot-high-contrast-header .awsui-header-description {
+  color: #d5dbdb;
+}
+
+/* Status overview specific styling */
+.iot-status-overview .awsui-key-value-pairs {
+  margin-top: 16px;
+}
+
+.iot-status-overview .awsui-key-value-pairs-item-label {
+  font-weight: 600;
+  color: #16191f;
+}
+
+.iot-status-overview .awsui-value-large {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* Chart container styling */
+.iot-chart-container {
+  background: var(--color-background-container-content-6u8rvp, #ffffff);
+  border: 1px solid #e9ebed;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.iot-chart-container .awsui-line-chart {
+  margin-top: 8px;
+}
+
+/* Connection status metrics styling */
+.connection-status-metric {
+  text-align: center;
+  padding: 8px;
+}
+
+.connection-status-metric .metric-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #0972d3;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.connection-status-metric .metric-label {
+  font-size: 14px;
+  color: #5f6b7a;
+  font-weight: 500;
+}
+
+.connection-status-metric.rate-metric .metric-value {
+  color: #037f0c;
+}
+
+.connection-status-metric.error-metric .metric-value {
+  color: #d13212;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .dashboard-chart-container {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-chart-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .iot-status-overview .awsui-key-value-pairs {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .iot-status-overview .awsui-key-value-pairs {
+    grid-template-columns: 1fr;
+  }
+}

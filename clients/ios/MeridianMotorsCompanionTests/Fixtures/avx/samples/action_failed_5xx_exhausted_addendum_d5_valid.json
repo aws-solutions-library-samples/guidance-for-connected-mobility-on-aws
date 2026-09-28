@@ -1,0 +1,32 @@
+{
+  "action_id": "AVX-ACT-b8c9d0e1-f2a3-4567-bcde-67890123456f",
+  "finding_id": "FIND-a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "created_by": "owner-usr-4a5b6c7d",
+  "created_at": "2026-09-18T15:00:00Z",
+  "updated_at": "2026-09-18T15:15:00Z",
+  "target_system": "dms",
+  "status": "failed",
+  "action_kind": "book_combined_visit",
+  "parameters": {
+    "preferred_date": "2026-10-01",
+    "dealership_id": "dlr-west-coast-001"
+  },
+  "evidence": [],
+  "audit_trail": [
+    {
+      "at": "2026-09-18T15:00:00Z",
+      "by": "owner-usr-4a5b6c7d",
+      "from_status": "pending_execution",
+      "to_status": "executed"
+    },
+    {
+      "at": "2026-09-18T15:15:00Z",
+      "by": "system-dms-executor",
+      "from_status": "executed",
+      "to_status": "failed",
+      "note": "DMS returned HTTP 503 on all 3 retry attempts (exponential backoff). Retry budget exhausted. Dual escalation fired: IosOwnerExecutor card + CloudWatch metric AVXActionTerminalFailure. Addendum D5.",
+      "failure_kind": "executor_exhausted_retries",
+      "retry_count": 3
+    }
+  ]
+}

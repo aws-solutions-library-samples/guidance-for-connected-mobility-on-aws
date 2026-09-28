@@ -1,0 +1,8 @@
+{
+  "taskDefinition": {
+    "taskDefinitionArn": "arn:aws:ecs:us-west-2:123456789012:task-definition/cms-staging-fwe-agent:2",
+    "revision": 2,
+    "family": "cms-staging-fwe-agent",
+    "status": "ACTIVE"
+  }
+}

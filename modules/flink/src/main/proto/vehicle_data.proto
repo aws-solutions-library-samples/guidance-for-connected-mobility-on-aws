@@ -1,0 +1,150 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+
+option java_package = "com.amazonaws.iot.autobahn.schemas";
+package Aws.IoTFleetWise.Schemas.VehicleDataMsg;
+
+/*
+ * VehicleData payload for all events triggered by CollectionSchemes including condition based
+ * events and periodic time based events.
+ */
+message VehicleData {
+
+    /*
+     * Synchronization ID of the campaign that triggered the collection of the data in this message
+     */
+    string campaign_sync_id = 1;
+
+    /*
+     * Synchronization ID of the decoder manifest used to decode the signals in this message
+     */
+    string decoder_sync_id = 2;
+
+    /*
+     * A unique ID that FWE generates each time a collectionScheme condition is triggered.
+     */
+    uint32 collection_event_id = 3;
+
+    /*
+     * The absolute timestamp in milliseconds since Unix Epoch of when the event was triggered.
+     */
+    uint64 collection_event_time_ms_epoch = 4;
+
+    /*
+     * Captured signals, which includes both OBD PIDs and signals decoded from normal CAN traffic
+     */
+    repeated CapturedSignal captured_signals = 5;
+
+    /*
+     * Captured DTC Information if specified by the  collection scheme
+     */
+    DtcData dtc_data = 6;
+
+    /*
+     * This field was never supported, so it should not be used any more.
+     */
+    reserved 7;
+    reserved "can_frames";
+
+    /*
+     * This field was never supported, so it should not be used any more.
+     */
+    reserved 8;
+    reserved "geohash";
+
+    /*
+     * Files that were uploaded to S3.
+     */
+    repeated S3Object s3_objects = 9;
+}
+
+/*
+ * See collection_scheme.proto
+ */
+message SignalPath {
+    repeated uint32 signal_path = 1;
+}
+
+/*
+ * The signal path must always point to a primitive type inside the signal referred to by signal_id
+ */
+message PrimitiveTypeInComplexCapturedSignal{
+    uint32 signal_id = 1;
+    SignalPath signal_path = 2;
+}
+
+/*
+ * Represents all signals for CAN and OBDII signals
+ */
+message CapturedSignal {
+
+    /*
+     * Milliseconds relative to the event_time_ms_epoch of when the signal arrived on the bus
+     */
+    sint64 relative_time_ms = 1;
+
+    /*
+     * The signal id of the physical value of a signal that was captured. This maps directly to signal IDs provided in
+     * the collection schemes and decoder manifest. Signals can come from normal CAN traffic or OBD-II PIDs. In the case
+     * of OBD-II PIDs, Signal ID will only map to one of those signals, as per the decoder manifest.
+     */
+    oneof primitiveType{
+        uint32 signal_id = 2; // kept for backward compatibility
+        PrimitiveTypeInComplexCapturedSignal primitive_type_in_signal = 10;
+    }
+
+    /*
+     * Data types of physical signal values. Should be same as the PrimitiveType assigned to the signal_id in decoder_arn.
+     * Currently only primitive typed signals can be ingested over this method. For complex types another ingestion method is used.
+     * Defaults to double_value if no PrimitiveType is assigned to this signal.
+     */
+    oneof SignalValue {
+
+        /*
+         * A double value of a decoded physical value. For Alpha, PID data will be calculated using
+         * a PID formula and directly cast to a double.
+         */
+        double double_value = 3;
+
+        /*
+         * An UTF-8 encoded or 7-bit ASCII string value of a decoded physical value.
+         */
+        string string_value = 4;
+    }
+}
+
+message DtcData {
+
+   /*
+    * Milliseconds relative to the event_time_ms_epoch. Can be negative or positive.
+    */
+   sint64 relative_time_ms = 1;
+
+   /*
+    * Strings of active DTC codes
+    */
+   repeated string active_dtc_codes = 2;
+}
+
+message S3Object {
+
+    /*
+     * S3 object key of the uploaded file.
+     */
+    string key = 1;
+
+    /*
+     * Serialization format of the captured signals.
+     */
+    DataFormat data_format = 2;
+}
+
+/*
+ * Enum of possible data serialization formats that are uploaded to S3.
+ */
+enum DataFormat {
+    UNKNOWN_DATA_FORMAT = 0;
+    CDR = 1;
+}

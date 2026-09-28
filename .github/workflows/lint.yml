@@ -1,0 +1,242 @@
+# Basic CI lint workflow.
+#
+# Runs on push to main and on every PR. Performs lightweight static checks
+# on YAML, Markdown, and shell scripts. Does NOT run CodeQL — that's
+# handled by the org's Default Setup CodeQL configuration.
+#
+# This workflow exists primarily to give the public repo's CI surface
+# something useful to do, and to provide the Default Setup Actions
+# language scanner a workflow file to analyze.
+
+name: Lint
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  yaml-lint:
+    name: YAML lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.13"
+
+      - name: Install yamllint
+        run: pip install --no-input "yamllint==1.35.1"
+
+      - name: Run yamllint
+        run: |
+          yamllint --no-warnings \
+            --config-data '{extends: default, rules: {line-length: disable, document-start: disable, truthy: {check-keys: false}}}' \
+            .github/workflows/ deployment/config/ || true
+
+  shell-lint:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Run shellcheck
+        run: |
+          if find . -path ./node_modules -prune -o -name '*.sh' -print | head -1 | read; then
+            sudo apt-get install -y -qq shellcheck
+            find . -path ./node_modules -prune -o -name '*.sh' -print -exec shellcheck -e SC1091,SC2086,SC2155 {} + || true
+          fi
+
+  renderer-parity:
+    # Drift guard for components duplicated across modules of this repo.
+    # Unlike the two jobs above, this one is BLOCKING (no `|| true`): a drift
+    # between two copies of the same component is a defect, not a style warning.
+    #
+    # FWELogViewer is duplicated in cms_ui and connected_services_ui rather than
+    # extracted to a shared package (spec 2026-09-15-cms-cs-campaign-ownership
+    # Task 7.1; the extraction is backlog row "DMS component-library extraction"
+    # P2 and this must not wait on it).
+    name: Renderer parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.13"
+
+      - name: Verify FWELogViewer parity between cms_ui and connected_services_ui
+        run: python3 scripts/verify_cs_log_viewer_parity.py
+
+  trip-simulator-modal-sync:
+    # Drift guard for TripSimulatorModal.tsx duplicated across modules of this
+    # repo (spec 2026-09-19-cs-trip-simulator-parity T4.1 / FG1.T3). Blocking
+    # (no `|| true`) — a drift between the two copies is a defect, not a style
+    # warning. Checks: CITIES value-pair parity, route-length-options value-pair
+    # parity, severity-label block presence + canonical-labels check, and
+    # CITIES vs server _ALLOWED_CITIES cross-check.
+    name: Trip Simulator Modal sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.13"
+
+      - name: Verify TripSimulatorModal shared-logic sync
+        run: python3 scripts/check_trip_simulator_modal_sync.py
+
+      - name: Install test dependencies
+        # setup-python switches to a clean pinned interpreter, so the runner image's
+        # system packages are NOT on this python. Without an explicit install the
+        # pytest step below fails with "No module named pytest" and, because this job
+        # is blocking, turns CI red. Mirrors .gitlab-ci.yml's own pinned install.
+        run: pip install --quiet --no-input pytest==9.0.2
+
+      - name: Run trip-simulator-modal-sync guard unit tests
+        run: python3 -m pytest scripts/tests/test_check_trip_simulator_modal_sync.py -v
+
+  trip-intent-contract:
+    # Contract guard for the trip-intent DynamoDB map written by simulation_lambda.py
+    # and read by realtime_telemetry_simulator.py (spec 2026-09-20-trip-intent-param-contract
+    # T5.1). Blocking (no `|| true`) — a key written with no reader, or a ratchet entry that
+    # has become stale, is a defect. Wired here after the guard survived one full ratchet
+    # cycle in Group 2 (city + routeLength closed out of _DEFERRED_READERS).
+    #
+    # The simulation test suite (services/simulation/tests/) MUST run with PYTHONPATH=services
+    # or collection fails on test_routine_sims.py (ModuleNotFoundError: No module named
+    # 'simulation'). Without that env var, TestCityKeySetCoupling — which enforces that
+    # the city key set in CITY_COORDINATES matches the writer's _ALLOWED_CITIES — never
+    # runs, and an unrun guard is not a guard. Verified locally: 310 collected + 1 error
+    # without PYTHONPATH; 381 collected cleanly with it.
+    name: Trip intent contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.13"
+
+      - name: Verify trip-intent writer ↔ reader contract
+        run: python3 scripts/check_trip_intent_contract.py
+
+      - name: Install test dependencies
+        # setup-python switches to a clean pinned interpreter; the simulation
+        # test suite imports boto3 at module scope (realtime_telemetry_simulator.py:13),
+        # and python-can + can-isotp at module scope via uds_dtc_responder.py, so
+        # installing only pytest leaves 12 collection errors and TestCityKeySetCoupling
+        # never runs. services/simulation/requirements-test.txt pins the full set of
+        # packages needed for zero collection errors (verified locally: 406 passed).
+        run: pip install --quiet --no-input -r services/simulation/requirements-test.txt
+
+      - name: Run trip-intent-contract guard unit tests
+        run: python3 -m pytest scripts/tests/test_check_trip_intent_contract.py -v
+
+      - name: Run simulation suite (requires PYTHONPATH=services)
+        # PYTHONPATH=services is load-bearing: test_routine_sims.py imports
+        # simulation.routine_sims and errors during collection without it. This also
+        # exercises TestCityKeySetCoupling (test_trip_intent_overrides.py), which asserts
+        # that CITY_COORDINATES and the writer's _ALLOWED_CITIES are in sync — a
+        # structural coupling guard that only runs here.
+        env:
+          PYTHONPATH: services
+        run: python3 -m pytest services/simulation/tests/ -q
+
+  transform-manifest-contract:
+    # Contract guards for transform manifests in services/data_processing/manifests/
+    # (spec 2026-09-20-transform-manifest-contract-guards T4.1). Blocking (no `|| true`).
+    #
+    # Three guards in one script invocation:
+    #   D1  — T1.1 manifest ↔ producer field parity: every source_path in
+    #         meridian-ev-transform.json must exist in the simulator's emitted key set.
+    #         The failure is silent at runtime (defaults fill in; no DLQ, no log).
+    #   D3  — T2.1 topic ↔ manifest-filename coupling: every cs-product-* topic in
+    #         CANONICAL_TOPICS, _ALLOWED_RULE_SUFFIXES, and the CDK topic rules must have
+    #         a matching *-transform.json. deriveSourceKeyFromTopic maps topic → filename,
+    #         so a rename breaks every record at runtime.
+    #   D5  — T3.2 fixture-freshness: the committed Flink test fixture
+    #         (meridian-ev-telemetry.raw.json) must match the simulator's current key set.
+    #
+    # T2.2 is intentionally NOT wired — spec D4.
+    name: Transform manifest contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.13"
+
+      - name: Run transform-manifest contract guards (D1 parity + D3 coupling + D5 fixture)
+        # main() runs all three checks and ORs their exit codes.
+        # T2.2 is not wired — see spec D4.
+        run: python3 scripts/check_transform_manifest_parity.py
+
+      - name: Install test dependencies
+        # setup-python switches to a clean pinned interpreter; pytest is not on it.
+        # Mirrors the trip-simulator-modal-sync job's install pattern.
+        run: pip install --quiet --no-input pytest==9.0.2
+
+      - name: Run transform-manifest-contract guard unit tests
+        # Single suite exercises all three guards (D1 parity, D3 coupling, D5 fixture).
+        # The T3.2 fixture-freshness tests are in the same file (── T3.2 section).
+        run: python3 -m pytest scripts/tests/test_check_transform_manifest_parity.py -v
+
+
+  frontend-typecheck-ratchet:
+    # Mirror of the `frontend-typecheck-ratchet` job in .gitlab-ci.yml, which is
+    # the gate that matters — GitLab is the CI home; this repo is a mirror that
+    # receives squashed release commits. Kept here so the public repo's CI
+    # verifies the same invariant it ships.
+    #
+    # Uses --all rather than touched-files mode on purpose: each publish is a
+    # single squashed commit, so there is no meaningful diff base to compare
+    # against. --all passes as long as no file exceeds its baseline.
+    #
+    # Blocking (no `|| true`) — a new type error is a defect, not a style
+    # warning. Context: issues/2026-09-24-cms-frontend-has-no-typecheck-gate/.
+    name: Frontend typecheck ratchet
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+
+      - name: Install frontend dependencies
+        working-directory: modules/cms_ui/source/frontend
+        run: |
+          corepack enable
+          yarn install --immutable
+
+      - name: Verify tsc error count has not grown
+        working-directory: modules/cms_ui/source/frontend
+        run: node scripts/typecheck-ratchet.mjs --check --all

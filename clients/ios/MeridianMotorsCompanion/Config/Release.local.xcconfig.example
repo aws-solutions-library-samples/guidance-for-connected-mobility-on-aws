@@ -1,0 +1,40 @@
+// Release.local.xcconfig.example — template for the gitignored real-values file.
+//
+// TO USE (per-developer, per-checkout):
+//   1. Copy this file to `Release.local.xcconfig` (same directory).
+//      This copy is gitignored — safe to fill with real values.
+//   2. Replace every placeholder value below with your real production
+//      deployment values. Source of truth:
+//        - REST/WS URLs: `cdk deploy vsa-prod-api` outputs
+//          `RestApiUrl` and `WsApiUrl`
+//        - `VSA_CMS_REST_API_URL`: `cdk deploy cms-prod-ui-api` output
+//          `MainApiUrl`, OR leave empty to hide the claim-vehicle UI
+//          (per VSAConfig.swift `cmsRestApiUrl` nil-fallback contract)
+//        - `VSA_TELEMETRY_WS_URL`: `cdk deploy cms-prod-ws-fanout`
+//          output `WsFanoutUrl`
+//        - `VSA_AGENTCORE_RUNTIME_ARN`: contents of
+//          `~/guidance-for-connected-vehicle-experience-on-aws/
+//          .bedrock_agentcore.yaml` block
+//          `vsa_supervisor_bidi.bedrock_agentcore.agent_arn`
+//        - `VSA_USER_POOL_ID` + `VSA_USER_POOL_CLIENT_ID`: CMS prod UI
+//          pool (`<region>_<pool-suffix>`-shaped) and the iOS-facing app
+//          client on it
+//        - `VSA_IDENTITY_POOL_ID`: identity pool federated with the CMS
+//          prod UI pool
+//   3. Clean Build Folder (⇧⌘K) in Xcode, then rebuild.
+//
+// xcconfig syntax reminder: `//` starts a line comment. URLs that contain
+// `//` MUST escape via `$()`. `$()` evaluates to empty at build time, so
+// `https:/$()/host/path` resolves to `https://host/path`.
+
+VSA_AWS_REGION = us-east-1
+VSA_REST_API_URL = https:/$()/<your-prod-rest-api-id>.execute-api.us-east-1.amazonaws.com/prod
+// Leave empty to hide the iOS claim-vehicle affordance (VSAConfig.swift
+// cmsRestApiUrl returns nil in that case).
+VSA_CMS_REST_API_URL =
+VSA_WS_API_URL = wss:/$()/<your-prod-ws-api-id>.execute-api.us-east-1.amazonaws.com/prod
+VSA_TELEMETRY_WS_URL = wss:/$()/<your-prod-telemetry-ws-id>.execute-api.us-east-1.amazonaws.com/live
+VSA_AGENTCORE_RUNTIME_ARN = arn:aws:bedrock-agentcore:us-east-1:<your-account-id>:runtime/<your-prod-bidi-runtime-id>
+VSA_USER_POOL_ID = us-east-1_<your-prod-pool-suffix>
+VSA_USER_POOL_CLIENT_ID = <your-prod-cognito-app-client-id>
+VSA_IDENTITY_POOL_ID = us-east-1:<your-prod-identity-pool-uuid>

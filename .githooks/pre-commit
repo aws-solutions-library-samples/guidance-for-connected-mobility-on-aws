@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Repo-local pre-commit hook.
+#
+# WHY THIS FILE EXISTS RATHER THAN .git/hooks/pre-commit
+# ------------------------------------------------------
+# `core.hooksPath` is set globally to Amazon's git-defender hooks directory, so
+# anything dropped in `.git/hooks/` is never executed. Pointing this repo's
+# `core.hooksPath` at `.githooks` is the only way to get a repo-local hook — and
+# doing so takes over responsibility for invoking git-defender, which is a
+# security control. This hook therefore runs git-defender FIRST and fails closed
+# if it cannot.
+#
+# Install with:  make install-hooks
+#
+# The scan is deliberately staged-files-only. The authoritative whole-tree gate
+# (`make verify-publish`) takes ~87s; running that on every commit would get the
+# hook disabled within a day, which protects nothing.
+
+set -uo pipefail
+
+GIT_DEFENDER_HOOK="/usr/local/amazon/var/git-defender/hooks/pre-commit"
+
+# ── 1. git-defender, first and fail-closed ───────────────────────────────────
+#
+# Do NOT "helpfully" skip this when the binary is absent. Silently dropping a
+# security scanner is the failure mode that makes takeover of core.hooksPath
+# dangerous in the first place. If git-defender is genuinely uninstalled, the
+# right response is to notice and decide, not to proceed unprotected.
+if [ -x "$GIT_DEFENDER_HOOK" ]; then
+  "$GIT_DEFENDER_HOOK" "$@"
+  gd_rc=$?
+  if [ "$gd_rc" -ne 0 ]; then
+    echo "pre-commit: git-defender rejected this commit (exit $gd_rc)." >&2
+    exit "$gd_rc"
+  fi
+else
+  cat >&2 <<EOF
+pre-commit: FAIL — git-defender hook not found or not executable at:
+  $GIT_DEFENDER_HOOK
+
+This repo sets core.hooksPath to .githooks, which means THIS hook is responsible
+for invoking git-defender. It is not being skipped silently.
+
+If git-defender moved or was uninstalled, either update GIT_DEFENDER_HOOK in
+.githooks/pre-commit or run:  git config --unset core.hooksPath
+(the latter restores git-defender but drops the publish scan).
+EOF
+  exit 1
+fi
+
+# ── 2. Publish-safety scan of the staged, shipping files ─────────────────────
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+STAGED_SCAN="$REPO_ROOT/scripts/lib/scan-staged-publish.sh"
+
+if [ -x "$STAGED_SCAN" ]; then
+  bash "$STAGED_SCAN" || exit 1
+else
+  echo "pre-commit: FAIL — missing $STAGED_SCAN" >&2
+  echo "  A publish-safety check that silently no-ops is not a check." >&2
+  exit 1
+fi
+
+exit 0

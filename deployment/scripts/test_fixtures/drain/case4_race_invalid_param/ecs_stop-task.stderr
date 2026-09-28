@@ -1,0 +1,1 @@
+An error occurred (InvalidParameterException) when calling the StopTask operation: The referenced task was already stopped.

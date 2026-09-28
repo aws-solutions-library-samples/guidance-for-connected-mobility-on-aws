@@ -1,0 +1,17 @@
+{
+  "tasks": [
+    {
+      "taskArn": "arn:aws:ecs:us-west-2:123456789012:task/cms-staging-simulation/stale",
+      "taskDefinitionArn": "arn:aws:ecs:us-west-2:123456789012:task-definition/cms-staging-fwe-agent:2",
+      "lastStatus": "RUNNING",
+      "desiredStatus": "RUNNING"
+    },
+    {
+      "taskArn": "arn:aws:ecs:us-west-2:123456789012:task/cms-staging-simulation/fresh",
+      "taskDefinitionArn": "arn:aws:ecs:us-west-2:123456789012:task-definition/cms-staging-fwe-agent:3",
+      "lastStatus": "RUNNING",
+      "desiredStatus": "RUNNING"
+    }
+  ],
+  "failures": []
+}

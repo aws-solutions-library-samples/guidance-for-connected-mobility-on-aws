@@ -1,0 +1,21 @@
+{
+  "action_id": "AVX-ACT-e5f6a7b8-c9d0-1234-efab-34567890123f",
+  "finding_id": "FIND-a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "created_by": "owner-usr-4a5b6c7d",
+  "created_at": "2026-09-18T12:00:00Z",
+  "updated_at": "2026-09-18T12:00:00Z",
+  "target_system": "none",
+  "status": "completed",
+  "action_kind": "acknowledge_only",
+  "parameters": {},
+  "evidence": [],
+  "audit_trail": [
+    {
+      "at": "2026-09-18T12:00:00Z",
+      "by": "owner-usr-4a5b6c7d",
+      "from_status": "pending_execution",
+      "to_status": "completed",
+      "note": "Acknowledged; no external dispatch needed"
+    }
+  ]
+}

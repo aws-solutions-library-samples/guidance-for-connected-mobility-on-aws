@@ -1,0 +1,1205 @@
+{
+  "manifest_version": "2.2.0",
+  "transform_type": "cloud_to_cloud",
+  "source_name": "oem1",
+  "source_format": "json",
+  "description": "OEM1 gRPC streaming feed transform manifest. Authored via OEMIntegrationWizard. Way B raw-shape paths: connector passes raw protobuf-as-JSON; Flink processor resolves per-signal extraction via manifest source_path (Option I Jackson-native walker). Compound signals disambiguated by tag predicate (TIRE_PRESSURE) or sub-field path (ACCELERATION).",
+  "connection": {
+    "type": "grpc_streaming"
+  },
+  "authentication": {
+    "type": "oauth2",
+    "credentials_secret_arn": "arn:aws:secretsmanager:us-west-2:123456789012:secret:cms-staging-connector-oem1-credentials"
+  },
+  "vehicle_id_extraction": {
+    "strategy": "json_path",
+    "path": "shard_key",
+    "transform": "substring_after_last_slash"
+  },
+  "timestamp_field": "timestamp",
+  "timestamp_format": "iso8601",
+  "timestamp": {
+    "modem_field": "modem_utc",
+    "ingestion_field": "timestamp",
+    "primary": "modem"
+  },
+  "message_type_routing": {
+    "field": "typedData.@type",
+    "telemetry_patterns": [
+      "Metric",
+      "ErrorMetric",
+      "RawTelemetry",
+      "BatchedTelemetry"
+    ],
+    "event_patterns": [
+      "Event",
+      "TriggeredEvent",
+      "StateTransition",
+      "GeofenceEvent",
+      "DeepSleepPreclusion"
+    ],
+    "discard_patterns": [
+      "BootstrapSummaryEvent",
+      "BindingChangeEvent",
+      "DataValidationEvent"
+    ]
+  },
+  "unit_conversions": {
+    "mps_to_mph": {
+      "type": "multiply",
+      "factor": 2.23694
+    },
+    "km_to_miles": {
+      "type": "multiply",
+      "factor": 0.621371
+    },
+    "C_to_F": {
+      "type": "formula",
+      "formula": "value * 1.8 + 32"
+    },
+    "kpa_to_psi": {
+      "type": "multiply",
+      "factor": 0.145038
+    },
+    "mps2_to_g": {
+      "type": "divide",
+      "factor": 9.80665
+    },
+    "seconds_to_hours": {
+      "type": "divide",
+      "factor": 3600
+    }
+  },
+  "enum_maps": {
+    "IGNITION_STATUS": {
+      "ON": true,
+      "OFF": false,
+      "ACCESSORY": false,
+      "UNKNOWN": false
+    },
+    "GEAR_LEVER_POSITION": {
+      "PARK": 0,
+      "REVERSE": 1,
+      "NEUTRAL": 2,
+      "DRIVE": 3,
+      "SPORT": 4,
+      "LOW": 5,
+      "UNKNOWN_GEAR_LEVER_POSITION": -1
+    },
+    "SEAT_BELT_STATUS": {
+      "BUCKLED": true,
+      "UNBUCKLED": false,
+      "UNKNOWN_SEATBELT_STATUS": false
+    },
+    "TRACTION_CONTROL_STATUS": {
+      "ACTIVE": true,
+      "INACTIVE": false,
+      "OFF_ON_STATUS_OFF": false,
+      "OFF_ON_STATUS_ON": true
+    }
+  },
+  "signal_mappings": [
+    {
+      "source_signal": "SPEED",
+      "cms_field": "speed",
+      "source_path": "[?signal.wksSignal=SPEED].speedValue.speed",
+      "data_type": "float",
+      "unit_conversion": "mps_to_mph",
+      "default_value": 0.0
+    },
+    {
+      "source_signal": "ODOMETER",
+      "cms_field": "odometer",
+      "source_path": "[?signal.wksSignal=ODOMETER].doubleValue",
+      "data_type": "float",
+      "unit_conversion": "km_to_miles"
+    },
+    {
+      "source_signal": "POSITION_LAT",
+      "cms_field": "lat",
+      "source_path": "[?signal.wksSignal=POSITION].positionValue.location[0].threeDPoint.latitude",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "POSITION_LNG",
+      "cms_field": "lng",
+      "source_path": "[?signal.wksSignal=POSITION].positionValue.location[0].threeDPoint.longitude",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "HEADING",
+      "cms_field": "heading",
+      "source_path": "[?signal.wksSignal=HEADING].headingValue.heading",
+      "data_type": "float",
+      "default_value": 0.0
+    },
+    {
+      "source_signal": "IGNITION_STATUS",
+      "cms_field": "ignitionOn",
+      "source_path": "[?signal.wksSignal=IGNITION_STATUS].enumValue.ignitionStatus",
+      "data_type": "boolean",
+      "value_map": {
+        "ON": true,
+        "OFF": false,
+        "ACCESSORY": false,
+        "UNKNOWN": false
+      }
+    },
+    {
+      "source_signal": "ENGINE_SPEED",
+      "cms_field": "engineRPM",
+      "source_path": "[?signal.wksSignal=ENGINE_SPEED].int64Value",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "ENGINE_COOLANT_TEMP",
+      "cms_field": "engineTemp",
+      "source_path": "[?signal.wksSignal=ENGINE_COOLANT_TEMP].doubleValue",
+      "data_type": "float",
+      "unit_conversion": "C_to_F"
+    },
+    {
+      "source_signal": "FUEL_LEVEL",
+      "cms_field": "fuelLevel",
+      "source_path": "[?signal.wksSignal=FUEL_LEVEL].doubleValue",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "BATTERY_VOLTAGE",
+      "cms_field": "batteryVoltage",
+      "source_path": "[?signal.wksSignal=BATTERY_VOLTAGE].doubleValue",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "TIRE_PRESSURE_FL",
+      "cms_field": "tire_fl",
+      "source_path": "[?signal.wksSignal=TIRE_PRESSURE][?tags[?name.wktName=VEHICLE_WHEEL].value.wheelTagValue=FRONT_LEFT].doubleValue",
+      "data_type": "float",
+      "unit_conversion": "kpa_to_psi"
+    },
+    {
+      "source_signal": "TIRE_PRESSURE_FR",
+      "cms_field": "tire_fr",
+      "source_path": "[?signal.wksSignal=TIRE_PRESSURE][?tags[?name.wktName=VEHICLE_WHEEL].value.wheelTagValue=FRONT_RIGHT].doubleValue",
+      "data_type": "float",
+      "unit_conversion": "kpa_to_psi"
+    },
+    {
+      "source_signal": "TIRE_PRESSURE_RL",
+      "cms_field": "tire_rl",
+      "source_path": "[?signal.wksSignal=TIRE_PRESSURE][?tags[?name.wktName=VEHICLE_WHEEL].value.wheelTagValue=REAR_LEFT].doubleValue",
+      "data_type": "float",
+      "unit_conversion": "kpa_to_psi"
+    },
+    {
+      "source_signal": "TIRE_PRESSURE_RR",
+      "cms_field": "tire_rr",
+      "source_path": "[?signal.wksSignal=TIRE_PRESSURE][?tags[?name.wktName=VEHICLE_WHEEL].value.wheelTagValue=REAR_RIGHT].doubleValue",
+      "data_type": "float",
+      "unit_conversion": "kpa_to_psi"
+    },
+    {
+      "source_signal": "SEAT_BELT_STATUS",
+      "cms_field": "seatbeltStatus",
+      "source_path": "[?signal.wksSignal=SEAT_BELT_STATUS].enumValue.seatbeltStatus",
+      "data_type": "boolean",
+      "value_map": {
+        "BUCKLED": true,
+        "UNBUCKLED": false,
+        "UNKNOWN_SEATBELT_STATUS": false
+      }
+    },
+    {
+      "source_signal": "GEAR_LEVER_POSITION",
+      "cms_field": "gearPosition",
+      "source_path": "[?signal.wksSignal=GEAR_LEVER_POSITION].enumValue.gearPosition",
+      "data_type": "integer",
+      "value_map": {
+        "PARK": 0,
+        "REVERSE": 1,
+        "NEUTRAL": 2,
+        "DRIVE": 3,
+        "SPORT": 4,
+        "LOW": 5,
+        "UNKNOWN_GEAR_LEVER_POSITION": -1
+      }
+    },
+    {
+      "source_signal": "ACCELERATION_LONGITUDINAL",
+      "cms_field": "acceleration",
+      "source_path": "[?signal.wksSignal=ACCELERATION].threeAxisValue.x",
+      "data_type": "float",
+      "unit_conversion": "mps2_to_g"
+    },
+    {
+      "source_signal": "ACCELERATION_LATERAL",
+      "cms_field": "lateralG",
+      "source_path": "[?signal.wksSignal=ACCELERATION].threeAxisValue.y",
+      "data_type": "float",
+      "unit_conversion": "mps2_to_g"
+    },
+    {
+      "source_signal": "THROTTLE_POSITION",
+      "cms_field": "throttle",
+      "source_path": "[?signal.wksSignal=THROTTLE_POSITION].doubleValue",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "OIL_LIFE_REMAINING",
+      "cms_field": "oil_life",
+      "source_path": "[?signal.wksSignal=OIL_LIFE_REMAINING].doubleValue",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "TOTAL_ENGINE_TIME",
+      "cms_field": "engine_hours_total",
+      "source_path": "[?signal.wksSignal=TOTAL_ENGINE_TIME].doubleValue",
+      "data_type": "float",
+      "unit_conversion": "seconds_to_hours"
+    },
+    {
+      "source_signal": "TRACTION_CONTROL_STATUS",
+      "cms_field": "traction_control",
+      "source_path": "[?signal.wksSignal=TRACTION_CONTROL_STATUS].enumValue.offOnStatus",
+      "data_type": "boolean",
+      "value_map": {
+        "OFF_ON_STATUS_ON": true,
+        "OFF_ON_STATUS_OFF": false,
+        "ACTIVE": true,
+        "INACTIVE": false
+      }
+    }
+  ],
+  "event_mappings": [
+    {
+      "_comment": "DELETED 5 entries (2026-06-08): diagnostic_warning, diagnostic_warning_cleared, dtc_set, dtc_cleared, cms.trip_report (TripReportEvent). All referenced oem1.ext.telemetry.event.* namespace which does NOT exist in _generated/ proto stubs and has NEVER fired in production. Real vehicle events arrive as autonomic.ext.event.Event. See decisions.md Phase A.1 / A.3 latent-bug audit.",
+      "source_event_type_url": "type.googleapis.com/autonomic.ext.event.Event",
+      "cms_event_type": "cms.motion_state_change",
+      "match": {
+        "wellKnownLabel": "MOTION_EVENT"
+      },
+      "extraction": {
+        "occurred_at": "conditions[0].metric.startTime",
+        "condition": "conditions[0].condition",
+        "speed": "conditions[0].metric.speedValue.speed",
+        "lat": "metrics[?signal.wksSignal=POSITION].positionValue.location[0].threeDPoint.latitude",
+        "lng": "metrics[?signal.wksSignal=POSITION].positionValue.location[0].threeDPoint.longitude"
+      },
+      "derived_fields": {
+        "ignitionOn": {
+          "from": "condition",
+          "type": "boolean",
+          "rules": {
+            "VEHICLE_MOVEMENT_STARTED": true,
+            "VEHICLE_MOVEMENT_STOPPED": false
+          }
+        }
+      },
+      "uniqueness_key": [
+        "vehicleId",
+        "cms_event_type",
+        "occurred_at"
+      ]
+    },
+    {
+      "source_event_type_url": "type.googleapis.com/autonomic.ext.event.Event",
+      "cms_event_type": "cms.harsh_acceleration",
+      "match": {
+        "wellKnownLabel": "HARSH_ACCELERATION_EVENT"
+      },
+      "extraction": {
+        "occurred_at": "conditions[0].metric.startTime",
+        "condition": "conditions[0].condition",
+        "accel_x": "conditions[0].metric.threeAxisValue.x",
+        "accel_y": "conditions[0].metric.threeAxisValue.y",
+        "speed": "metrics[?signal.wksSignal=SPEED].speedValue.speed"
+      },
+      "uniqueness_key": [
+        "vehicleId",
+        "cms_event_type",
+        "occurred_at"
+      ]
+    },
+    {
+      "source_event_type_url": "type.googleapis.com/autonomic.ext.event.Event",
+      "cms_event_type": "cms.harsh_braking",
+      "match": {
+        "wellKnownLabel": "HARSH_BRAKING_EVENT"
+      },
+      "extraction": {
+        "occurred_at": "conditions[0].metric.startTime",
+        "condition": "conditions[0].condition",
+        "accel_x": "conditions[0].metric.threeAxisValue.x",
+        "accel_y": "conditions[0].metric.threeAxisValue.y",
+        "speed": "metrics[?signal.wksSignal=SPEED].speedValue.speed"
+      },
+      "uniqueness_key": [
+        "vehicleId",
+        "cms_event_type",
+        "occurred_at"
+      ]
+    },
+    {
+      "source_event_type_url": "type.googleapis.com/autonomic.ext.event.Event",
+      "cms_event_type": "cms.harsh_cornering",
+      "match": {
+        "wellKnownLabel": "HARSH_CORNERING_EVENT"
+      },
+      "extraction": {
+        "occurred_at": "conditions[0].requiredMetrics[0].startTime",
+        "condition": "conditions[0].condition",
+        "accel_x": "conditions[0].requiredMetrics[0].threeAxisValue.x",
+        "accel_y": "conditions[0].requiredMetrics[0].threeAxisValue.y",
+        "speed": "metrics[?signal.wksSignal=SPEED].speedValue.speed"
+      },
+      "uniqueness_key": [
+        "vehicleId",
+        "cms_event_type",
+        "occurred_at"
+      ]
+    },
+    {
+      "source_event_type_url": "type.googleapis.com/autonomic.ext.event.Event",
+      "cms_event_type": "cms.ignition_state_change",
+      "match": {
+        "wellKnownLabel": "IGNITION_EVENT"
+      },
+      "extraction": {
+        "occurred_at": "conditions[0].metric.startTime",
+        "condition": "conditions[0].condition",
+        "ignition_status": "conditions[0].metric.enumValue.ignitionStatus"
+      },
+      "derived_fields": {
+        "ignitionOn": {
+          "from": "condition",
+          "type": "boolean",
+          "rules": {
+            "IGNITION_ON": true,
+            "IGNITION_OFF": false
+          }
+        }
+      },
+      "uniqueness_key": [
+        "vehicleId",
+        "cms_event_type",
+        "occurred_at"
+      ]
+    },
+    {
+      "source_event_type_url": "type.googleapis.com/autonomic.ext.event.Event",
+      "cms_event_type": "cms.gear_change",
+      "match": {
+        "wellKnownLabel": "GEAR_CHANGE_EVENT"
+      },
+      "extraction": {
+        "occurred_at": "conditions[0].metric.startTime",
+        "condition": "conditions[0].condition",
+        "gear_position": "conditions[0].metric.enumValue.gearPosition"
+      },
+      "uniqueness_key": [
+        "vehicleId",
+        "cms_event_type",
+        "occurred_at"
+      ]
+    },
+    {
+      "source_event_type_url": "type.googleapis.com/autonomic.ext.event.Event",
+      "cms_event_type": "cms.trip_report",
+      "match": {
+        "wellKnownLabel": "TRIP_REPORT"
+      },
+      "extraction": {
+        "occurred_at": "conditions[0].metric.startTime",
+        "condition": "conditions[0].condition",
+        "odometer_km": "metrics[?signal.wksSignal=ODOMETER].doubleValue",
+        "fuel_consumed_liters": "metrics[?signal.wksSignal=TRIP_FUEL_CONSUMED].doubleValue",
+        "fuel_idle_liters": "metrics[?signal.wksSignal=TRIP_FUEL_CONSUMED_IDLE].doubleValue",
+        "max_speed_mps": "metrics[?signal.wksSignal=TRIP_MAXIMUM_SPEED].doubleValue",
+        "distance_km": "metrics[?signal.wksSignal=TRIP_DISTANCE_ACCUMULATED].doubleValue",
+        "engine_time_seconds": "metrics[?signal.wksSignal=TOTAL_ENGINE_TIME].doubleValue",
+        "engine_idle_seconds": "metrics[?signal.wksSignal=TOTAL_ENGINE_TIME_IDLE].doubleValue"
+      },
+      "uniqueness_key": [
+        "vehicleId",
+        "cms_event_type",
+        "occurred_at"
+      ]
+    },
+    {
+      "source_event_type_url": "type.googleapis.com/autonomic.ext.event.Event",
+      "cms_event_type": "cms.excessive_idle",
+      "match": {
+        "wellKnownLabel": "EXCESSIVE_IDLE_EVENT"
+      },
+      "extraction": {
+        "occurred_at": "conditions[0].metric.startTime",
+        "condition": "conditions[0].condition",
+        "engine_rpm": "conditions[0].metric.int64Value"
+      },
+      "uniqueness_key": [
+        "vehicleId",
+        "cms_event_type",
+        "occurred_at"
+      ]
+    },
+    {
+      "source_event_type_url": "type.googleapis.com/autonomic.ext.event.Event",
+      "cms_event_type": "cms.seat_belt_unbuckled_while_moving",
+      "match": {
+        "wellKnownLabel": "SEAT_BELT_STATUS_WHILE_MOVING_EVENT"
+      },
+      "extraction": {
+        "occurred_at": "conditions[0].metric.startTime",
+        "condition": "conditions[0].condition",
+        "speed": "metrics[?signal.wksSignal=SPEED].speedValue.speed"
+      },
+      "uniqueness_key": [
+        "vehicleId",
+        "cms_event_type",
+        "occurred_at"
+      ]
+    },
+    {
+      "source_event_type_url": "type.googleapis.com/autonomic.ext.event.Event",
+      "cms_event_type": "cms.command_preclusion_state_change",
+      "match": {
+        "wkFsmName": "COMMAND_PRECLUSION_STATE"
+      },
+      "extraction": {
+        "fsm_name": "wkFsmName",
+        "from_state": "commandPreclusionFromState",
+        "to_state": "commandPreclusionToState",
+        "trigger": "commandPreclusionTrigger",
+        "firmware_upgrade_preclusion": "data.commandPreclusionCauses.firmwareUpgradePreclusionState",
+        "deep_sleep_preclusion": "data.commandPreclusionCauses.deepSleepPreclusionState"
+      },
+      "uniqueness_key": [
+        "fsm_name",
+        "from_state",
+        "to_state",
+        "trigger"
+      ]
+    },
+    {
+      "source_event_type_url": "type.googleapis.com/autonomic.ext.event.Event",
+      "cms_event_type": "cms.gps_signal_state_change",
+      "match": {
+        "wellKnownLabel": "GPS_3DFIX_EVENT"
+      },
+      "extraction": {
+        "event_id": "id",
+        "occurred_at": "conditions[0].metric.startTime",
+        "gps_condition": "conditions[0].condition",
+        "latitude": "conditions[0].metric.positionValue.location[0].threeDPoint.latitude",
+        "longitude": "conditions[0].metric.positionValue.location[0].threeDPoint.longitude",
+        "altitude": "conditions[0].metric.positionValue.location[0].threeDPoint.altitude",
+        "gps_method": "conditions[0].metric.positionValue.gnssData.gpsCoordinateMethod"
+      },
+      "derived_fields": {
+        "gpsSignalLost": {
+          "from": "gps_condition",
+          "type": "boolean",
+          "rules": {
+            "GPS_SIGNAL_LOST": true,
+            "GPS_SIGNAL_ACQUIRED": false
+          }
+        }
+      },
+      "uniqueness_key": [
+        "event_id"
+      ]
+    },
+    {
+      "_comment": "Path \u03b5: OEM1 VHA Custom Diagnostic Event \u2014 catch-all for all 4 indicator states. State discrimination (ACTIVE/ACTIVE_NO_DTC/CLEARED/DTC_CLEARED_INDICATOR_ACTIVE) is performed in MaintenanceProcessor.handleCanonicalIndicatorEvent via (indicator_state, dtc_clear, dtc_code). Decisions: 2026-06-10 PM \u00a7 B.\u03b5.2 (Path \u03b5 CONFIRMED); Fix Group 3.1 (state_discriminator engine gap \u2014 collapsed to handler-level dispatch).",
+      "source_event_type_url": "type.googleapis.com/autonomic.ext.event.Event",
+      "cms_event_type": "cms.vha_diagnostic_event",
+      "match": {
+        "stringLabelEndsWith": ":custom:vha-diagnostics-processed-event"
+      },
+      "extraction": {
+        "occurred_at": "metrics[0].startTime",
+        "indicator": "metrics[0].indicatorValue.wellKnownIndicator",
+        "indicator_state": "metrics[0].indicatorValue.indicatorState",
+        "indicator_extra_code": "metrics[0].indicatorValue.additionalInfo.value",
+        "dtc_code": "metrics[0].metrics[0].dtcValue.rawValue",
+        "dtc_clear": "metrics[0].tags[?name.stringName=DtcClear].value.stringValue",
+        "dtc_system": "metrics[0].metrics[0].dtcValue.system",
+        "dtc_status": "metrics[0].metrics[0].dtcValue.status",
+        "dtc_reporting_ecu": "metrics[0].metrics[0].dtcValue.reportingEcu",
+        "symptom_key": "metrics[0].tags[?name.stringName=symptomKey].value.integerValue",
+        "customer_action_key": "metrics[0].tags[?name.stringName=customerActionKey].value.integerValue",
+        "action_text": "metrics[0].tags[?name.stringName=Action].value.stringValue",
+        "category": "metrics[0].tags[?name.stringName=Category].value.stringValue",
+        "severity_raw": "metrics[0].tags[?name.stringName=Severity].value.stringValue",
+        "symptom_text": "metrics[0].tags[?name.stringName=Symptom].value.stringValue",
+        "cloud_arrival_time": "metrics[0].tags[?name.stringName=CloudArrivalTime].value.stringValue",
+        "vha_read_time": "metrics[0].tags[?name.stringName=VHAReadTime].value.stringValue",
+        "alert_trace_id": "metrics[0].tags[?name.stringName=ALERT_TRACE_ID].value.stringValue"
+      },
+      "uniqueness_key": [
+        "vehicleId",
+        "indicator",
+        "dtc_code",
+        "symptom_key",
+        "customer_action_key"
+      ]
+    }
+  ],
+  "validation": {
+    "required_fields": [],
+    "range_checks": [
+      {
+        "field": "speed",
+        "min": 0,
+        "max": 200
+      },
+      {
+        "field": "lat",
+        "min": -90,
+        "max": 90
+      },
+      {
+        "field": "lng",
+        "min": -180,
+        "max": 180
+      },
+      {
+        "field": "engineRPM",
+        "min": 0,
+        "max": 8000
+      }
+    ]
+  },
+  "metadata": {
+    "description": "OEM1 gRPC streaming feed. 22 PRD MUST-HAVE signals mapped. 6 unit conversions. 4 enum maps. 4 VHA event types with severity rules. Canonical cms.trip_report mapping. Deferred signals listed.",
+    "subscription_tier": "Premium",
+    "created_by": {
+      "user_id": "architect@oem1.example",
+      "timestamp": "2026-06-02T15:54:46Z",
+      "wizard_version": "1.0.0",
+      "manifest_version": "2.2.0"
+    },
+    "deferred_signals": [
+      {
+        "source_signal": "STEERING_WHEEL_ANGLE",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "TORQUE_AT_TRANSMISSION",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "ACCELERATOR_PEDAL_POSITION",
+        "reason": "no catalog match \u2014 catalog uses throttle_position"
+      },
+      {
+        "source_signal": "PARKING_BRAKE_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "BRAKE_PEDAL_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "TRANSMISSION_GEAR_POSITION",
+        "reason": "deprecated; use GEAR_LEVER_POSITION"
+      },
+      {
+        "source_signal": "FUEL_CONSUMED_SINCE_RESTART",
+        "reason": "deprecated signal"
+      },
+      {
+        "source_signal": "DOOR_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "HEADLAMP_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "HIGH_BEAM_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "WINDSHIELD_WIPER_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "ENGINE_LOAD",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "BAROMETRIC_PRESSURE",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "COMMANDED_THROTTLE_POSITION",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "INTAKE_AIR_TEMPERATURE",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "INTAKE_MANIFOLD_PRESSURE",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "RUNNING_TIME",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "FUEL_PRESSURE",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "MASS_AIRFLOW",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "ENGINE_TORQUE",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "POSITION",
+        "reason": "compound \u2014 split to lat/lng/heading by connector"
+      },
+      {
+        "source_signal": "DOOR_STATE",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "DOOR_LOCK_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "WINDOW_POSITION",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "WINDOW_LOCK_STATE",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "ALARM_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "HEADLIGHT_STATE",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "BRAKE_LIGHT_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "WHEEL_ROTATION_SPEED",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "WINDSHIELD_WIPER_SPEED",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "INTERIOR_TEMPERATURE",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "AMBIENT_TEMP",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "INDICATOR_LIGHT",
+        "reason": "event signal \u2014 handled via event_mappings"
+      },
+      {
+        "source_signal": "BULB_STATE",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "ABS_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "BRAKE_TORQUE",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "HOOD_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "ENGINE_OIL_LEVEL",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "WHEEL_BRAKE_TORQUE",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "SEAT_OCCUPANCY_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "PID_SERIAL_NUMBER",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "CAN_CLOCK_TIME",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "PID_CLOCK_TIME",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "GPS_CLOCK_TIME",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "DISPLAY_SYSTEM_OF_MEASURE",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "TRANSMISSION_OIL_TEMPERATURE",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "DIESEL_EXHAUST_FLUID_LEVEL",
+        "reason": "no catalog match for this fleet tier"
+      },
+      {
+        "source_signal": "DIESEL_EXHAUST_FLUID_LEVEL_RANGE_REMAINING",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "FUEL_VOLUME",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "ACCELERATION",
+        "reason": "compound \u2014 split to acceleration/lateralG by connector"
+      },
+      {
+        "source_signal": "COMPASS_DIRECTION",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "POWER_TAKE_OFF_STATUS",
+        "reason": "no catalog match \u2014 use catalog PowerTakeOffStatus"
+      },
+      {
+        "source_signal": "TRAILER_SWAY_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "TRIP_FUEL_CONSUMED",
+        "reason": "trip rollup \u2014 captured via cms.trip_report event"
+      },
+      {
+        "source_signal": "TRIP_FUEL_CONSUMED_IDLE",
+        "reason": "trip rollup \u2014 captured via cms.trip_report event"
+      },
+      {
+        "source_signal": "TRIP_MAXIMUM_SPEED",
+        "reason": "trip rollup \u2014 captured via cms.trip_report event"
+      },
+      {
+        "source_signal": "TRIP_DISTANCE_ACCUMULATED",
+        "reason": "trip rollup \u2014 captured via cms.trip_report event"
+      },
+      {
+        "source_signal": "DIESEL_EXHAUST_FLUID_RESTART_REMAINING",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "DIESEL_EXHAUST_FILTER_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "WHEEL_TORQUE_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "DIAGNOSTIC_TROUBLE_CODE",
+        "reason": "event signal \u2014 handled via event_mappings"
+      },
+      {
+        "source_signal": "WATER_IN_FUEL_STATUS",
+        "reason": "no catalog match \u2014 catalog has WaterInFuelStatus in maintenance"
+      },
+      {
+        "source_signal": "DIESEL_EXHAUST_FLUID_QUALITY_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "GEOFENCE",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "ACCELERATOR_PEDAL_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "DIESEL_EXHAUST_FLUID_LEVEL_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "DIESEL_EXHAUST_FLUID_LEVEL_SPEED_LIMIT",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "FUEL_PRESSURE_STATUS",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "DIESEL_EXHAUST_FLUID_SYSTEM_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "DIESEL_PARTICULATE_FILTER_SOOT_LEVEL",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "DIESEL_EXHAUST_FILTER_AUTOMATIC_CLEAN_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "DIESEL_EXHAUST_FILTER_MANUAL_REGENERATION_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "ANONYMITY_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "WINDOW_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "BATTERY_POWER_SOURCE",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "ANTENNA_SOURCE",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "BATTERY_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "ENGINE_AUTOMATIC_SHUTDOWN_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "ENGINE_EXHAUST_OVERHEAT",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "DRIVER_ALERTNESS_WARNING_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "STOP_START_MODE_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "ELECTRONIC_STABILITY_CONTROL_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "LOW_SPEED_COLLISION_MITIGATION_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "LOW_SPEED_COLLISION_MITIGATION_SYSTEM_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "FORWARD_COLLISION_AUDIO_WARNING_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "FORWARD_COLLISION_WARNING_SYSTEM_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "OUTSIDE_TEMPERATURE",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "BATTERY_STATE_OF_CHARGE",
+        "reason": "no catalog match \u2014 12V battery, not xEV"
+      },
+      {
+        "source_signal": "CONFIGURATION",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "VEHICLE_LIFE_CYCLE_MODE",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "LANE_KEEPING_ASSIST_SYSTEM_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "BATTERY_LOAD_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "ELECTRONIC_STABILITY_CONTROL_SYSTEM_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "PANIC_ALARM_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "ENGINE_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "UPFITTER_DIGITAL_INPUT_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "UPFITTER_DIGITAL_HIGH_OUTPUT_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "UPFITTER_DIGITAL_LOW_OUTPUT_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "UPFITTER_ANALOG_INPUT_VOLTAGE",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "TRIP_FUEL_ECONOMY",
+        "reason": "trip rollup \u2014 captured via cms.trip_report event"
+      },
+      {
+        "source_signal": "DOOR_PRESENCE_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "REMOTE_START_COUNTDOWN_TIMER",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "CLIMATE_CONTROL",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "HANDS_OFF_WHEEL_WARNING_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "BLIND_SPOT_WARNING_STATUS",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "BLIND_SPOT_WARNING_SYSTEM_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "REAR_CROSS_WARNING_SYSTEM_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "REMOTE_START_DEVICE_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "HARSH_CORNERING_MAXIMUM_ACCELERATION",
+        "reason": "no catalog match \u2014 use catalog HarshCorneringMaxLateralAccel"
+      },
+      {
+        "source_signal": "BLUETOOTH_PHONE_SYSTEM_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "IN_VEHICLE_AUDIO_SYSTEM_VOLUME_LEVEL",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "UPFITTER_PWM_HIGH_OUTPUT_DUTY_CYCLE_TARGET",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "UPFITTER_PWM_LOW_OUTPUT_DUTY_CYCLE_TARGET",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "UPFITTER_PWM_HBRIDGE_OUTPUT_DUTY_CYCLE_TARGET",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "HARSH_MAXIMUM_LONGITUDINAL_ACCELERATION",
+        "reason": "no catalog match \u2014 use catalog HarshMaxLongitudinalAccel"
+      },
+      {
+        "source_signal": "XEV_BATTERY_STATE_OF_CHARGE",
+        "reason": "EV-only \u2014 deferred to Tesla integration per spec Non-Goals"
+      },
+      {
+        "source_signal": "XEV_BATTERY_RANGE",
+        "reason": "EV-only \u2014 deferred to Tesla integration"
+      },
+      {
+        "source_signal": "XEV_BATTERY_PERFORMANCE_STATUS",
+        "reason": "EV-only \u2014 deferred"
+      },
+      {
+        "source_signal": "TIRE_PRESSURE_STATUS",
+        "reason": "status enum \u2014 connector emits per-wheel pressure values instead"
+      },
+      {
+        "source_signal": "IMPACT_STATUS",
+        "reason": "no catalog match \u2014 use catalog ImpactStatus"
+      },
+      {
+        "source_signal": "ENGINE_SERVICE_INDICATOR",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "COLLISION_MITIGATION_BRAKE_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "DRIVER_ASSIST_SYSTEM_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "VEHICLE_AUDIO_SOURCE",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "TRAILER_LIGHT_CHECK_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "TIRE_PRESSURE_SYSTEM_STATUS",
+        "reason": "no catalog match"
+      },
+      {
+        "source_signal": "F_DRIVER_SCORE",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_SERVICE_REQUIRED",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_DEVICE_AUTHORIZATION_STATUS",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_ABS_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_FUEL_FILTER_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_OIL_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_CHECK_ENGINE_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_BRAKE_FLUID_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_POWERTRAIN_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_TIRE_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_SERVICE_REQUIRED_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_AIRBAG_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_ANTI_THEFT_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_PARKING_BRAKE_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_TIRE_PRESSURE_MONITOR_SYSTEM_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_CHARGE_SYSTEM_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_TRACTION_CONTROL_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_RIDE_CONTROL_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_TRAILER_BRAKE_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_CRUISE_CONTROL_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_FUEL_CAP_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_FUEL_FILL_INLET_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_FUEL_DOOR_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_AIR_FILTER_MINDER_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_PARK_AID_MALFUNCTION_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_FORWARD_COLLISION_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_SERVICE_STEERING_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_PASSIVE_ENTRY_PASSIVE_START_INDICATOR",
+        "reason": "deprecated"
+      },
+      {
+        "source_signal": "F_TRAILER_SWAY_ACTIVE_INDICATOR",
+        "reason": "deprecated"
+      }
+    ]
+  }
+}
