@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    LaunchScreen.storyboard — the static launch image iOS composites before any
+    app code runs. Deliberately kept to a black field plus the centered
+    wordmark so that when SplashView (the animated reveal) takes over, the
+    handoff is invisible: same background, same logo, same position.
+
+    Referenced from Info.plist via UILaunchStoryboardName. Note that key
+    OVERRIDES UILaunchScreen — if both are present the system ignores
+    UILaunchScreen entirely, so UILaunchScreen was removed rather than left in
+    place as a dead fallback.
+-->
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="22505" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="MRD-vc-0001">
+    <device id="retina6_12" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="22504"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <scenes>
+        <scene sceneID="MRD-sc-0001">
+            <objects>
+                <viewController id="MRD-vc-0001" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="MRD-vw-0001">
+                        <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="MeridianLogo" translatesAutoresizingMaskIntoConstraints="NO" id="MRD-iv-0001">
+                                <rect key="frame" x="66.5" y="396" width="260" height="60"/>
+                                <constraints>
+                                    <!-- 260×60 with scaleAspectFit, NOT a square box. MeridianLogo is a
+                                         content-cropped wordmark at ~14.7:1, so it renders 260pt wide and
+                                         ~18pt tall, centered in this box. A 200×200 box gave ~7pt type.
+                                         The box is deliberately taller than the wordmark so the exact
+                                         aspect is not hardcoded here and cannot drift from the asset. -->
+                                    <constraint firstAttribute="width" constant="260" id="MRD-cn-0001"/>
+                                    <constraint firstAttribute="height" constant="60" id="MRD-cn-0002"/>
+                                </constraints>
+                            </imageView>
+                        </subviews>
+                        <viewLayoutGuide key="safeArea" id="MRD-sa-0001"/>
+                        <color key="backgroundColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <constraints>
+                            <constraint firstItem="MRD-iv-0001" firstAttribute="centerX" secondItem="MRD-vw-0001" secondAttribute="centerX" id="MRD-cn-0003"/>
+                            <constraint firstItem="MRD-iv-0001" firstAttribute="centerY" secondItem="MRD-vw-0001" secondAttribute="centerY" id="MRD-cn-0004"/>
+                        </constraints>
+                    </view>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="MRD-fr-0001" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="53" y="375"/>
+        </scene>
+    </scenes>
+    <resources>
+        <image name="MeridianLogo" width="663" height="45"/>
+    </resources>
+</document>

@@ -1,0 +1,120 @@
+{
+  "stringLabel": "aui:event:00000000-0000-0000-0000-000000000000:custom:vha-diagnostics-processed-event",
+  "metrics": [
+    {
+      "signal": {
+        "wksSignal": "INDICATOR_LIGHT"
+      },
+      "metrics": [
+        {
+          "signal": {
+            "wksSignal": "DIAGNOSTIC_TROUBLE_CODE"
+          },
+          "dtcValue": {
+            "status": 138,
+            "subfaultFailureType": 2,
+            "rawValue": "B124D"
+          }
+        }
+      ],
+      "tags": [
+        {
+          "name": {
+            "stringName": "symptomKey"
+          },
+          "value": {
+            "integerValue": "462"
+          }
+        },
+        {
+          "name": {
+            "stringName": "customerActionKey"
+          },
+          "value": {
+            "integerValue": "124"
+          }
+        },
+        {
+          "name": {
+            "stringName": "Action"
+          },
+          "value": {
+            "stringValue": "Inspect the affected system and consult the vehicle service manual for recommended corrective actions."
+          }
+        },
+        {
+          "name": {
+            "stringName": "Category"
+          },
+          "value": {
+            "stringValue": "Checks, Fluids & Filters"
+          }
+        },
+        {
+          "name": {
+            "stringName": "Severity"
+          },
+          "value": {
+            "stringValue": "URGENT"
+          }
+        },
+        {
+          "name": {
+            "stringName": "Symptom"
+          },
+          "value": {
+            "stringValue": "A warning indicator is active due to a detected fault in the monitored system. Check system status and take appropriate action."
+          }
+        },
+        {
+          "name": {
+            "stringName": "ALERT_TRACE_ID"
+          },
+          "value": {
+            "stringValue": "00000000-0000-0000-0000-000000000001"
+          }
+        },
+        {
+          "name": {
+            "stringName": "CloudArrivalTime"
+          },
+          "value": {
+            "stringValue": "2026-06-04T20:12:37.893Z"
+          }
+        },
+        {
+          "name": {
+            "stringName": "VHAReadTime"
+          },
+          "value": {
+            "stringValue": "2026-06-04T20:12:39.877654058Z"
+          }
+        },
+        {
+          "name": {
+            "stringName": "Fleet Contract Status"
+          },
+          "value": {
+            "stringValue": "Contract"
+          }
+        }
+      ],
+      "startTime": "2026-06-04T20:12:37Z",
+      "indicatorValue": {
+        "wellKnownIndicator": "TIRE_PRESSURE_MONITOR_SYSTEM_WARNING",
+        "indicatorState": "ON",
+        "additionalInfo": {
+          "@type": "type.googleapis.com/google.protobuf.StringValue",
+          "value": "600E27"
+        }
+      },
+      "oemData": {
+        "dataMap": {
+          "modem_utc": {
+            "timestampValue": "2026-06-04T20:12:37Z"
+          }
+        }
+      }
+    }
+  ]
+}

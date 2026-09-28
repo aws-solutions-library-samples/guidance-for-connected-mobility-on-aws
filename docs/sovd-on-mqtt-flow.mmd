@@ -1,0 +1,35 @@
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#eff6fb","primaryTextColor":"#0b3a5b","primaryBorderColor":"#2b6cb0","lineColor":"#2b6cb0","secondaryColor":"#fdf6ec","tertiaryColor":"#f5f5f5","fontFamily":"Inter,Helvetica,Arial,sans-serif","fontSize":"15px"}, "flowchart":{"curve":"basis","padding":22,"nodeSpacing":56,"rankSpacing":88}}}%%
+flowchart LR
+  %% ── Operator / partner tier (grey) ──────────────────────────────────
+  UI["<b>Operator UI</b><br/>or partner API"]:::opSvc
+
+  %% ── Cloud tier (blue) ───────────────────────────────────────────────
+  HANDLER["Diagnostic-request<br/><b>Lambda handler</b><br/>authz + validate"]:::cloudSvc
+  IOT{{"AWS IoT Core<br/><b>MQTT broker</b><br/>mTLS + IoT policies"}}:::cloudSvc
+  DDB[("DynamoDB<br/><b>command record</b><br/>execId, status, latency")]:::cloudSvc
+  RESP["IoT Rule → <b>Response<br/>handler Lambda</b><br/>update record,<br/>write per-fault rows"]:::cloudSvc
+  S3[("S3<br/><b>oversize responses</b><br/>&gt; 80 KB fallback")]:::cloudSvc
+
+  %% ── Vehicle tier (tan) ──────────────────────────────────────────────
+  AGENT["<b>On-vehicle<br/>diagnostic agent</b><br/>MQTT client<br/>+ UDS/DoIP dispatch"]:::vehicleSvc
+  BUS["Vehicle bus + ECUs<br/>UDS over ISO 15765-2 CAN<br/>or UDS over DoIP"]:::vehicleSvc
+
+  %% ── Request path ────────────────────────────────────────────────────
+  UI -- "1&nbsp; HTTPS POST<br/>SOVD-shaped JSON" --> HANDLER
+  HANDLER -- "2&nbsp; write PENDING" --> DDB
+  HANDLER -- "3&nbsp; MQTT publish QoS 1<br/>…/{execId}/request" --> IOT
+  IOT -- "4&nbsp; deliver over mTLS<br/>to subscribed agent" --> AGENT
+  AGENT -- "5&nbsp; UDS: 0x19 / 0x22 / 0x14 / 0x31" --> BUS
+
+  %% ── Response path ───────────────────────────────────────────────────
+  BUS -- "6&nbsp; UDS response" --> AGENT
+  AGENT -- "7&nbsp; MQTT publish QoS 1<br/>…/{execId}/response" --> IOT
+  AGENT -. "7b&nbsp; if &gt; 80 KB,<br/>upload full payload" .-> S3
+  IOT -- "8&nbsp; IoT Rule fires" --> RESP
+  RESP -- "9&nbsp; update record<br/>status, latency, resultRef" --> DDB
+  RESP -. "9b&nbsp; presigned URL<br/>for oversize responses" .-> S3
+
+  %% ── Styling ─────────────────────────────────────────────────────────
+  classDef cloudSvc   fill:#eff6fb,stroke:#2b6cb0,stroke-width:1.5px,color:#0b3a5b
+  classDef vehicleSvc fill:#fdf6ec,stroke:#b8860b,stroke-width:1.5px,color:#5a4210
+  classDef opSvc      fill:#f5f5f5,stroke:#4b5563,stroke-width:1.5px,color:#111827

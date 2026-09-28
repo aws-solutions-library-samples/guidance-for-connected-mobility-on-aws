@@ -1,0 +1,121 @@
+{
+  "Version": "2019-10-30",
+  "StartAction": "set-logging",
+  "Actions": [
+    {
+      "Identifier": "set-logging",
+      "Type": "UpdateContactFlowLoggingBehavior",
+      "Parameters": { "LoggingBehavior": "Enable" },
+      "Transitions": { "NextAction": "invoke-context-lambda" }
+    },
+    {
+      "Identifier": "invoke-context-lambda",
+      "Type": "InvokeLambdaFunction",
+      "Parameters": {
+        "LambdaFunctionARN": "${ContextLookupLambdaArn}",
+        "InvocationTimeLimitSeconds": "8",
+        "ResponseValidation": { "ResponseType": "STRING_MAP" }
+      },
+      "Transitions": {
+        "NextAction": "set-contact-attributes",
+        "Errors": [
+          { "NextAction": "context-unavailable", "ErrorType": "NoMatchingError" }
+        ]
+      }
+    },
+    {
+      "Identifier": "set-contact-attributes",
+      "Type": "UpdateContactAttributes",
+      "Parameters": {
+        "Attributes": {
+          "vehicleId": "$.External.vehicleId",
+          "vin": "$.External.vin",
+          "driverName": "$.External.driverName",
+          "severity": "$.External.severity",
+          "summary": "$.External.summary",
+          "dtcCodes": "$.External.dtcCodes",
+          "conversationSummary": "$.External.conversationSummary",
+          "recommendedAction": "$.External.recommendedAction"
+        }
+      },
+      "Transitions": { "NextAction": "check-severity" }
+    },
+    {
+      "Identifier": "check-severity",
+      "Type": "Compare",
+      "Parameters": {
+        "ComparisonValue": "$.Attributes.severity"
+      },
+      "Conditions": [
+        { "NextAction": "prompt-p0", "Condition": { "Operator": "Equals", "Operands": ["P0"] } },
+        { "NextAction": "prompt-p1", "Condition": { "Operator": "Equals", "Operands": ["P1"] } }
+      ],
+      "Transitions": { "NextAction": "prompt-p2" }
+    },
+    {
+      "Identifier": "prompt-p0",
+      "Type": "MessageParticipant",
+      "Parameters": {
+        "Text": "Emergency escalation for vehicle $.Attributes.vin. Driver $.Attributes.driverName requires immediate roadside assistance. Summary: $.Attributes.summary"
+      },
+      "Transitions": { "NextAction": "transfer-p0-queue" }
+    },
+    {
+      "Identifier": "prompt-p1",
+      "Type": "MessageParticipant",
+      "Parameters": {
+        "Text": "Urgent service escalation for vehicle $.Attributes.vin. Issue: $.Attributes.summary. DTC codes: $.Attributes.dtcCodes"
+      },
+      "Transitions": { "NextAction": "transfer-p1-queue" }
+    },
+    {
+      "Identifier": "prompt-p2",
+      "Type": "MessageParticipant",
+      "Parameters": {
+        "Text": "Service request for vehicle $.Attributes.vin. $.Attributes.summary"
+      },
+      "Transitions": { "NextAction": "transfer-p2-queue" }
+    },
+    {
+      "Identifier": "transfer-p0-queue",
+      "Type": "TransferToQueue",
+      "Parameters": { "QueueId": "${P0QueueArn}" },
+      "Transitions": {
+        "NextAction": "disconnect",
+        "Errors": [{ "NextAction": "disconnect", "ErrorType": "NoMatchingError" }]
+      }
+    },
+    {
+      "Identifier": "transfer-p1-queue",
+      "Type": "TransferToQueue",
+      "Parameters": { "QueueId": "${P1QueueArn}" },
+      "Transitions": {
+        "NextAction": "disconnect",
+        "Errors": [{ "NextAction": "disconnect", "ErrorType": "NoMatchingError" }]
+      }
+    },
+    {
+      "Identifier": "transfer-p2-queue",
+      "Type": "TransferToQueue",
+      "Parameters": { "QueueId": "${P2QueueArn}" },
+      "Transitions": {
+        "NextAction": "disconnect",
+        "Errors": [{ "NextAction": "disconnect", "ErrorType": "NoMatchingError" }]
+      }
+    },
+    {
+      "Identifier": "context-unavailable",
+      "Type": "MessageParticipant",
+      "Parameters": {
+        "Text": "A vehicle service escalation has been received but context could not be loaded. Routing to general support."
+      },
+      "Transitions": { "NextAction": "transfer-p2-queue" }
+    },
+    {
+      "Identifier": "disconnect",
+      "Type": "DisconnectParticipant",
+      "Parameters": {},
+      "Transitions": {}
+    }
+  ]
+}

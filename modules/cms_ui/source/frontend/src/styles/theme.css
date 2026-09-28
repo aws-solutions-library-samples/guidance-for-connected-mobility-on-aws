@@ -1,0 +1,17 @@
+/* Utility classes for theme-aware components */
+
+body {
+  background-color: var(--color-background-layout-main-5ilwcb, #ffffff);
+}
+
+.theme-log-viewer {
+  background-color: var(--color-background-code-editor-default, #161d26);
+  color: var(--color-text-code-editor-plain-text, #d1d5db);
+  font-family: monospace;
+  font-size: 11px;
+  padding: 8px;
+  border-radius: 4px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}

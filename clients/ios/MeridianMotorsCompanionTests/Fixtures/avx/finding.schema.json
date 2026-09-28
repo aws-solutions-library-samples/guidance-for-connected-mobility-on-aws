@@ -1,0 +1,344 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:cvx:avx:finding:v1",
+  "title": "AVX Finding",
+  "description": "A Tier 2 agent finding. Exactly one scope field must be populated (see scope.$defs.oneOf). Spec source: specs/2026-09-18-avx-tier2-ios-cards-and-actions/spec.md § 'Cross-surface Action data model — canonical' including Contract Addenda D1–D2.",
+  "type": "object",
+  "required": [
+    "finding_id",
+    "finding_key",
+    "agent_id",
+    "agent_version",
+    "scope",
+    "severity",
+    "computed_at",
+    "expires_at",
+    "confidence",
+    "finding_kind",
+    "headline",
+    "detail",
+    "evidence",
+    "inputs_hash",
+    "tokens_used",
+    "cost_usd",
+    "audit_trail"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "finding_id": {
+      "type": "string",
+      "pattern": "^FIND-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "description": "Stable UUID. Preserved across in-place updates (Addendum D2). Format: FIND-{uuid}"
+    },
+    "finding_key": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 of canonicalised (agent_id, scope_field, scope_value, finding_kind). Stable identity of an open condition on a scope. The writer queries on this GSI to decide UpdateItem (persistent condition still open) vs PutItem (new condition). Addendum D2."
+    },
+    "agent_id": {
+      "type": "string",
+      "enum": [
+        "agent-2-vehicle-health",
+        "agent-1-lite-energy",
+        "agent-3-ownership-cost",
+        "agent-4-lite-concierge"
+      ],
+      "description": "Identifies the agent that produced this finding."
+    },
+    "agent_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semver string, pinned per artifact write."
+    },
+    "scope": {
+      "$ref": "#/$defs/scope",
+      "description": "Exactly one of {vin, owner_id, fleet_id, dealership_id, district_id} must be populated. Per-persona writer rule (Addendum D1): consumer/vehicle_owner personas use scope.vin; fleet_owner persona uses scope.fleet_id (one fleet-scoped Finding per finding_kind with per-VIN evidence[]); dealership_id/district_id reserved for Spec 2."
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["p0", "attention", "soon", "routine", "informational"],
+      "description": "Finding severity level."
+    },
+    "computed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp of when the finding was computed."
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp. computed_at + agent freshness TTL. Extended in place on re-emit (Addendum D2)."
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "description": "Agent-assigned confidence in the finding."
+    },
+    "finding_kind": {
+      "type": "string",
+      "enum": [
+        "health.tires",
+        "health.brakes",
+        "health.battery",
+        "health.diagnostics",
+        "energy.charging",
+        "energy.cost",
+        "coverage.warranty",
+        "coverage.recall",
+        "loyalty.points",
+        "loyalty.expiry",
+        "concierge.appointment",
+        "concierge.service"
+      ],
+      "description": "Categorises the finding. Spec 1a scope: health.*. Spec 1b appends energy.*, coverage.*, loyalty.*, concierge.*. health.diagnostics (spec 2026-09-25-avx-own-vehicle-findings) covers active fault codes outside tires, brakes and battery."
+    },
+    "headline": {
+      "type": "string",
+      "maxLength": 120,
+      "description": "Human-readable, LLM-generated summary. Max 120 chars."
+    },
+    "detail": {
+      "type": "string",
+      "description": "Markdown-formatted detail. LLM-generated, may embed evidence citations."
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/evidence_entry"
+      },
+      "description": "Evidence entries that support this finding. May be empty (absent-data scenario). For fleet_id-scoped Findings, each entry carries a per-entry 'vin' attribution field (Addendum D1)."
+    },
+    "inputs_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 of canonicalised input rows. ROLE (Addendum D2): retry-safety within a single agent execution attempt. Cross-run idempotency is finding_key-based. Updated in-place on re-emit."
+    },
+    "tokens_used": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Token count. 0 iff the deterministic fallback ran."
+    },
+    "cost_usd": {
+      "type": "number",
+      "minimum": 0.0,
+      "description": "Inference cost in USD. 0.0 iff the deterministic fallback ran."
+    },
+    "disclosure_txt": {
+      "type": "string",
+      "description": "Verbatim disclosure copy, populated only when the finding surfaces a monetary figure (parent PRD § M8). Not present for Spec 1a Agent 2 health findings."
+    },
+    "audit_trail": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding_audit_entry"
+      },
+      "description": "In-place update history. Appended on every UpdateItem (in-place re-emit) so persistence history is reconstructable from the Finding alone. Addendum D2."
+    }
+  },
+  "allOf": [
+    {
+      "$comment": "Addendum D1: fleet_id-scoped Finding must carry per-VIN evidence entries (minItems:1, each entry requires vin). The vin requirement sits under items, which JSON Schema evaluates vacuously on an empty array — minItems:1 is what makes the fleet-aggregation guarantee non-vacuous.",
+      "if": {
+        "properties": {
+          "scope": {
+            "required": ["fleet_id"]
+          }
+        },
+        "required": ["scope"]
+      },
+      "then": {
+        "properties": {
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "required": ["vin"],
+              "properties": {
+                "vin": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "$comment": "Contract Addendum C3 / security review S1 (contract v2.2): monetary finding_kind values MUST carry non-empty disclosure_txt. Parent PRD § M8, § M14 require verbatim disclosure copy on monetary output. Spec 1a Agent 2 emits no monetary Findings so this if/then never fires in Spec 1a; Spec 1b Agent 3 inherits this schema by reference and will produce findings where finding_kind ∈ {coverage.warranty, coverage.recall, energy.cost, loyalty.points, loyalty.expiry}. A monetary Finding lacking disclosure_txt would validate silently without this guard — the same class of defect as the D5 failure_kind gap in v1 (declared but not bound). The guard is cheapest to add now because Spec 1b re-freezing mid-flight breaks byte-identity for downstream inheritors.",
+      "if": {
+        "properties": {
+          "finding_kind": {
+            "enum": [
+              "coverage.warranty",
+              "coverage.recall",
+              "energy.cost",
+              "loyalty.points",
+              "loyalty.expiry"
+            ]
+          }
+        },
+        "required": ["finding_kind"]
+      },
+      "then": {
+        "required": ["disclosure_txt"],
+        "properties": {
+          "disclosure_txt": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "scope": {
+      "type": "object",
+      "description": "Finding scope. Exactly one field must be populated (enforced by oneOf). A Finding with zero or two-or-more scope fields is a schema bug.",
+      "properties": {
+        "vin": {
+          "type": "string",
+          "description": "Vehicle-scoped finding."
+        },
+        "owner_id": {
+          "type": "string",
+          "description": "Owner-scoped finding."
+        },
+        "fleet_id": {
+          "type": "string",
+          "description": "Fleet-scoped finding. Agent 2 fleet_owner persona writes one per (fleet_id, finding_kind) with per-VIN evidence entries (Addendum D1)."
+        },
+        "dealership_id": {
+          "type": "string",
+          "description": "Dealership-scoped finding. Populated by Spec 2 writers."
+        },
+        "district_id": {
+          "type": "string",
+          "description": "District-scoped finding. Populated by Spec 2 writers."
+        }
+      },
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": ["vin"],
+          "properties": {
+            "vin": { "type": "string" },
+            "owner_id": { "not": {} },
+            "fleet_id": { "not": {} },
+            "dealership_id": { "not": {} },
+            "district_id": { "not": {} }
+          }
+        },
+        {
+          "required": ["owner_id"],
+          "properties": {
+            "vin": { "not": {} },
+            "owner_id": { "type": "string" },
+            "fleet_id": { "not": {} },
+            "dealership_id": { "not": {} },
+            "district_id": { "not": {} }
+          }
+        },
+        {
+          "required": ["fleet_id"],
+          "properties": {
+            "vin": { "not": {} },
+            "owner_id": { "not": {} },
+            "fleet_id": { "type": "string" },
+            "dealership_id": { "not": {} },
+            "district_id": { "not": {} }
+          }
+        },
+        {
+          "required": ["dealership_id"],
+          "properties": {
+            "vin": { "not": {} },
+            "owner_id": { "not": {} },
+            "fleet_id": { "not": {} },
+            "dealership_id": { "type": "string" },
+            "district_id": { "not": {} }
+          }
+        },
+        {
+          "required": ["district_id"],
+          "properties": {
+            "vin": { "not": {} },
+            "owner_id": { "not": {} },
+            "fleet_id": { "not": {} },
+            "dealership_id": { "not": {} },
+            "district_id": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "evidence_entry": {
+      "type": "object",
+      "required": ["kind", "source", "source_ref", "value", "computed_at", "provenance"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "description": "Category of evidence (e.g. 'adp.tires.prediction', 'dms.warranty.verdict')."
+        },
+        "source": {
+          "type": "string",
+          "description": "System that produced this evidence entry."
+        },
+        "source_ref": {
+          "type": "string",
+          "description": "Opaque reference to the source record (e.g. Athena query ID, DMS RO number)."
+        },
+        "value": {
+          "description": "The evidence value. Any JSON-serialisable type."
+        },
+        "computed_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO-8601 UTC timestamp of when this evidence was collected."
+        },
+        "provenance": {
+          "type": "string",
+          "enum": ["live", "mocked", "absent"],
+          "description": "Data provenance. 'mocked' required for Spec 1b Agent 3 mocked partner seams (parent PRD § M14). Spec 1a Agent 2 uses 'live' only, but 'mocked' must be an accepted value."
+        },
+        "vin": {
+          "type": "string",
+          "description": "Optional per-VIN attribution for fleet_id-scoped Findings. For fleet-scoped Findings, each evidence entry carries the specific VIN it pertains to so the iOS renderer can surface per-vehicle details. Addendum D1."
+        }
+      }
+    },
+    "finding_audit_entry": {
+      "type": "object",
+      "required": ["at", "agent_version", "inputs_hash", "from_expires_at", "to_expires_at"],
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO-8601 UTC timestamp of the in-place update."
+        },
+        "agent_version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "Agent version that wrote this update."
+        },
+        "inputs_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "inputs_hash of the update run that produced this entry."
+        },
+        "from_expires_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "expires_at before this update."
+        },
+        "to_expires_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "expires_at after this update (extended)."
+        },
+        "note": {
+          "type": "string",
+          "description": "Optional human-readable note for the update."
+        }
+      }
+    }
+  }
+}

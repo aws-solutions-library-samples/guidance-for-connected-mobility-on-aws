@@ -1,0 +1,205 @@
+{
+  "manifest_version": "2.0.0",
+  "transform_type": "cloud_to_cloud",
+  "source_name": "grpc-streaming-sample",
+  "source_format": "json",
+  "description": "Sample manifest for a gRPC streaming OEM feed. Per-signal delivery — each message contains one signal with a typed payload. The connector decodes protobuf to JSON before writing to Kafka. Based on real-world gRPC feed service patterns.",
+
+  "connection": {
+    "type": "grpc_streaming"
+  },
+
+  "authentication": {
+    "type": "oauth2",
+    "credentials_secret_arn": "arn:aws:secretsmanager:REGION:ACCOUNT:secret:cms-dev-connector-grpc-sample",
+    "token_endpoint": "https://api.example.com/oauth2/token"
+  },
+
+  "vehicle_id_extraction": {
+    "strategy": "json_path",
+    "path": "shard_key",
+    "transform": "substring_after_last_slash"
+  },
+
+  "timestamp_field": "timestamp",
+  "timestamp_format": "iso8601",
+
+  "signal_mappings": [
+    {
+      "source_signal": "SPEED",
+      "cms_field": "speed",
+      "source_path": "speed",
+      "data_type": "float",
+      "unit_conversion": "mps_to_mph"
+    },
+    {
+      "source_signal": "ENGINE_SPEED",
+      "cms_field": "engineRPM",
+      "source_path": "engine_speed",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "ENGINE_COOLANT_TEMP",
+      "cms_field": "engineTemp",
+      "source_path": "coolant_temp",
+      "data_type": "float",
+      "unit_conversion": "C_to_F"
+    },
+    {
+      "source_signal": "ODOMETER",
+      "cms_field": "odometer",
+      "source_path": "odometer",
+      "data_type": "float",
+      "unit_conversion": "km_to_miles"
+    },
+    {
+      "source_signal": "FUEL_LEVEL",
+      "cms_field": "fuelLevel",
+      "source_path": "fuel_level",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "BATTERY_VOLTAGE",
+      "cms_field": "batteryVoltage",
+      "source_path": "battery_voltage",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "IGNITION_STATUS",
+      "cms_field": "ignitionOn",
+      "source_path": "ignition_status",
+      "data_type": "boolean",
+      "value_map": { "On": true, "Off": false, "Accessory": false, "Unknown": false }
+    },
+    {
+      "source_signal": "GEAR_LEVER_POSITION",
+      "cms_field": "gearPosition",
+      "source_path": "gear_position",
+      "data_type": "integer",
+      "value_map": {
+        "Park": 0, "Reverse": 1, "Neutral": 2, "Drive": 3,
+        "Sport": 4, "Low": 5, "Unknown": -1
+      }
+    },
+    {
+      "source_signal": "POSITION_LAT",
+      "cms_field": "lat",
+      "source_path": "latitude",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "POSITION_LNG",
+      "cms_field": "lng",
+      "source_path": "longitude",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "HEADING",
+      "cms_field": "heading",
+      "source_path": "heading",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "ACCELERATOR_PEDAL_POSITION",
+      "cms_field": "throttle",
+      "source_path": "accelerator_pedal_position",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "LATERAL_ACCELERATION",
+      "cms_field": "lateralG",
+      "source_path": "lateral_acceleration",
+      "data_type": "float",
+      "unit_conversion": "mps2_to_g"
+    },
+    {
+      "source_signal": "LONGITUDINAL_ACCELERATION",
+      "cms_field": "acceleration",
+      "source_path": "longitudinal_acceleration",
+      "data_type": "float",
+      "unit_conversion": "mps2_to_g"
+    },
+    {
+      "source_signal": "TIRE_PRESSURE_FL",
+      "cms_field": "tire_fl",
+      "source_path": "tire_pressure_fl",
+      "data_type": "float",
+      "unit_conversion": "kpa_to_psi"
+    },
+    {
+      "source_signal": "TIRE_PRESSURE_FR",
+      "cms_field": "tire_fr",
+      "source_path": "tire_pressure_fr",
+      "data_type": "float",
+      "unit_conversion": "kpa_to_psi"
+    },
+    {
+      "source_signal": "TIRE_PRESSURE_RL",
+      "cms_field": "tire_rl",
+      "source_path": "tire_pressure_rl",
+      "data_type": "float",
+      "unit_conversion": "kpa_to_psi"
+    },
+    {
+      "source_signal": "TIRE_PRESSURE_RR",
+      "cms_field": "tire_rr",
+      "source_path": "tire_pressure_rr",
+      "data_type": "float",
+      "unit_conversion": "kpa_to_psi"
+    },
+    {
+      "source_signal": "SEAT_BELT_STATUS",
+      "cms_field": "seatbeltStatus",
+      "source_path": "seatbelt_status",
+      "data_type": "boolean",
+      "value_map": { "Buckled": true, "Unbuckled": false, "Unknown": false }
+    },
+    {
+      "source_signal": "OIL_LIFE_REMAINING",
+      "cms_field": "oil_life",
+      "source_path": "oil_life_remaining",
+      "data_type": "float"
+    },
+    {
+      "source_signal": "TRACTION_CONTROL_STATUS",
+      "cms_field": "traction_control",
+      "source_path": "traction_control_status",
+      "data_type": "boolean",
+      "value_map": { "On": true, "Off": false, "Unknown": false }
+    },
+    {
+      "source_signal": "TOTAL_ENGINE_TIME",
+      "cms_field": "engine_hours_total",
+      "source_path": "total_engine_time_seconds",
+      "data_type": "float",
+      "conversion": {
+        "type": "divide",
+        "factor": 3600,
+        "comment": "Convert seconds to hours"
+      }
+    },
+    {
+      "source_signal": "XEV_BATTERY_STATE_OF_CHARGE",
+      "cms_field": "soc",
+      "source_path": "xev_battery_soc",
+      "data_type": "float"
+    }
+  ],
+
+  "validation": {
+    "required_fields": [],
+    "range_checks": [
+      { "field": "speed", "min": 0, "max": 200 },
+      { "field": "lat", "min": -90, "max": 90 },
+      { "field": "lng", "min": -180, "max": 180 },
+      { "field": "engineRPM", "min": 0, "max": 8000 }
+    ]
+  },
+
+  "metadata": {
+    "created_by": "sample",
+    "created_at": "2026-03-24T00:00:00Z",
+    "version": "1.0.0",
+    "description": "Sample gRPC streaming manifest. Per-signal delivery — each Kafka message contains one signal. The connector decodes protobuf and flattens compound types (TIRE_PRESSURE with wheel tags → 4 fields, ACCELERATION x/y → 2 fields, POSITION → lat/lng, SPEED → speed value). source_path values reflect the JSON keys AFTER connector decoding."
+  }
+}

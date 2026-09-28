@@ -1,0 +1,1 @@
+An error occurred (AccessDeniedException) when calling the StopTask operation: User: arn:... is not authorized to perform: ecs:StopTask

@@ -1,0 +1,31 @@
+# Test dependencies for services/simulation/tests/.
+#
+# Installed by .github/workflows/lint.yml trip-intent-contract job so the full
+# suite (406 tests) collects and runs cleanly, including TestCityKeySetCoupling.
+#
+# Why these three packages in addition to pytest?
+#   - boto3: realtime_telemetry_simulator.py does `import boto3` at module
+#     scope, so every test file that imports from it fails collection without it.
+#   - python-can: uds_dtc_responder.py does `import can` at module scope;
+#     can-isotp pulls in a stub `can` namespace that lacks BusABC, so
+#     python-can must be present to satisfy test_uds_responder_addressing.py.
+#   - can-isotp: uds_dtc_responder.py does `import isotp` at module scope.
+#
+# NOT included (no module-scope import reachable from the test collection path):
+#   - paho-mqtt: guarded by a try/except at realtime_telemetry_simulator.py:28
+#   - cantools: only imported inside can_encoder.py, which is loaded lazily
+#     inside an if-block at realtime_telemetry_simulator.py:3605
+#
+# Version pinning: exact versions per ~/.kiro/steering/dependency-versions.md.
+# Release dates (all > 7 days before 2026-09-21):
+#   pytest      9.0.2   — 2025-12-06
+#   boto3       1.43.2  — 2026-05-01
+#   python-can  4.6.1   — 2025-08-12
+#   can-isotp   2.0.7   — 2025-05-14
+#
+# These versions match the pinned requirements.txt in this directory (the
+# production image's exact dependency set), so no version conflict is possible.
+pytest==9.0.2
+boto3==1.43.2
+python-can==4.6.1
+can-isotp==2.0.7

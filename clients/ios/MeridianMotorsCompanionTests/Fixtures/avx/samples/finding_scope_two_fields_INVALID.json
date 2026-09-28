@@ -1,0 +1,22 @@
+{
+  "finding_id": "FIND-f6a7b8c9-d0e1-2345-fabc-45678901234f",
+  "finding_key": "f07a251d1258980febd8515810ea7fb6ce685238902317f92ef74553910595fd",
+  "agent_id": "agent-2-vehicle-health",
+  "agent_version": "1.0.0",
+  "scope": {
+    "vin": "1HGBH41JXMN109186",
+    "owner_id": "owner-usr-4a5b6c7d"
+  },
+  "severity": "routine",
+  "computed_at": "2026-09-18T02:00:00Z",
+  "expires_at": "2026-09-25T02:00:00Z",
+  "confidence": "low",
+  "finding_kind": "health.battery",
+  "headline": "This fixture has two scope fields and must fail validation",
+  "detail": "This document should never pass JSON Schema validation. If it does, the exactly-one-of scope invariant is broken.",
+  "evidence": [],
+  "inputs_hash": "c30de714d826f4f354fa7ebbb27582010213cdadefca4f00b77c4abf27099bb2",
+  "tokens_used": 0,
+  "cost_usd": 0.0,
+  "audit_trail": []
+}

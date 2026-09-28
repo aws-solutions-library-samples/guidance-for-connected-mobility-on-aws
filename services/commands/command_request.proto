@@ -1,0 +1,23 @@
+syntax = "proto3";
+option java_package = "com.amazonaws.iot.autobahn.schemas";
+package Aws.IoTFleetWise.Schemas.Commands;
+
+message CommandRequest {
+  string command_id = 16;
+  uint64 timeout_ms = 17;
+  oneof Command {
+    ActuatorCommand actuator_command = 18;
+  }
+  uint64 issued_timestamp_ms = 20;
+}
+
+message ActuatorCommand {
+  uint32 signal_id = 1;
+  string decoder_manifest_sync_id = 2;
+  oneof SignalValue {
+    double double_value = 3;
+    bool boolean_value = 4;
+    sint32 int32_value = 9;
+    string string_value = 14;
+  }
+}

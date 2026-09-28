@@ -1,0 +1,38 @@
+{
+  "finding_id": "FIND-a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "finding_key": "e3d71785c0a854b79f71bd239e2d15b63fa7ce38c8421cc1ead9529f4669bab0",
+  "agent_id": "agent-2-vehicle-health",
+  "agent_version": "1.0.0",
+  "scope": {
+    "vin": "1HGBH41JXMN109186"
+  },
+  "severity": "attention",
+  "computed_at": "2026-09-18T02:00:00Z",
+  "expires_at": "2026-09-25T02:00:00Z",
+  "confidence": "high",
+  "finding_kind": "health.tires",
+  "headline": "Left front tire pressure 18% below threshold — slow leak suspected",
+  "detail": "## Tire Pressure Analysis\n\nLeft front tire is at **28 PSI**, 18% below the recommended **34 PSI** threshold for your 2023 Meridian EV-7.\n\n**Evidence**: ADP tire prediction model flagged slow leak pattern over the past 14 days (confidence: high). No sudden loss — consistent ~0.3 PSI/day decline.\n\n**Recommended action**: Schedule a tire inspection within 7 days.",
+  "evidence": [
+    {
+      "kind": "adp.tires.prediction",
+      "source": "adp-staging",
+      "source_ref": "athena-query-K7QIFGDP27",
+      "value": {
+        "vin": "1HGBH41JXMN109186",
+        "position": "front_left",
+        "current_pressure_psi": 28.1,
+        "threshold_psi": 34.0,
+        "deviation_pct": -17.35,
+        "trend": "slow_leak",
+        "days_to_threshold": 8
+      },
+      "computed_at": "2026-09-18T02:00:00Z",
+      "provenance": "live"
+    }
+  ],
+  "inputs_hash": "049fab714fa0ed1be665a633770cc46f996f4161700a9c27b5c447b3ee72cc36",
+  "tokens_used": 847,
+  "cost_usd": 0.00423,
+  "audit_trail": []
+}

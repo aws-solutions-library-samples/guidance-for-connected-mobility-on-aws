@@ -1,0 +1,39 @@
+{
+  "action_id": "AVX-ACT-d4e5f6a7-b8c9-0123-defa-23456789012f",
+  "finding_id": "FIND-b2c3d4e5-f6a7-8901-bcde-f12345678901",
+  "created_by": "owner-usr-4a5b6c7d",
+  "created_at": "2026-09-18T11:00:00Z",
+  "updated_at": "2026-09-18T11:00:00Z",
+  "target_system": "ios-owner",
+  "target_ref": "apns-msg-e5f6a7b8-c9d0-1234-efab-34567890123f",
+  "status": "completed",
+  "action_kind": "acknowledge_only",
+  "parameters": {
+    "notification_category": "service",
+    "dismiss_reason": "user_acknowledged"
+  },
+  "evidence": [
+    {
+      "kind": "adp.brakes.wear",
+      "source": "adp-staging",
+      "source_ref": "athena-query-JBMBFVU2K9",
+      "value": {
+        "vin": "2T1BUHE2XEC020374",
+        "position": "front",
+        "wear_pct": 35,
+        "estimated_km_remaining": 8000
+      },
+      "computed_at": "2026-09-18T02:20:00Z",
+      "provenance": "live"
+    }
+  ],
+  "audit_trail": [
+    {
+      "at": "2026-09-18T11:00:00Z",
+      "by": "owner-usr-4a5b6c7d",
+      "from_status": "pending_execution",
+      "to_status": "completed",
+      "note": "Owner dismissed iOS card"
+    }
+  ]
+}

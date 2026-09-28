@@ -1,0 +1,265 @@
+{
+  "_do_not_edit": "Generated artifact. Regenerate with `cd services && python3 -m _shared.export_verdict_fixtures --write`. Hand edits are reverted by the staleness guard in services/_shared/tests/test_export_verdict_fixtures.py.",
+  "_generated_by": "services/_shared/export_verdict_fixtures.py",
+  "_verdict_source_meaning": {
+    "presentation_only": "no payload can produce this verdict for this routine (see EXPECTED_UNREACHABLE). Assert banner presentation only, never that this result yields this verdict.",
+    "python": "result was run through the schema's verdict_from_result and this is the verdict it returned. Safe to assert payload -> verdict."
+  },
+  "artifact_version": 1,
+  "fixtures": [
+    {
+      "renderer_hint": "kv_grid",
+      "result": {
+        "cycles_expected": 6,
+        "cycles_observed": 6
+      },
+      "routine_id": "abs_pump_cycle",
+      "schema_version": 1,
+      "verdict": "in_spec",
+      "verdict_source": "python"
+    },
+    {
+      "renderer_hint": "kv_grid",
+      "result": {
+        "cycles_expected": 6,
+        "cycles_observed": 6
+      },
+      "routine_id": "abs_pump_cycle",
+      "schema_version": 1,
+      "verdict": "marginal",
+      "verdict_source": "presentation_only"
+    },
+    {
+      "renderer_hint": "kv_grid",
+      "result": {
+        "cycles_expected": 6,
+        "cycles_observed": 4
+      },
+      "routine_id": "abs_pump_cycle",
+      "schema_version": 1,
+      "verdict": "out_of_spec",
+      "verdict_source": "python"
+    },
+    {
+      "renderer_hint": "table",
+      "result": {
+        "cell_voltages": [
+          3.702,
+          3.701,
+          3.703,
+          3.7
+        ],
+        "max_delta_mv": 3.0
+      },
+      "routine_id": "cell_balance_check",
+      "schema_version": 1,
+      "verdict": "in_spec",
+      "verdict_source": "python"
+    },
+    {
+      "renderer_hint": "table",
+      "result": {
+        "cell_voltages": [
+          3.724,
+          3.69,
+          3.705,
+          3.699
+        ],
+        "max_delta_mv": 34.0
+      },
+      "routine_id": "cell_balance_check",
+      "schema_version": 1,
+      "verdict": "marginal",
+      "verdict_source": "python"
+    },
+    {
+      "renderer_hint": "table",
+      "result": {
+        "cell_voltages": [
+          3.78,
+          3.661,
+          3.704,
+          3.698
+        ],
+        "max_delta_mv": 119.0
+      },
+      "routine_id": "cell_balance_check",
+      "schema_version": 1,
+      "verdict": "out_of_spec",
+      "verdict_source": "python"
+    },
+    {
+      "renderer_hint": "kv_grid",
+      "result": {
+        "leak_rate_ccm": 0.12,
+        "system_pressure_kpa": -14.0
+      },
+      "routine_id": "evap_leak_test",
+      "schema_version": 1,
+      "verdict": "in_spec",
+      "verdict_source": "python"
+    },
+    {
+      "renderer_hint": "kv_grid",
+      "result": {
+        "leak_rate_ccm": 0.9,
+        "system_pressure_kpa": -13.1
+      },
+      "routine_id": "evap_leak_test",
+      "schema_version": 1,
+      "verdict": "marginal",
+      "verdict_source": "python"
+    },
+    {
+      "renderer_hint": "kv_grid",
+      "result": {
+        "leak_rate_ccm": 2.4,
+        "system_pressure_kpa": -10.9
+      },
+      "routine_id": "evap_leak_test",
+      "schema_version": 1,
+      "verdict": "out_of_spec",
+      "verdict_source": "python"
+    },
+    {
+      "renderer_hint": "list",
+      "result": {
+        "ambient_lux": 340,
+        "lamps": [
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok"
+        ]
+      },
+      "routine_id": "lamp_self_check",
+      "schema_version": 1,
+      "verdict": "in_spec",
+      "verdict_source": "python"
+    },
+    {
+      "renderer_hint": "list",
+      "result": {
+        "ambient_lux": 12,
+        "lamps": [
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "flicker",
+          "ok",
+          "ok"
+        ]
+      },
+      "routine_id": "lamp_self_check",
+      "schema_version": 1,
+      "verdict": "marginal",
+      "verdict_source": "python"
+    },
+    {
+      "renderer_hint": "list",
+      "result": {
+        "ambient_lux": 412,
+        "lamps": [
+          "ok",
+          "ok",
+          "open_circuit",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok"
+        ]
+      },
+      "routine_id": "lamp_self_check",
+      "schema_version": 1,
+      "verdict": "out_of_spec",
+      "verdict_source": "python"
+    },
+    {
+      "renderer_hint": "kv_grid",
+      "result": {
+        "bank1_upstream_response_ms": 62,
+        "threshold_ms": 100
+      },
+      "routine_id": "o2_heater_check",
+      "schema_version": 1,
+      "verdict": "in_spec",
+      "verdict_source": "python"
+    },
+    {
+      "renderer_hint": "kv_grid",
+      "result": {
+        "bank1_upstream_response_ms": 110,
+        "threshold_ms": 100
+      },
+      "routine_id": "o2_heater_check",
+      "schema_version": 1,
+      "verdict": "marginal",
+      "verdict_source": "python"
+    },
+    {
+      "renderer_hint": "kv_grid",
+      "result": {
+        "bank1_upstream_response_ms": 145,
+        "threshold_ms": 100
+      },
+      "routine_id": "o2_heater_check",
+      "schema_version": 1,
+      "verdict": "out_of_spec",
+      "verdict_source": "python"
+    },
+    {
+      "renderer_hint": "kv_grid",
+      "result": {
+        "isolation_resistance_mohm": 240.0,
+        "threshold_mohm": 100.0
+      },
+      "routine_id": "pack_isolation_test",
+      "schema_version": 1,
+      "verdict": "in_spec",
+      "verdict_source": "python"
+    },
+    {
+      "renderer_hint": "kv_grid",
+      "result": {
+        "isolation_resistance_mohm": 108.0,
+        "threshold_mohm": 100.0
+      },
+      "routine_id": "pack_isolation_test",
+      "schema_version": 1,
+      "verdict": "marginal",
+      "verdict_source": "python"
+    },
+    {
+      "renderer_hint": "kv_grid",
+      "result": {
+        "isolation_resistance_mohm": 61.0,
+        "threshold_mohm": 100.0
+      },
+      "routine_id": "pack_isolation_test",
+      "schema_version": 1,
+      "verdict": "out_of_spec",
+      "verdict_source": "python"
+    }
+  ],
+  "verdict_presentation": {
+    "in_spec": {
+      "indicator_type": "success",
+      "label": "Check passed"
+    },
+    "marginal": {
+      "indicator_type": "warning",
+      "label": "Reading within tolerance — monitor"
+    },
+    "out_of_spec": {
+      "indicator_type": "error",
+      "label": "Reading outside tolerance — repair action required"
+    }
+  }
+}

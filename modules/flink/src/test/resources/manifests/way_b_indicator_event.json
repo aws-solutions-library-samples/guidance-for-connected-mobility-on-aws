@@ -1,0 +1,20 @@
+{
+  "typedData": {
+    "@type": "type.googleapis.com/oem1.ext.telemetry.event.IndicatorEvent",
+    "value": {
+      "metrics": [
+        {
+          "indicatorValue": {"wellKnownIndicator": "SEAT_BELT_UNFASTENED"},
+          "metrics": [
+            {"dtcValue": {"rawValue": "P0420"}}
+          ],
+          "tags": [{"name": "SEVERITY", "value": "HIGH"}]
+        }
+      ]
+    }
+  },
+  "shard_key": "aui:asset:vehicle/vin-1FDNF7AN3SDF02130",
+  "timestamp": "2026-06-04T20:37:04.611Z",
+  "oem_source": "oem1",
+  "reference_hex": "0801108bc9a7a007"
+}

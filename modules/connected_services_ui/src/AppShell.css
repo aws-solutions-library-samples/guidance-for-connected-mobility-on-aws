@@ -1,0 +1,95 @@
+/*
+ * AppShell.css — Connected Services portal shell-level layout rules.
+ *
+ * Spec: .kiro/specs/2026-09-04-cms-connected-services-portal-v2/spec.md T3.3, D9
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * This file is the ONE stylesheet explicitly exempt from the .cs-header scoping
+ * rule enforced by cssScoped.test.ts (SHELL_SCOPE_EXEMPT set).
+ *
+ * Reason: shell rules target document-level elements (#h, body, html) and
+ * Cloudscape's generated class names. These rules CANNOT be scoped to .cs-header
+ * because they establish the layout frame that .cs-header lives inside.
+ *
+ * ## Sticky #h — NOT fixed, no spacer div
+ *
+ * The top bar is `position: sticky; top: 0` NOT `position: fixed`.
+ *
+ * `fixed` removes the element from flow, so AppLayout's content area starts
+ * at y=0 and the content renders UNDER the top bar unless a spacer pushes it
+ * down. DMS's round-1 defect was exactly this: fixed + no spacer meant the
+ * dark banner appeared under the top bar, invisible. When a spacer was added
+ * the banner appeared but left a 56px light strip above it.
+ *
+ * `sticky` keeps #h in flow. AppLayout's `headerSelector="#h"` reports its
+ * height so the sticky-scroll offsets are correct. No spacer div is needed,
+ * and none must be added.
+ *
+ * ## AppLayout nav transparency
+ *
+ * The side-navigation background from Cloudscape defaults to an opaque tile
+ * that covers the left edge of the layout. This is correct — no override needed.
+ *
+ * ## Body overflow containment
+ *
+ * overflow-x: hidden prevents horizontal scrollbars if a child element
+ * accidentally overflows due to the negative-margin technique in PageHeader.css.
+ */
+
+/* ── Top bar: sticky, no spacer ─────────────────────────────────────────────── */
+#h {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  /*
+   * Intentionally no spacer div. AppLayout.headerSelector="#h" reports
+   * the header height for scroll-offset calculations. The sticky element
+   * stays in flow, so AppLayout's top edge naturally sits below #h.
+   */
+}
+
+/* ── Body + html overflow containment ───────────────────────────────────────── */
+body,
+html {
+  overflow-x: hidden;
+}
+
+
+/* ── Top-nav / page-banner seam ───────────────────────────────────────────── */
+/*
+ * Cloudscape's TopNavigation paints a light divider along its bottom edge:
+ *
+ *   .awsui_top-navigation_<hash> {
+ *     border-block-end: var(--border-divider-section-width-uwo8my, 1px)
+ *                       solid var(--color-border-divider-default-0de9c8, #c6c6cd);
+ *   }
+ *
+ * The CMS portal uses the same component and shows no such line, which initially
+ * suggested CMS overrides it. It does not — CMS has no top-navigation border rule
+ * anywhere. The line is simply invisible there, because CMS's content below the nav is
+ * light and #c6c6cd against a light background reads as nothing. This portal puts a dark
+ * banner (#161d26) directly beneath it, so the same 1px divider reads as a gray seam.
+ *
+ * Neutralising it by making the border transparent rather than zero-width: with the
+ * default `background-clip: border-box`, a transparent border reveals the element's own
+ * background, so the nav simply appears 1px taller and the seam disappears. Setting
+ * `border-block-end: none` would instead shift every subsequent element up by 1px.
+ *
+ * On the selector, and why it differs from the rules removed from PageHeader.css:
+ *
+ *   - `[class*="awsui_top-navigation"]` matches ANY build hash, so a Cloudscape upgrade
+ *     that renumbers `k5dlb_1h7ee_141` does not silently orphan this rule. The removed
+ *     PageHeader rules hard-coded full hashed names, which is the difference between
+ *     hash-tolerant and hash-dependent.
+ *   - Scoped under `#h`, so it cannot reach any other Cloudscape surface.
+ *   - `!important` is needed because Cloudscape's own rule carries `:not(#\9)`, an
+ *     ID-level specificity boost. The failure mode if the class is ever renamed is that
+ *     the gray line comes back — visible, cosmetic, and obvious on sight. That is an
+ *     acceptable direction to fail in; the geometry-affecting `!important` rules removed
+ *     from PageHeader.css failed toward a banner bleeding into the nav panel, which is
+ *     not.
+ */
+#h [class*="awsui_top-navigation"] {
+  border-block-end-color: transparent !important;
+}

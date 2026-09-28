@@ -1,0 +1,54 @@
+{
+  "finding_id": "FIND-c3d4e5f6-a7b8-9012-cdef-123456789012",
+  "finding_key": "996313eadf6513457bddd0968ed2914d9ec33bcff8000d5ffb9a399d82606d25",
+  "agent_id": "agent-2-vehicle-health",
+  "agent_version": "1.0.0",
+  "scope": {
+    "fleet_id": "fleet-meridian-001"
+  },
+  "severity": "attention",
+  "computed_at": "2026-09-18T02:40:00Z",
+  "expires_at": "2026-09-25T02:40:00Z",
+  "confidence": "high",
+  "finding_kind": "health.tires",
+  "headline": "2 vehicles in Meridian Fleet 001 have tire pressure below threshold",
+  "detail": "## Fleet Tire Pressure — Meridian Fleet 001\n\n**2 of 5 active vehicles** have tire pressure below threshold.\n\n- **1HGBH41JXMN109186**: Left front 28 PSI (threshold 34 PSI) — slow leak suspected\n- **2T1BUHE2XEC020374**: Right rear 29 PSI (threshold 34 PSI) — gradual wear\n\nSchedule inspection for both within 7 days.",
+  "evidence": [
+    {
+      "kind": "adp.tires.prediction",
+      "source": "adp-staging",
+      "source_ref": "athena-query-K7QIFGDP27",
+      "value": {
+        "position": "front_left",
+        "current_pressure_psi": 28.1,
+        "threshold_psi": 34.0,
+        "deviation_pct": -17.35,
+        "trend": "slow_leak",
+        "days_to_threshold": 8
+      },
+      "computed_at": "2026-09-18T02:40:00Z",
+      "provenance": "live",
+      "vin": "1HGBH41JXMN109186"
+    },
+    {
+      "kind": "adp.tires.prediction",
+      "source": "adp-staging",
+      "source_ref": "athena-query-K7QIFGDP27",
+      "value": {
+        "position": "rear_right",
+        "current_pressure_psi": 29.2,
+        "threshold_psi": 34.0,
+        "deviation_pct": -14.12,
+        "trend": "gradual_wear",
+        "days_to_threshold": 15
+      },
+      "computed_at": "2026-09-18T02:40:00Z",
+      "provenance": "live",
+      "vin": "2T1BUHE2XEC020374"
+    }
+  ],
+  "inputs_hash": "e2ca7a832403457d7e586a4e60ddfcad6108be8987bcd4c9cba32c80b794979f",
+  "tokens_used": 1124,
+  "cost_usd": 0.00562,
+  "audit_trail": []
+}

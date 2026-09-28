@@ -1,0 +1,117 @@
+{
+  "admitted_by": {
+    "FIND-38a2ff0d-02f5-4335-8e7f-74a1334f679b": [
+      "fleet_driver"
+    ],
+    "FIND-3e0b6b62-cbb3-4fd7-a0da-ad4fb3289516": [
+      "fleet_driver"
+    ]
+  },
+  "computed_at": "2026-09-26T20:24:54Z",
+  "findings": [
+    {
+      "agent_id": "agent-2-vehicle-health",
+      "agent_version": "0.1.0",
+      "audit_trail": [
+        {
+          "agent_version": "0.1.0",
+          "at": "2026-09-24T19:47:28Z",
+          "from_expires_at": "2026-10-01T14:07:55Z",
+          "inputs_hash": "16f4cc83e8421b41b179983c512d04fb055b9272a6169f660347b964f5afc45e",
+          "to_expires_at": "2026-10-02T19:47:28Z"
+        }
+      ],
+      "computed_at": "2026-09-24T19:47:28Z",
+      "confidence": "high",
+      "cost_usd": 0.043029,
+      "detail": "Brake service on 2018-04-01 was completed (outcome: 'resolved'). DTC C0161 (brake pressure) was recorded and addressed during this service. DTC C0266 was recorded. DTC C0265 was recorded.",
+      "evidence": [
+        {
+          "computed_at": "2026-09-24T19:47:28Z",
+          "kind": "adp.brakes.outcome",
+          "provenance": "live",
+          "source": "adp.brakes.outcome",
+          "source_ref": "agent-2-health-run",
+          "value": "resolved"
+        },
+        {
+          "computed_at": "2026-09-24T19:47:28Z",
+          "kind": "adp.brakes.service_date",
+          "provenance": "live",
+          "source": "adp.brakes.service_date",
+          "source_ref": "agent-2-health-run",
+          "value": "2018-04-01"
+        },
+        {
+          "computed_at": "2026-09-24T19:47:28Z",
+          "kind": "adp.brakes.dtc_codes",
+          "provenance": "live",
+          "source": "adp.brakes.dtc_codes",
+          "source_ref": "agent-2-health-run",
+          "value": "['C0266', 'C0265', 'C0161']"
+        }
+      ],
+      "expires_at": "2026-10-02T19:47:28Z",
+      "finding_id": "FIND-38a2ff0d-02f5-4335-8e7f-74a1334f679b",
+      "finding_key": "78b52766342e186dcacdec3c53cc4f2a395265959e9818073d3fed9af1003edf",
+      "finding_kind": "health.brakes",
+      "headline": "Brake service on 2018-04-01 was completed (outcome: 'resolved'). DTC C0161 (brake pressure) was recorded and addressed d",
+      "inputs_hash": "16f4cc83e8421b41b179983c512d04fb055b9272a6169f660347b964f5afc45e",
+      "scope": {
+        "vin": "DEMO0000000000002"
+      },
+      "severity": "soon",
+      "tokens_used": 8999
+    },
+    {
+      "agent_id": "agent-2-vehicle-health",
+      "agent_version": "0.1.0",
+      "audit_trail": [
+        {
+          "agent_version": "0.1.0",
+          "at": "2026-09-25T11:41:49Z",
+          "from_expires_at": "2026-10-01T14:07:14Z",
+          "inputs_hash": "a5f57ca6983eeb1171061fd88388f54cfcec082d950a8d6194ebbddcdb0f6003",
+          "to_expires_at": "2026-10-03T11:41:49Z"
+        }
+      ],
+      "computed_at": "2026-09-25T11:41:49Z",
+      "confidence": "high",
+      "cost_usd": 0.09192900000000001,
+      "detail": "Your battery is degrading normally for its age. ADP's assessment shows no signs of accelerated deterioration, and state-of-health remains well above the warranty floor. No action is needed at this time \u2014 continue with your regular service schedule.",
+      "evidence": [
+        {
+          "computed_at": "2026-09-25T11:41:49Z",
+          "kind": "adp.battery.health_pct",
+          "provenance": "live",
+          "source": "adp.battery.health_pct",
+          "source_ref": "agent-2-health-run",
+          "value": "99.92172235250038"
+        },
+        {
+          "computed_at": "2026-09-25T11:41:49Z",
+          "kind": "adp.battery.age_days",
+          "provenance": "live",
+          "source": "adp.battery.age_days",
+          "source_ref": "agent-2-health-run",
+          "value": "0"
+        }
+      ],
+      "expires_at": "2026-10-03T11:41:49Z",
+      "finding_id": "FIND-3e0b6b62-cbb3-4fd7-a0da-ad4fb3289516",
+      "finding_key": "46986195c161a07cd5b7a5960cf92c0c36c200310631dd3658a7c75b58d54301",
+      "finding_kind": "health.battery",
+      "headline": "Your battery is degrading normally for its age. ADP's assessment shows no signs of accelerated deterioration, and state-",
+      "inputs_hash": "a5f57ca6983eeb1171061fd88388f54cfcec082d950a8d6194ebbddcdb0f6003",
+      "scope": {
+        "vin": "DEMO0000000000002"
+      },
+      "severity": "routine",
+      "tokens_used": 19823
+    }
+  ],
+  "standings": [
+    "fleet_driver"
+  ],
+  "truncated": false
+}

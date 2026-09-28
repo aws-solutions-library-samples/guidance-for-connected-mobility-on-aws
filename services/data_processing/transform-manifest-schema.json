@@ -1,0 +1,348 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CMS Transform Manifest Schema",
+  "version": "2.2.0",
+  "description": "Schema for transformation manifests that normalize OEM telemetry to CMS Signal Catalog format. All cms_field values MUST match json_field in the signal catalog DynamoDB table.",
+
+  "type": "object",
+  "required": ["manifest_version", "transform_type", "source_name", "signal_mappings"],
+
+  "properties": {
+    "manifest_version": {
+      "type": "string",
+      "description": "Version of the transform manifest schema"
+    },
+
+    "transform_type": {
+      "type": "string",
+      "enum": ["cloud_to_cloud"],
+      "description": "Type of transformation. cloud_to_cloud for OEM API integrations."
+    },
+
+    "source_name": {
+      "type": "string",
+      "description": "Name of the data source (no OEM brand names in code — use generic identifiers)"
+    },
+
+    "source_format": {
+      "type": "string",
+      "enum": ["json"],
+      "description": "Format of source data. JSON only for cloud-to-cloud."
+    },
+
+    "connection": {
+      "type": "object",
+      "description": "How data arrives from the OEM",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["rest_polling", "grpc_streaming", "websocket_inbound"],
+          "description": "rest_polling: poll their API in a loop. grpc_streaming: long-lived gRPC stream. websocket_inbound: accept inbound WebSocket connections."
+        },
+        "polling_interval_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Polling interval (rest_polling only)"
+        }
+      }
+    },
+
+    "authentication": {
+      "type": "object",
+      "description": "Authentication configuration",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["oauth2", "api_key", "mtls"],
+          "description": "oauth2 for most OEMs. api_key for simple integrations. mtls for inbound WebSocket."
+        },
+        "credentials_secret_arn": {
+          "type": "string",
+          "description": "ARN of Secrets Manager secret containing credentials"
+        },
+        "token_endpoint": {
+          "type": "string",
+          "description": "OAuth2 token endpoint URL (oauth2 only)"
+        }
+      }
+    },
+
+    "vehicle_id_extraction": {
+      "type": "object",
+      "description": "How to extract the vehicle ID from the source payload",
+      "required": ["strategy", "path"],
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "enum": ["json_path", "direct"],
+          "description": "json_path: extract from nested path. direct: top-level field."
+        },
+        "path": {
+          "type": "string",
+          "description": "Dot-notation path to vehicle ID in source payload",
+          "example": "vehicleId"
+        },
+        "transform": {
+          "type": ["string", "null"],
+          "enum": ["substring_after_last_slash", "substring_after_last_colon", "aui_asset_resolve", null],
+          "description": "Optional post-extraction transform"
+        }
+      }
+    },
+
+    "timestamp_field": {
+      "type": "string",
+      "description": "Field name in source payload containing the timestamp. Used as fallback when timestamp.modem_field is absent.",
+      "example": "timestamp"
+    },
+
+    "timestamp_format": {
+      "type": "string",
+      "enum": ["iso8601", "epoch_seconds", "epoch_milliseconds"],
+      "description": "Format of the timestamp value"
+    },
+
+    "timestamp": {
+      "type": "object",
+      "description": "v2.1.0: Dual-source timestamp declaration. When present, primary determines canonical event time. Falls back to top-level timestamp_field if modem_field is absent.",
+      "properties": {
+        "modem_field": {
+          "type": "string",
+          "description": "JSONPath inside typed_data to the vehicle-side UTC timestamp (canonical event time)"
+        },
+        "ingestion_field": {
+          "type": "string",
+          "description": "Top-level field name for OEM-server receipt time"
+        },
+        "primary": {
+          "type": "string",
+          "enum": ["modem", "ingestion"],
+          "description": "Which timestamp is authoritative for canonical event time"
+        }
+      }
+    },
+
+    "message_type_routing": {
+      "type": "object",
+      "description": "v2.1.0: N-ary message routing rules. Replaces binary metric/event split. Missing → existing behavior preserved.",
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "Field path whose value is matched against the pattern lists"
+        },
+        "telemetry_patterns": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Substrings matched against the routing field value to classify as telemetry"
+        },
+        "event_patterns": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Substrings matched against the routing field value to classify as events"
+        },
+        "discard_patterns": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Substrings matched against the routing field value; matching messages are dropped. Missing → empty list (no discards)."
+        }
+      }
+    },
+
+    "event_mappings": {
+      "type": "array",
+      "description": "v2.1.0: Per-event-type normalization rules. Missing → no event routing (v2.0.0 behavior preserved).",
+      "items": {
+        "type": "object",
+        "required": ["source_event_type_url", "cms_event_type"],
+        "properties": {
+          "source_event_type_url": {
+            "type": "string",
+            "description": "Fully-qualified @type URL from the source protobuf Any (e.g. type.googleapis.com/...)"
+          },
+          "cms_event_type": {
+            "type": "string",
+            "description": "Canonical CMS event type emitted downstream"
+          },
+          "match": {
+            "type": "object",
+            "description": "Conditions that must all match for this mapping to apply. Supported predicates:\n  - Any key except 'stringLabelEndsWith': equality match on the resolved dotted path in typedData.value (or root).\n  - 'stringLabelEndsWith' (v2.2.0): typedData.value.stringLabel must end with the given string. Use for string_label TriggeredEvents (e.g. ':custom:vha-diagnostics-processed-event'). AND-semantics when combined with equality predicates.",
+            "properties": {
+              "stringLabelEndsWith": {
+                "type": "string",
+                "minLength": 1,
+                "description": "v2.2.0: Match when typedData.value.stringLabel ends with this suffix. For OEM1 custom events whose label includes a tenant UUID prefix (aui:event:<tenantId>:custom:<name>), suffix matching is the correct predicate shape."
+              }
+            },
+            "additionalProperties": { "type": "string" }
+          },
+          "extraction": {
+            "type": "object",
+            "description": "JSONPath expressions for extracting event fields from the source payload",
+            "additionalProperties": { "type": "string" }
+          },
+          "tag_aliases": {
+            "type": "object",
+            "description": "Mapping from canonical tag names to OEM-specific tag key strings",
+            "additionalProperties": { "type": "string" }
+          },
+          "severity_map": {
+            "type": "object",
+            "description": "Severity normalization rules",
+            "properties": {
+              "default": {
+                "type": "object",
+                "description": "Default passthrough mapping for severity strings",
+                "additionalProperties": { "type": "string" }
+              },
+              "rules": {
+                "type": "array",
+                "description": "Conditional overrides evaluated in order; first match wins",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "if": {
+                      "type": "object",
+                      "description": "Conditions (all must match)"
+                    },
+                    "then": {
+                      "type": "string",
+                      "description": "Output severity value when conditions match"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "uniqueness_key": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Extracted field names that together form the deduplication key for this event type"
+          }
+        }
+      }
+    },
+
+    "signal_mappings": {
+      "type": "array",
+      "description": "Array of signal transformation rules. cms_field values MUST match json_field in signal catalog.",
+      "items": {
+        "type": "object",
+        "required": ["cms_field", "source_path"],
+        "properties": {
+          "source_signal": {
+            "type": "string",
+            "description": "OEM signal name (for documentation/debugging)"
+          },
+          "cms_field": {
+            "type": "string",
+            "description": "Target field name — MUST match json_field in signal catalog"
+          },
+          "source_path": {
+            "type": "string",
+            "description": "Dot-notation path to value in source JSON payload"
+          },
+          "data_type": {
+            "type": "string",
+            "enum": ["integer", "float", "string", "boolean"],
+            "description": "Expected output data type"
+          },
+          "required": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether this signal must be present in every message"
+          },
+          "default_value": {
+            "description": "Default value if source field is missing"
+          },
+          "unit_conversion": {
+            "type": "string",
+            "enum": [
+              "mps_to_mph", "kph_to_mph", "km_to_miles",
+              "C_to_F",
+              "kpa_to_psi", "mbar_to_psi", "bar_to_psi",
+              "mps2_to_g",
+              "percent_100",
+              "seconds_to_hours"
+            ],
+            "description": "Named unit conversion. Use for standard conversions."
+          },
+          "conversion": {
+            "type": "object",
+            "description": "Custom conversion (use when named unit_conversion doesn't cover it)",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["multiply", "divide", "add", "subtract", "formula"]
+              },
+              "factor": { "type": "number" },
+              "offset": { "type": "number" },
+              "formula": {
+                "type": "string",
+                "description": "Custom formula using 'value' as variable",
+                "example": "value * 1.8 + 32"
+              }
+            }
+          },
+          "value_map": {
+            "type": "object",
+            "description": "Map source values to CMS values. Keys are source strings, values are CMS output.",
+            "examples": [
+              { "ON": true, "OFF": false },
+              { "P": 0, "R": 1, "N": 2, "D": 3 }
+            ]
+          }
+        }
+      }
+    },
+
+    "validation": {
+      "type": "object",
+      "description": "Validation rules for transformed output",
+      "properties": {
+        "required_fields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "cms_field values that must be present in output"
+        },
+        "range_checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "field": { "type": "string" },
+              "min": { "type": "number" },
+              "max": { "type": "number" }
+            }
+          }
+        }
+      }
+    },
+
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "created_by": { "type": ["string", "object"] },
+        "created_at": { "type": "string", "format": "date-time" },
+        "version": { "type": "string" },
+        "description": { "type": "string" },
+        "deferred_signals": {
+          "type": "array",
+          "description": "v2.1.0: OEM signals with no current catalog match, explicitly tracked rather than silently dropped.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "source_signal": { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          }
+        },
+        "subscription_tier": {
+          "type": "string",
+          "description": "v2.1.0: OEM subscription tier that determines which signals are available (e.g. Premium, Standard)."
+        }
+      }
+    }
+  }
+}

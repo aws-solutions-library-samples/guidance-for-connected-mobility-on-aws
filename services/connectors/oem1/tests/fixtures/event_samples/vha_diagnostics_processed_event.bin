@@ -1,0 +1,31 @@
+
+Uaui:event:00000000-0000-0000-0000-000000000000:custom:vha-diagnostics-processed-event"∏∏á—*◊
+6type.googleapis.com/autonomic.ext.event.TriggeredEventúUaui:event:00000000-0000-0000-0000-000000000000:custom:vha-diagnostics-processed-event"¬
+˜
+õj0ä@JB124D
+
+symptomKeyŒ
+customerActionKey|t
+Actionh
+fInspect the affected system and consult the vehicle service manual for recommended corrective actions.(
+
+Category
+Checks, Fluids & Filters
+
+Severity
+URGENTè
+	SymptomÅ
+A warning indicator is active due to a detected fault in the monitored system. Check system status and take appropriate action.:
+ALERT_TRACE_ID&
+$00000000-0000-0000-0000-0000000000010
+CloudArrivalTime
+2026-06-04T20:12:37.893Z1
+VHAReadTime 
+2026-06-04T20:12:39.877654058Z%
+Fleet Contract Status
+
+Contract"µ∏á—íA)*;
+/type.googleapis.com/google.protobuf.StringValue
+600E27¢
+	modem_utcJµ∏á—Z
+	modem_utcJµ∏á—

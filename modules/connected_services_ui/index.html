@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="Connected Services Portal" />
+    <title>Connected Services Portal</title>
+    <!--
+      runtime-config.js is deployed by ConnectedServicesUiStack via a separate
+      BucketDeployment with no-cache headers.  It sets window.runtimeConfig
+      at boot time with Cognito credentials, the API endpoint, and the callback
+      origin.  Reading from window in src/env.ts means none of these values are
+      baked into the Vite build artifact — a redeploy of only runtime-config.js
+      is sufficient to rotate credentials.
+
+      Spec: .kiro/specs/2026-09-03-cms-connected-services-portal/spec.md
+      Task: T3.1 constraint "Reads runtime-config.js at boot"
+      DMS lesson (F6): the stack read the context values but never emitted the
+        file — sign-in failed with "Value '' at 'clientId'" on a deployed site
+        that looked correct at synth.  This <script> tag is the UI side of that fix.
+    -->
+    <script src="/runtime-config.js"></script>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <script type="module" src="/src/index.tsx"></script>
+  </body>
+</html>

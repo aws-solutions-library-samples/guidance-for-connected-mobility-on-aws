@@ -1,0 +1,15 @@
+// AWS IoT FleetWise Checkin protobuf schema
+// FWE sends this on connect and periodically to report its current state
+syntax = "proto3";
+package Aws.IoTFleetWise.Schemas.CheckinMsg;
+option java_package = "com.cms.telemetry.proto";
+option java_outer_classname = "CheckinProto";
+
+message Checkin {
+    // List of document sync IDs the vehicle currently has
+    // (decoder manifest + collection scheme sync IDs)
+    repeated string document_sync_ids = 1;
+
+    // Timestamp of when checkin was generated (ms since epoch)
+    uint64 timestamp_ms_epoch = 2;
+}

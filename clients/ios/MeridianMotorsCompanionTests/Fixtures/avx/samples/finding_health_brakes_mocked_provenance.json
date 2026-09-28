@@ -1,0 +1,46 @@
+{
+  "finding_id": "FIND-b2c3d4e5-f6a7-8901-bcde-f12345678901",
+  "finding_key": "416b1eb8941f125a9a30430cce172a90b79ba7165f27b5d021731b8ca8e03206",
+  "agent_id": "agent-2-vehicle-health",
+  "agent_version": "1.0.0",
+  "scope": {
+    "vin": "2T1BUHE2XEC020374"
+  },
+  "severity": "soon",
+  "computed_at": "2026-09-18T02:20:00Z",
+  "expires_at": "2026-09-25T02:20:00Z",
+  "confidence": "medium",
+  "finding_kind": "health.brakes",
+  "headline": "Brake pad wear at 35% — service recommended within 30 days",
+  "detail": "## Brake Pad Status\n\nFront brake pads are at **35% wear** based on ADP sensor data. Recommended inspection within 30 days.\n\n**Note**: DMS warranty coverage data unavailable (partner seam mocked in staging); this finding is based on ADP telemetry only.",
+  "evidence": [
+    {
+      "kind": "adp.brakes.wear",
+      "source": "adp-staging",
+      "source_ref": "athena-query-JBMBFVU2K9",
+      "value": {
+        "vin": "2T1BUHE2XEC020374",
+        "position": "front",
+        "wear_pct": 35,
+        "estimated_km_remaining": 8000
+      },
+      "computed_at": "2026-09-18T02:20:00Z",
+      "provenance": "live"
+    },
+    {
+      "kind": "dms.warranty.brake_coverage",
+      "source": "dms-staging",
+      "source_ref": "mocked-stub-001",
+      "value": {
+        "covered": null,
+        "reason": "DMS warranty seam not yet live in Spec 1a; mocked for Spec 1b Agent 3 inheritance"
+      },
+      "computed_at": "2026-09-18T02:20:00Z",
+      "provenance": "mocked"
+    }
+  ],
+  "inputs_hash": "58782f94613940503bb932cb226cb239cfc1464a6cdf8697d38aacd72a3bbf7f",
+  "tokens_used": 0,
+  "cost_usd": 0.0,
+  "audit_trail": []
+}

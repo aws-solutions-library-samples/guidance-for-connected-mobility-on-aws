@@ -1,0 +1,31 @@
+{
+  "action_id": "AVX-ACT-a7b8c9d0-e1f2-3456-abcd-56789012345f",
+  "finding_id": "FIND-a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "created_by": "owner-usr-4a5b6c7d",
+  "created_at": "2026-09-18T14:00:00Z",
+  "updated_at": "2026-09-18T14:01:30Z",
+  "target_system": "dms",
+  "status": "declined",
+  "action_kind": "book_combined_visit",
+  "parameters": {
+    "preferred_date": "2026-10-01",
+    "dealership_id": "dlr-west-coast-001"
+  },
+  "evidence": [],
+  "audit_trail": [
+    {
+      "at": "2026-09-18T14:00:00Z",
+      "by": "owner-usr-4a5b6c7d",
+      "from_status": "pending_execution",
+      "to_status": "executed"
+    },
+    {
+      "at": "2026-09-18T14:01:30Z",
+      "by": "system-dms-executor",
+      "from_status": "executed",
+      "to_status": "declined",
+      "note": "DMS returned HTTP 422 — slot unavailable for requested date. Terminal 4xx, no retry.",
+      "failure_kind": "target_refused"
+    }
+  ]
+}

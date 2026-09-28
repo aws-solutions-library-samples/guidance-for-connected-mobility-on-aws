@@ -1,0 +1,72 @@
+{
+  "tenantId": "genericmoto-demo",
+  "version": "2026-07-21-01",
+  "status": "active",
+  "displayName": "GenericMoto Demo",
+  "segment": "oem",
+  "branding": {
+    "logoUrl": null,
+    "primaryColor": "#0E5F76",
+    "secondaryColor": "#F2A63B",
+    "fontFamily": null,
+    "mapStyle": null,
+    "greeting": {
+      "voice": "Welcome to GenericMoto.",
+      "chat": "Hi — I can help you find and configure a bike.",
+      "app": "GenericMoto"
+    }
+  },
+  "voice": null,
+  "features": {
+    "imageInput": false,
+    "agentAssistCoPilot": true,
+    "calendarSlotProposal": true,
+    "dmsBooking": false
+  },
+  "acquire": {
+    "catalogVersion": "genericmoto-2026-07",
+    "currency": "USD",
+    "currencySymbol": "$",
+    "vehicleCategoryLabel": "Bike",
+    "assetBaseUrl": "https://cvx-acquire-catalog-public.example.com/genericmoto-2026-07/",
+    "plants": [
+      {
+        "plantId": "meridian-plant-a",
+        "displayName": "Northern Assembly",
+        "city": "Springfield",
+        "region": "US"
+      },
+      {
+        "plantId": "meridian-plant-b",
+        "displayName": "Coastal Facility",
+        "city": "Portville",
+        "region": "US"
+      }
+    ],
+    "deliveryCadence": {
+      "orderPlacedToPayment": { "minHours": 0, "maxHours": 1 },
+      "paymentToAssignedToPlant": { "minHours": 6, "maxHours": 12 },
+      "assignedToPlantToSubAssembly": { "minHours": 24, "maxHours": 48 },
+      "subAssemblyToPaint": { "minHours": 48, "maxHours": 72 },
+      "paintToFinalAssembly": { "minHours": 24, "maxHours": 48 },
+      "finalAssemblyToQualityControl": { "minHours": 12, "maxHours": 24 },
+      "qualityControlToShipped": { "minHours": 24, "maxHours": 48 },
+      "shippedToAtDealer": { "minHours": 72, "maxHours": 168 },
+      "atDealerToReadyForDelivery": { "minHours": 24, "maxHours": 72 }
+    },
+    "financePartners": {
+      "primary": {
+        "partnerId": "meridian-financial",
+        "displayName": "Meridian Financial",
+        "kind": "captive"
+      },
+      "secondary": [
+        {
+          "partnerId": "regional-consumer-lending",
+          "displayName": "Regional Bank Consumer Lending",
+          "kind": "bank"
+        }
+      ]
+    }
+  }
+}
