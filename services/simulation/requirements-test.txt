@@ -25,7 +25,7 @@
 #
 # These versions match the pinned requirements.txt in this directory (the
 # production image's exact dependency set), so no version conflict is possible.
-pytest==9.0.2
+pytest==9.0.3
 boto3==1.43.2
 python-can==4.6.1
 can-isotp==2.0.7
